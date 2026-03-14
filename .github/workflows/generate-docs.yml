@@ -1,0 +1,108 @@
+name: FLG — Gerar Materiais do Cliente
+
+# ─────────────────────────────────────────────────────────────
+# Este workflow gera os materiais HTML do cliente automaticamente
+# quando um brief.md é adicionado ou atualizado no repositório.
+#
+# CONFIGURAÇÃO:
+#   1. Vá em Settings → Secrets and variables → Actions
+#   2. Adicione: ANTHROPIC_API_KEY (sua chave da API Anthropic)
+#
+# COMO USAR (colaborador):
+#   1. Crie a pasta: clients/nome-cliente/
+#   2. Adicione o brief.md preenchido
+#   3. Faça commit e push
+#   4. O workflow roda automaticamente e commita os HTMLs gerados
+# ─────────────────────────────────────────────────────────────
+
+on:
+  push:
+    paths:
+      - 'clients/**/brief.md'
+  workflow_dispatch:
+    inputs:
+      client_slug:
+        description: 'Slug do cliente (ex: gofit-novo)'
+        required: true
+        type: string
+      mode:
+        description: 'O que gerar'
+        required: true
+        type: choice
+        options:
+          - ambos
+          - slides
+          - documento
+        default: ambos
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    name: Gerar materiais
+
+    steps:
+      - name: Checkout repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar dependências
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y jq
+
+      - name: Identificar cliente alterado
+        id: identify
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "slug=${{ inputs.client_slug }}" >> $GITHUB_OUTPUT
+            echo "mode=${{ inputs.mode }}" >> $GITHUB_OUTPUT
+          else
+            # Detectar qual brief foi modificado
+            CHANGED=$(git diff --name-only HEAD~1 HEAD | grep 'brief.md' | head -1)
+            SLUG=$(echo "$CHANGED" | sed 's|clients/||' | sed 's|/brief.md||')
+            echo "slug=$SLUG" >> $GITHUB_OUTPUT
+            echo "mode=ambos" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verificar brief.md existe
+        run: |
+          SLUG="${{ steps.identify.outputs.slug }}"
+          if [ ! -f "clients/$SLUG/brief.md" ]; then
+            echo "❌ brief.md não encontrado em clients/$SLUG/"
+            exit 1
+          fi
+          echo "✅ Brief encontrado para cliente: $SLUG"
+
+      - name: Tornar scripts executáveis
+        run: chmod +x scripts/*.sh
+
+      - name: Gerar materiais com Claude API
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          SLUG="${{ steps.identify.outputs.slug }}"
+          MODE="${{ steps.identify.outputs.mode }}"
+
+          echo "🚀 Gerando materiais para: $SLUG (modo: $MODE)"
+          ./scripts/generate-ai.sh "$SLUG" "$MODE"
+
+      - name: Commit dos materiais gerados
+        run: |
+          SLUG="${{ steps.identify.outputs.slug }}"
+          git config user.name "FLG Bot"
+          git config user.email "bot@foundersled.com.br"
+          git add "clients/$SLUG/"
+          git diff --staged --quiet && echo "Sem mudanças para commitar" || \
+            git commit -m "feat($SLUG): materiais gerados via IA [skip ci]"
+          git push
+
+      - name: Resumo
+        run: |
+          SLUG="${{ steps.identify.outputs.slug }}"
+          echo "## ✅ Materiais gerados com sucesso!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Cliente:** $SLUG" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Arquivos gerados:**" >> $GITHUB_STEP_SUMMARY
+          ls clients/$SLUG/*.html 2>/dev/null | while read f; do
+            echo "- \`$f\`" >> $GITHUB_STEP_SUMMARY
+          done

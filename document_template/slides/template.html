@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  FLG — TEMPLATE DE APRESENTAÇÃO (SLIDES)                           ║
+  ║  Founders Led Growth · Pedro Aranda                                 ║
+  ╠══════════════════════════════════════════════════════════════════════╣
+  ║  COMO USAR:                                                         ║
+  ║  1. Substitua todos os {{PLACEHOLDERS}} pelos dados do cliente      ║
+  ║  2. Adicione/remova slides conforme necessário                      ║
+  ║  3. Para imagens: siga os comentários "🖼 SLOT DE IMAGEM"           ║
+  ║  4. Use ./scripts/new-client.sh para automatizar esse processo      ║
+  ╠══════════════════════════════════════════════════════════════════════╣
+  ║  PLACEHOLDERS:                                                      ║
+  ║  {{EMPRESA}}      — Nome da empresa do cliente (ex: "Go Fit")       ║
+  ║  {{CLIENTES}}     — Nome(s) do(s) cliente(s) (ex: "Rosane & Ant.")  ║
+  ║  {{ESTRATEGISTA}} — Estrategista FLG (ex: "Pedro Aranda")           ║
+  ║  {{ANO}}          — Ano (ex: "2026")                                ║
+  ║  {{DATA}}         — Mês e ano (ex: "Março 2026")                    ║
+  ║  {{SETOR}}        — Setor/indústria (ex: "Academia / Fitness")      ║
+  ║  {{TITULO}}       — Título principal da apresentação                ║
+  ║  {{SUBTITULO}}    — Subtítulo / descrição                           ║
+  ║  {{TOTAL}}        — Total de slides (atualizar ao final)            ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+  <title>{{EMPRESA}} × FLG — Apresentação Estratégica</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,700&family=Poppins:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    /* ─── RESET & BASE ─── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ─── DESIGN SYSTEM FLG ─── */
+    :root {
+      --gold-light: #F5D68A;
+      --gold-mid: #C9A84C;
+      --gold-dark: #8B6914;
+      --gold-grad: linear-gradient(135deg, #F5D68A 0%, #C9A84C 50%, #8B6914 100%);
+      --gold-grad2: linear-gradient(90deg, #8B6914 0%, #C9A84C 40%, #F5D68A 70%, #C9A84C 100%);
+      --black: #080808;
+      --black2: #0f0f0f;
+      --black3: #161616;
+      --white: #FAFAF8;
+      --grey: #888;
+      --grey2: #555;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      font-family: 'Poppins', sans-serif;
+      color: var(--white);
+      overflow: hidden;
+    }
+
+    /* ─── SLIDE WRAPPER ─── */
+    #presentation {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--black);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 4vw 6vw;
+      opacity: 0;
+      transform: translateX(60px);
+      transition: opacity .55s ease, transform .55s ease;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .slide.active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: all;
+    }
+
+    .slide.exit {
+      opacity: 0;
+      transform: translateX(-60px);
+      pointer-events: none;
+    }
+
+    /* ─── GOLD BORDER FRAME ─── */
+    .slide::before {
+      content: '';
+      position: absolute;
+      inset: 18px;
+      border: 1px solid rgba(201, 168, 76, .25);
+      border-radius: 2px;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .slide::after {
+      content: '';
+      position: absolute;
+      inset: 22px;
+      border: 1px solid rgba(245, 214, 138, .08);
+      border-radius: 1px;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    /* ─── CORNER ORNAMENTS ─── */
+    .corner {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-color: var(--gold-mid);
+      border-style: solid;
+      opacity: .6;
+      z-index: 4;
+    }
+
+    .corner.tl {
+      top: 24px;
+      left: 24px;
+      border-width: 1px 0 0 1px;
+    }
+
+    .corner.tr {
+      top: 24px;
+      right: 24px;
+      border-width: 1px 1px 0 0;
+    }
+
+    .corner.bl {
+      bottom: 24px;
+      left: 24px;
+      border-width: 0 0 1px 1px;
+    }
+
+    .corner.br {
+      bottom: 24px;
+      right: 24px;
+      border-width: 0 1px 1px 0;
+    }
+
+    /* ─── LOGO FLG (canto superior direito) ─── */
+    .logo-flg {
+      position: absolute;
+      top: 32px;
+      right: 48px;
+      width: 72px;
+      height: auto;
+      opacity: .75;
+      z-index: 4;
+    }
+
+    /* ─── NÚMERO DO SLIDE ─── */
+    .slide-num {
+      position: absolute;
+      bottom: 36px;
+      right: 52px;
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--gold-mid);
+      opacity: .5;
+      z-index: 4;
+    }
+
+    /* ─── IMAGEM DE FUNDO (opcional) ─── */
+    /*
+   * Coloque uma <img class="slide-bg"> como PRIMEIRO filho do .slide.
+   * A imagem aparecerá com 13% de opacidade, criando textura sutil.
+   * Remova a tag se não quiser imagem de fundo.
+   */
+    .slide-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      opacity: 0.13;
+      z-index: 0;
+    }
+
+    /* ─── CONTEÚDO ACIMA DA IMAGEM ─── */
+    .col,
+    .grid-2,
+    .grid-3,
+    .grid-4,
+    .pilar-card,
+    .channel-row,
+    .list-items,
+    .stat-row,
+    .cover-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── LAYOUTS ─── */
+    .col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .col.centered {
+      align-items: center;
+      text-align: center;
+    }
+
+    .w-full {
+      width: 100%;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5rem;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.2rem;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    /* ─── TIPOGRAFIA ─── */
+    .tag {
+      font-size: 10px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      background: var(--gold-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1.2rem;
+      font-weight: 600;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.4rem, 5.5vw, 5rem);
+      font-weight: 700;
+      line-height: 1.1;
+      background: var(--gold-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-align: center;
+      margin-bottom: 1.2rem;
+    }
+
+    h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.8rem, 3.8vw, 3.2rem);
+      font-weight: 700;
+      line-height: 1.2;
+      background: var(--gold-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+    }
+
+    h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.2rem, 2.2vw, 1.8rem);
+      font-weight: 600;
+      color: var(--gold-light);
+      margin-bottom: .6rem;
+    }
+
+    p {
+      font-size: clamp(.82rem, 1.3vw, 1rem);
+      line-height: 1.75;
+      color: rgba(250, 250, 248, .75);
+      max-width: 760px;
+      text-align: center;
+    }
+
+    .lead {
+      font-size: clamp(.95rem, 1.5vw, 1.15rem);
+      line-height: 1.8;
+      color: rgba(250, 250, 248, .9);
+      max-width: 800px;
+      text-align: center;
+      margin-bottom: .8rem;
+    }
+
+    .quote {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.1rem, 2vw, 1.55rem);
+      font-style: italic;
+      line-height: 1.65;
+      background: var(--gold-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-align: center;
+      max-width: 820px;
+      margin: 1rem auto;
+    }
+
+    .quote-attr {
+      font-size: .8rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(250, 250, 248, .4);
+      text-align: center;
+      margin-top: 1rem;
+    }
+
+    /* ─── DIVISORES ─── */
+    .divider {
+      width: 80px;
+      height: 1px;
+      background: var(--gold-grad);
+      margin: 1.2rem auto;
+      border: none;
+    }
+
+    .cover-line {
+      width: 120px;
+      height: 1px;
+      background: var(--gold-grad);
+      margin: 1.8rem auto;
+    }
+
+    .cover-sub {
+      font-size: clamp(.8rem, 1.2vw, .95rem);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(250, 250, 248, .45);
+      margin-top: .6rem;
+    }
+
+    /* ─── CARDS ─── */
+    .card {
+      background: rgba(255, 255, 255, .03);
+      border: 1px solid rgba(201, 168, 76, .18);
+      border-radius: 4px;
+      padding: 1.5rem 1.8rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--gold-grad);
+    }
+
+    .card h3 {
+      font-size: clamp(.9rem, 1.4vw, 1.1rem);
+      margin-bottom: .5rem;
+    }
+
+    .card p {
+      font-size: clamp(.75rem, 1.1vw, .88rem);
+      text-align: left;
+      line-height: 1.65;
+    }
+
+    .card-icon {
+      font-size: 1.6rem;
+      margin-bottom: .8rem;
+      display: block;
+    }
+
+    /* ─── PILAR CARD (perfil de pessoa) ─── */
+    .pilar-card {
+      background: rgba(255, 255, 255, .025);
+      border: 1px solid rgba(201, 168, 76, .22);
+      border-radius: 4px;
+      padding: 2rem 2.4rem;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+    }
+
+    .pilar-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--gold-grad);
+    }
+
+    .pilar-name {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.3rem, 2.5vw, 2rem);
+      font-weight: 700;
+      background: var(--gold-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .pilar-role {
+      font-size: .75rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--grey);
+      margin-bottom: .4rem;
+    }
+
+    .pilar-essence {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: clamp(.95rem, 1.5vw, 1.15rem);
+      color: var(--gold-light);
+      line-height: 1.6;
+      margin-bottom: .4rem;
+    }
+
+    .pilar-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+      margin-top: .4rem;
+    }
+
+    .ptag {
+      font-size: .68rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      border: 1px solid rgba(201, 168, 76, .3);
+      padding: .25rem .65rem;
+      border-radius: 2px;
+      color: var(--gold-light);
+      opacity: .8;
+    }
+
+    /* ─── FOTO DE PESSOA (slot para foto real) ─── */
+    .pilar-photo {
+      width: 100%;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+      object-position: top;
+      border-radius: 4px;
+      border: 1px solid rgba(201, 168, 76, .2);
+      opacity: 0.85;
+      /* Remova o display: none quando tiver a foto */
+    }
+
+    .pilar-photo-placeholder {
+      width: 100%;
+      aspect-ratio: 3/4;
+      background: rgba(201, 168, 76, .05);
+      border: 1px dashed rgba(201, 168, 76, .2);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(201, 168, 76, .3);
+      font-size: .72rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    /* ─── STAT BOX ─── */
+    .stat-row {
+      display: flex;
+      gap: 2rem;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .stat-box {
+      text-align: center;
+      padding: 1.2rem 1rem;
+    }
+
+    .stat-num {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      font-weight: 700;
+      background: var(--gold-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      margin-bottom: .3rem;
+    }
+
+    .stat-label {
+      font-size: clamp(.7rem, 1vw, .82rem);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(250, 250, 248, .55);
+    }
+
+    /* ─── LISTA ─── */
+    .list-items {
+      list-style: none;
+      width: 100%;
+      max-width: 860px;
+    }
+
+    .list-items li {
+      display: flex;
+      align-items: flex-start;
+      gap: .8rem;
+      padding: .65rem 0;
+      border-bottom: 1px solid rgba(201, 168, 76, .1);
+      font-size: clamp(.8rem, 1.25vw, .95rem);
+      color: rgba(250, 250, 248, .82);
+      line-height: 1.6;
+    }
+
+    .list-items li:last-child {
+      border-bottom: none;
+    }
+
+    .list-items li::before {
+      content: '◆';
+      color: var(--gold-mid);
+      font-size: .55rem;
+      margin-top: .38rem;
+      flex-shrink: 0;
+    }
+
+    /* ─── CHANNEL ROW ─── */
+    .channel-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: .9rem 1.2rem;
+      border: 1px solid rgba(201, 168, 76, .15);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, .025);
+      width: 100%;
+      max-width: 1000px;
+      margin-bottom: .6rem;
+    }
+
+    .channel-icon {
+      font-size: 1.4rem;
+      width: 2.4rem;
+      flex-shrink: 0;
+      text-align: center;
+    }
+
+    .channel-name {
+      font-size: .7rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--gold-mid);
+      margin-bottom: .25rem;
+    }
+
+    .channel-desc {
+      font-size: clamp(.75rem, 1.1vw, .88rem);
+      color: rgba(250, 250, 248, .78);
+      line-height: 1.6;
+    }
+
+    /* ─── MONTH BLOCK ─── */
+    .month-block {
+      background: rgba(255, 255, 255, .03);
+      border: 1px solid rgba(201, 168, 76, .18);
+      border-radius: 4px;
+      padding: 1.2rem 1.5rem;
+      position: relative;
+    }
+
+    .month-block::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--gold-grad);
+    }
+
+    .month-label {
+      font-size: .65rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--gold-mid);
+      margin-bottom: .5rem;
+    }
+
+    .month-theme {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(.9rem, 1.5vw, 1.15rem);
+      font-weight: 600;
+      color: var(--white);
+      margin-bottom: .5rem;
+    }
+
+    .month-block ul {
+      list-style: none;
+    }
+
+    .month-block ul li {
+      font-size: clamp(.7rem, 1vw, .82rem);
+      color: rgba(250, 250, 248, .72);
+      padding: .22rem 0;
+      border-bottom: 1px solid rgba(201, 168, 76, .07);
+      display: flex;
+      align-items: flex-start;
+      gap: .5rem;
+      line-height: 1.5;
+    }
+
+    .month-block ul li::before {
+      content: '—';
+      color: var(--gold-dark);
+      flex-shrink: 0;
+    }
+
+    /* ─── GOLD ACCENT ─── */
+    .gold {
+      color: var(--gold-light);
+    }
+
+    .gold-grad {
+      background: var(--gold-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ─── SLIDE VARIANTS ─── */
+    .slide-cover {
+      background: radial-gradient(ellipse at 60% 40%, #1f1400 0%, #0a0a00 40%, var(--black) 100%);
+    }
+
+    .slide-dark {
+      background: linear-gradient(160deg, #0d0d0d 0%, #080808 100%);
+    }
+
+    .slide-section {
+      background: radial-gradient(ellipse at center, #1a1200 0%, var(--black) 70%);
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    /* Slide para Pessoa A (warm) — personalizar cor conforme o cliente */
+    .slide-person-a {
+      background: radial-gradient(ellipse at 30% 50%, #120d00 0%, var(--black) 100%);
+    }
+
+    /* Slide para Pessoa B (cool) — personalizar cor conforme o cliente */
+    .slide-person-b {
+      background: radial-gradient(ellipse at 70% 50%, #0a0d12 0%, var(--black) 100%);
+    }
+
+    /* ─── SECTION NUMBER (decorativo) ─── */
+    .section-num {
+      font-size: clamp(5rem, 12vw, 10rem);
+      font-family: 'Playfair Display', serif;
+      font-weight: 900;
+      color: rgba(201, 168, 76, .06);
+      line-height: 1;
+      position: absolute;
+      right: 8vw;
+      bottom: 8vh;
+    }
+
+    /* ─── NAVIGATION BAR ─── */
+    #nav {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      z-index: 100;
+      background: rgba(8, 8, 8, .85);
+      border: 1px solid rgba(201, 168, 76, .2);
+      border-radius: 40px;
+      padding: .55rem 1.4rem;
+      backdrop-filter: blur(8px);
+    }
+
+    #nav button {
+      background: none;
+      border: none;
+      color: var(--gold-mid);
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: .3rem .6rem;
+      border-radius: 50%;
+      transition: background .2s;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    #nav button:hover {
+      background: rgba(201, 168, 76, .12);
+    }
+
+    #nav button:disabled {
+      opacity: .25;
+      cursor: default;
+    }
+
+    #nav-counter {
+      font-size: .72rem;
+      letter-spacing: 2px;
+      color: var(--gold-mid);
+      min-width: 54px;
+      text-align: center;
+    }
+
+    #hint {
+      position: fixed;
+      bottom: 28px;
+      left: 28px;
+      font-size: .65rem;
+      letter-spacing: 2px;
+      color: rgba(201, 168, 76, .3);
+    }
+
+    /* ─── PRINT / PDF ─── */
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+
+      html,
+      body {
+        overflow: visible !important;
+        background: #080808 !important;
+        width: 100% !important;
+        height: auto !important;
+      }
+
+      #nav,
+      #hint {
+        display: none !important;
+      }
+
+      #presentation {
+        position: relative !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+      .slide {
+        position: relative !important;
+        inset: auto !important;
+        width: 100% !important;
+        height: 100vh !important;
+        min-height: 100vh !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        opacity: 1 !important;
+        transform: none !important;
+        pointer-events: all !important;
+        display: flex !important;
+        background: #080808 !important;
+      }
+
+      .slide-cover {
+        background: radial-gradient(ellipse at 60% 40%, #1f1400 0%, #0a0a00 40%, #080808 100%) !important;
+      }
+
+      .slide-dark {
+        background: linear-gradient(160deg, #0d0d0d 0%, #080808 100%) !important;
+      }
+
+      .slide-section {
+        background: radial-gradient(ellipse at center, #1a1200 0%, #080808 70%) !important;
+      }
+
+      .slide-person-a {
+        background: radial-gradient(ellipse at 30% 50%, #120d00 0%, #080808 100%) !important;
+      }
+
+      .slide-person-b {
+        background: radial-gradient(ellipse at 70% 50%, #0a0d12 0%, #080808 100%) !important;
+      }
+
+      .card {
+        background: rgba(255, 255, 255, .03) !important;
+      }
+
+      .pilar-card {
+        background: rgba(255, 255, 255, .025) !important;
+      }
+
+      .channel-row {
+        background: rgba(255, 255, 255, .025) !important;
+      }
+
+      .month-block {
+        background: rgba(255, 255, 255, .03) !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="presentation">
+
+    <!-- ═══════════════════════════════════════════════
+       SLIDE 01 — CAPA (Cover)
+       Uso: Sempre o primeiro slide.
+       Customizar: título, subtítulo, cliente, estrategista.
+  ═══════════════════════════════════════════════ -->
+    <div class="slide slide-cover active" id="s1">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <img class="logo-flg" src="../../document_template/assets/logo-flg.svg" alt="Founders Led Growth">
+      <div class="slide-num">01 / {{TOTAL}}</div>
+
+      <!--
+      🖼 SLOT DE IMAGEM — Fundo da Capa (opcional)
+      Arquivo: assets/images/capa.jpg | Tamanho: 1920×1080px
+      Opacidade: 13% (preserva legibilidade do texto)
+      Prompt sugerido (Midjourney):
+        "{{SETOR}} professional photography, dark cinematic, luxury minimal,
+         no people, atmospheric, --ar 16:9 --style raw --no text logos"
+      Descomente a linha abaixo quando tiver a imagem:
+    -->
+      <!-- <img class="slide-bg" src="assets/images/capa.jpg" alt=""> -->
+
+      <div class="col centered">
+        <img src="../../document_template/assets/logo-flg.svg" alt="Founders Led Growth"
+          style="width:110px; height:auto; opacity:.9; margin-bottom:1.6rem;">
+        <div class="tag">Founders Led Growth · {{EMPRESA}} × FLG</div>
+        <h1>{{TITULO}}</h1>
+        <div class="cover-line"></div>
+        <p class="lead">{{SUBTITULO}}</p>
+        <p class="cover-sub">{{CLIENTES}} · {{ANO}}</p>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════
+       SLIDE 02 — AGENDA
+       Uso: Índice do que será apresentado.
+       Customizar: os 4 blocos de tópicos.
+  ═══════════════════════════════════════════════ -->
+    <div class="slide" id="s2">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <img class="logo-flg" src="../../document_template/assets/logo-flg.svg" alt="FLG">
+      <div class="slide-num">02 / {{TOTAL}}</div>
+
+      <div class="col" style="align-items:flex-start; max-width:1000px; width:100%;">
+        <div class="tag">Agenda</div>
+        <h2>O que vamos cobrir hoje</h2>
+        <hr class="divider" style="margin-left:0;">
+
+        <div class="grid-2" style="margin-top:1rem;">
+          <div class="card">
+            <span class="card-icon">◈</span>
+            <h3>Parte 1 — {{TOPICO_1}}</h3>
+            <p>{{DESCRICAO_TOPICO_1}}</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">◉</span>
+            <h3>Parte 2 — {{TOPICO_2}}</h3>
+            <p>{{DESCRICAO_TOPICO_2}}</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">◇</span>
+            <h3>Parte 3 — {{TOPICO_3}}</h3>
+            <p>{{DESCRICAO_TOPICO_3}}</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">◌</span>
+            <h3>Parte 4 — {{TOPICO_4}}</h3>
+            <p>{{DESCRICAO_TOPICO_4}}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════
+       SLIDE 03 — SEÇÃO (Section Divider)
+       Uso: Separar partes da apresentação.
+       Customizar: número da seção e título.
+       Dica: adicione quantas seções precisar.
+  ═══════════════════════════════════════════════ -->
+    <div class="slide slide-section" id="s3">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <img class="logo-flg" src="../../document_template/assets/logo-flg.svg" alt="FLG">
+      <div class="slide-num">03 / {{TOTAL}}</div>
+
+      <!--
+      🖼 SLOT DE IMAGEM — Background sutil de seção
+      Arquivo: assets/images/secao-01.jpg | Tamanho: 1920×1080px
+      Prompt: "abstract dark gold texture, minimal luxury, no text --ar 16:9"
+    -->
+      <!-- <img class="slide-bg" src="assets/images/secao-01.jpg" alt=""> -->
+
+      <div style="max-width:900px; position:relative; z-index:1;">
+        <div class="tag">Parte 1</div>
+        <h2>{{TITULO_SECAO_1}}</h2>
+        <hr class="divider" style="margin-left:0;">
+        <p style="text-align:left;">{{DESCRICAO_SECAO_1}}</p>
+      </div>
+      <div class="section-num">01</div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════
+       SLIDE 04 — CONTEÚDO 3 COLUNAS
+       Uso: Apresentar 3 conceitos, entregas ou pilares.
+       Customizar: ícone, título e descrição de cada card.
+  ═══════════════════════════════════════════════ -->
+    <div class="slide" id="s4">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <img class="logo-flg" src="../../document_template/assets/logo-flg.svg" alt="FLG">
+      <div class="slide-num">04 / {{TOTAL}}</div>
+
+      <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+        <div class="tag">{{TAG_SLIDE_4}}</div>
+        <h2>{{TITULO_SLIDE_4}}</h2>
+        <hr class="divider" style="margin-left:0;">
+
+        <div class="grid-3" style="margin-top:.8rem;">
+          <div class="card">
+            <span class="card-icon">◈</span>
+            <h3>{{ITEM_1}}</h3>
+            <p>{{DESCRICAO_ITEM_1}}</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">◉</span>
+            <h3>{{ITEM_2}}</h3>
+            <p>{{DESCRICAO_ITEM_2}}</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">◇</span>
+            <h3>{{ITEM_3}}</h3>
+            <p>{{DESCRICAO_ITEM_3}}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════
+       SLIDE 05 — DADOS / NÚMEROS (Stats)
+       Uso: Destacar métricas, resultados, números.
+       Customizar: stat-num (número) e stat-label (rótulo).
+  ═══════════════════════════════════════════════ -->
+    <div class="slide slide-dark" id="s5">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <img class="logo-flg" src="../../document_template/assets/logo-flg.svg" alt="FLG">
+      <div class="slide-num">05 / {{TOTAL}}</div>
+
+      <div class="col centered" style="max-width:960px;">
+        <div class="tag">{{TAG_SLIDE_5}}</div>
+        <h2>{{TITULO_SLIDE_5}}</h2>
+        <div class="cover-line"></div>
+
+        <div class="stat-row" style="margin-top:2rem;">
+          <div class="stat-box">
+            <div class="stat-num">{{NUM_1}}</div>
+            <div class="stat-label">{{LABEL_1}}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num">{{NUM_2}}</div>
+            <div class="stat-label">{{LABEL_2}}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num">{{NUM_3}}</div>
+            <div class="stat-label">{{LABEL_3}}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num">{{NUM_4}}</div>
+            <div class="stat-label">{{LABEL_4}}</div>
+          </div>
+        </div>
+
+        <p style="margin-top:2rem;">{{CONTEXTO_NUMEROS}}</p>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════
+       SLIDE 06 — PERFIL DE PESSOA A
+       Uso: Apresentar um protagonista/fundador.
+       Customizar: nome, papel, essência, tags, foto.
+       Nota: para 2 pessoas, duplicar e usar slide-person-b.
+  ═══════════════════════════════════════════════ -->
+    <div class="slide slide-person-a" id="s6">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <img class="logo-flg" src="../../document_template/assets/logo-flg.svg" alt="FLG">
+      <div class="slide-num">06 / {{TOTAL}}</div>
+
+      <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+        <div class="tag">{{PAPEL_PESSOA_A}}</div>
+        <div class="grid-2" style="margin-top:.5rem; align-items:start;">
+
+          <div class="pilar-card">
+            <div class="pilar-role">{{TITULO_PAPEL_A}}</div>
+            <div class="pilar-name">{{NOME_A}}</div>
+            <div class="pilar-essence">"{{ESSENCIA_A}}"</div>
+            <p style="font-size:.88rem; text-align:left; color:rgba(250,250,248,.78);">
+              {{DESCRICAO_PESSOA_A}}
+            </p>
+            <div class="pilar-tags">
+              <span class="ptag">{{TAG_A_1}}</span>
+              <span class="ptag">{{TAG_A_2}}</span>
+              <span class="ptag">{{TAG_A_3}}</span>
+            </div>
+          </div>
+
+          <div>
+            <!--
+            🖼 SLOT DE FOTO — Foto de {{NOME_A}}
+            Tamanho recomendado: 600×800px (proporção 3:4, retrato)
+            Salve como: assets/images/pessoa-a.jpg
+            Dica: foto com boa iluminação, fundo neutro ou desfocado,
+                  expressão confiante, roupa alinhada com a marca.
+            Descomente o <img> quando tiver a foto:
+          -->
+            <!-- <img class="pilar-photo" src="assets/images/pessoa-a.jpg" alt="{{NOME_A}}"> -->
+            <div class="pilar-photo-placeholder">Foto · {{NOME_A}}</div>
+
+            <ul class="list-items" style="margin-top:1.2rem;">
+              <li>{{PILAR_A_1}}</li>
+              <li>{{PILAR_A_2}}</li>
+              <li>{{PILAR_A_3}}</li>
+              <li>{{PILAR_A_4}}</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════
+       SLIDE 07 — CITAÇÃO (Quote)
+       Uso: Destacar uma frase impactante ou conclusão.
+       Customizar: quote e atribuição.
+  ═══════════════════════════════════════════════ -->
+    <div class="slide slide-dark" id="s7">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <img class="logo-flg" src="../../document_template/assets/logo-flg.svg" alt="FLG">
+      <div class="slide-num">07 / {{TOTAL}}</div>
+
+      <div class="col centered" style="max-width:860px;">
+        <div class="tag">{{TAG_SLIDE_7}}</div>
+        <div class="cover-line"></div>
+        <div class="quote">"{{CITACAO}}"</div>
+        <div class="quote-attr">— {{ATRIBUICAO_CITACAO}}</div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════
+       SLIDE 08 — CONTEÚDO 2 COLUNAS COM LISTA
+       Uso: Apresentar estratégia, metodologia, comparativo.
+       Customizar: título, listas de pontos.
+  ═══════════════════════════════════════════════ -->
+    <div class="slide" id="s8">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <img class="logo-flg" src="../../document_template/assets/logo-flg.svg" alt="FLG">
+      <div class="slide-num">08 / {{TOTAL}}</div>
+
+      <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+        <div class="tag">{{TAG_SLIDE_8}}</div>
+        <h2>{{TITULO_SLIDE_8}}</h2>
+        <hr class="divider" style="margin-left:0;">
+
+        <div class="grid-2" style="margin-top:.8rem; align-items:start;">
+          <div>
+            <h3>{{SUBTITULO_COL_1}}</h3>
+            <ul class="list-items">
+              <li>{{PONTO_1_1}}</li>
+              <li>{{PONTO_1_2}}</li>
+              <li>{{PONTO_1_3}}</li>
+              <li>{{PONTO_1_4}}</li>
+            </ul>
+          </div>
+          <div>
+            <h3>{{SUBTITULO_COL_2}}</h3>
+            <ul class="list-items">
+              <li>{{PONTO_2_1}}</li>
+              <li>{{PONTO_2_2}}</li>
+              <li>{{PONTO_2_3}}</li>
+              <li>{{PONTO_2_4}}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════
+       SLIDE 09 — PRÓXIMOS PASSOS (Action)
+       Uso: Encerrar com comprometimentos e ações.
+       Customizar: as listas de ações.
+  ═══════════════════════════════════════════════ -->
+    <div class="slide" id="s9">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <img class="logo-flg" src="../../document_template/assets/logo-flg.svg" alt="FLG">
+      <div class="slide-num">09 / {{TOTAL}}</div>
+
+      <div class="col" style="align-items:flex-start; max-width:1000px; width:100%;">
+        <div class="tag">Ação</div>
+        <h2>Próximos Passos</h2>
+        <hr class="divider" style="margin-left:0;">
+
+        <div class="grid-2" style="margin-top:.8rem;">
+          <div class="card">
+            <h3>Primeiros 30 dias</h3>
+            <ul class="list-items" style="margin-top:.8rem;">
+              <li>{{ACAO_30D_1}}</li>
+              <li>{{ACAO_30D_2}}</li>
+              <li>{{ACAO_30D_3}}</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Primeiros 90 dias</h3>
+            <ul class="list-items" style="margin-top:.8rem;">
+              <li>{{ACAO_90D_1}}</li>
+              <li>{{ACAO_90D_2}}</li>
+              <li>{{ACAO_90D_3}}</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card w-full" style="margin-top:1.2rem; border-color:rgba(201,168,76,.4);">
+          <h3>{{TITULO_ENCERRAMENTO}}</h3>
+          <p style="text-align:left; font-size:.88rem; color:rgba(250,250,248,.88);">
+            {{MENSAGEM_ENCERRAMENTO}}
+          </p>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════
+       SLIDE 10 — ENCERRAMENTO (Closing)
+       Uso: Último slide. Reforça marca e mensagem final.
+       Customizar: headline e tagline.
+  ═══════════════════════════════════════════════ -->
+    <div class="slide slide-cover" id="s10">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <img class="logo-flg" src="../../document_template/assets/logo-flg.svg" alt="FLG">
+      <div class="slide-num">10 / {{TOTAL}}</div>
+
+      <!--
+      🖼 SLOT DE IMAGEM — Fundo do slide final (opcional)
+      Mesmo prompt da capa para manter consistência visual.
+    -->
+      <!-- <img class="slide-bg" src="assets/images/capa.jpg" alt=""> -->
+
+      <div class="col centered" style="max-width:860px;">
+        <img src="../../document_template/assets/logo-flg.svg" alt="FLG"
+          style="width:110px; height:auto; opacity:.9; margin-bottom:1.6rem;">
+        <div class="tag">Founders Led Growth · FLG</div>
+        <h1>{{HEADLINE_FINAL}}</h1>
+        <div class="cover-line"></div>
+        <p class="lead">{{TAGLINE_FINAL}}</p>
+        <p style="margin-top:1.2rem; font-size:.78rem; letter-spacing:4px;
+                text-transform:uppercase; color:rgba(201,168,76,.45);">
+          FLG · Founders Led Growth · {{ESTRATEGISTA}} · {{ANO}}
+        </p>
+      </div>
+    </div>
+
+    <!--
+    ═══════════════════════════════════════════════
+    ADICIONAR MAIS SLIDES
+    ─────────────────────────────────────────────
+    Copie qualquer bloco acima e ajuste o id="sN"
+    e o número no slide-num.
+
+    Tipos disponíveis:
+    - <div class="slide">            → slide padrão (preto)
+    - <div class="slide slide-cover">  → slide tipo capa (dourado escuro)
+    - <div class="slide slide-dark">   → slide escuro variante
+    - <div class="slide slide-section"> → divisor de seção
+    - <div class="slide slide-person-a"> → perfil pessoa (warm)
+    - <div class="slide slide-person-b"> → perfil pessoa (cool)
+
+    Lembre de atualizar {{TOTAL}} quando adicionar slides!
+    ═══════════════════════════════════════════════
+  -->
+
+  </div><!-- /presentation -->
+
+
+  <!-- ─── NAVIGATION ─── -->
+  <div id="nav">
+    <button id="btn-prev" onclick="changeSlide(-1)" title="Anterior">←</button>
+    <span id="nav-counter">1 / 10</span>
+    <button id="btn-next" onclick="changeSlide(1)" title="Próximo">→</button>
+  </div>
+  <div id="hint">← → para navegar · P para imprimir</div>
+
+
+  <!-- ─── JAVASCRIPT DE NAVEGAÇÃO ─── -->
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const counter = document.getElementById('nav-counter');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const total = slides.length;
+    let current = 0;
+
+    function goTo(n) {
+      slides[current].classList.remove('active');
+      slides[current].classList.add('exit');
+      setTimeout(() => slides[current].classList.remove('exit'), 600);
+      current = Math.max(0, Math.min(n, total - 1));
+      slides[current].classList.add('active');
+      counter.textContent = `${current + 1} / ${total}`;
+      btnPrev.disabled = current === 0;
+      btnNext.disabled = current === total - 1;
+    }
+
+    function changeSlide(dir) { goTo(current + dir); }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); changeSlide(1); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); changeSlide(-1); }
+      if (e.key === 'p' || e.key === 'P') window.print();
+    });
+
+    // Touch swipe
+    let tx = 0;
+    document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+    document.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - tx;
+      if (Math.abs(dx) > 50) changeSlide(dx < 0 ? 1 : -1);
+    }, { passive: true });
+
+    goTo(0);
+  </script>
+</body>
+
+</html>

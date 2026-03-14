@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Fit × FLG — Documento Estratégico Completo</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold-light: #F5D68A;
+    --gold-mid:   #C9A84C;
+    --gold-dark:  #8B6914;
+    --gold-grad:  linear-gradient(135deg, #F5D68A 0%, #C9A84C 50%, #8B6914 100%);
+    --black:      #080808;
+    --white:      #FAFAF8;
+    --grey:       #999;
+    --body-bg:    #0c0c0c;
+    --card-bg:    rgba(255,255,255,.032);
+    --border:     rgba(201,168,76,.18);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--body-bg);
+    color: var(--white);
+    font-family: 'Poppins', sans-serif;
+    font-size: 15px;
+    line-height: 1.8;
+    padding: 0;
+  }
+
+  /* ─── PAGE WRAPPER ─── */
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 60px 40px 100px;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: var(--black);
+    border-bottom: 1px solid var(--border);
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(12px);
+  }
+  .header-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 14px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-logo {
+    height: 28px;
+    width: auto;
+    opacity: .8;
+  }
+  .header-title {
+    font-size: 11px;
+    color: rgba(250,250,248,.4);
+    letter-spacing: 2px;
+  }
+  .header-print {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold-mid);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 5px 14px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    transition: background .2s;
+  }
+  .header-print:hover { background: rgba(201,168,76,.08); }
+
+  /* ─── COVER BLOCK ─── */
+  .cover {
+    text-align: center;
+    padding: 60px 0 50px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 60px;
+    position: relative;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 20%; right: 20%;
+    height: 1px;
+    background: var(--gold-grad);
+  }
+  .cover-tag {
+    font-size: 10px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--gold-mid);
+    margin-bottom: 24px;
+    display: block;
+  }
+  .cover h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 3.2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+  }
+  .cover-sub {
+    font-size: .9rem;
+    color: rgba(250,250,248,.55);
+    letter-spacing: 2px;
+    margin-bottom: 32px;
+  }
+  .cover-line {
+    width: 80px; height: 1px;
+    background: var(--gold-grad);
+    margin: 0 auto 32px;
+    border: none;
+  }
+  .cover-desc {
+    font-size: 1.05rem;
+    color: rgba(250,250,248,.75);
+    max-width: 640px;
+    margin: 0 auto;
+    line-height: 1.8;
+  }
+
+  /* ─── SECTION HEADERS ─── */
+  .section-header {
+    margin: 60px 0 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .section-header::before {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; width: 60px; height: 1px;
+    background: var(--gold-grad);
+  }
+  .section-tag {
+    font-size: 9px;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    color: var(--gold-mid);
+    margin-bottom: 8px;
+    display: block;
+  }
+  .section-header h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 700;
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+  }
+
+  /* ─── TYPOGRAPHY ─── */
+  h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--gold-light);
+    margin: 28px 0 12px;
+  }
+  h4 {
+    font-size: .78rem;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold-mid);
+    margin: 20px 0 8px;
+  }
+  p {
+    color: rgba(250,250,248,.78);
+    margin-bottom: 16px;
+    font-size: .95rem;
+  }
+  strong { color: var(--gold-light); font-weight: 500; }
+  em { font-style: italic; color: rgba(250,250,248,.7); }
+
+  /* ─── BLOCKQUOTE ─── */
+  blockquote {
+    border-left: 2px solid var(--gold-mid);
+    padding: 16px 24px;
+    margin: 24px 0;
+    background: rgba(201,168,76,.05);
+    border-radius: 0 4px 4px 0;
+  }
+  blockquote p {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    color: var(--gold-light);
+    margin: 0;
+    line-height: 1.7;
+  }
+
+  /* ─── CARD ─── */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: var(--gold-grad);
+  }
+  .card h3 { margin-top: 0; font-size: 1rem; }
+
+  /* ─── GRID ─── */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  /* ─── LIST ─── */
+  ul.styled, ol.styled {
+    list-style: none;
+    margin-bottom: 16px;
+  }
+  ul.styled li, ol.styled li {
+    padding: 6px 0 6px 20px;
+    position: relative;
+    font-size: .92rem;
+    color: rgba(250,250,248,.78);
+    border-bottom: 1px solid rgba(201,168,76,.07);
+    line-height: 1.65;
+  }
+  ul.styled li:last-child, ol.styled li:last-child { border-bottom: none; }
+  ul.styled li::before {
+    content: '◆';
+    position: absolute; left: 0;
+    color: var(--gold-mid);
+    font-size: .45rem;
+    top: 13px;
+  }
+  ol.styled { counter-reset: item; }
+  ol.styled li::before {
+    content: counter(item) '.';
+    counter-increment: item;
+    position: absolute; left: 0;
+    color: var(--gold-mid);
+    font-size: .82rem;
+    font-weight: 600;
+    top: 7px;
+  }
+
+  /* ─── TABLE ─── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+    font-size: .88rem;
+  }
+  th {
+    background: rgba(201,168,76,.1);
+    color: var(--gold-light);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: .72rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(201,168,76,.07);
+    color: rgba(250,250,248,.78);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  /* ─── HIGHLIGHT BOX ─── */
+  .highlight {
+    background: rgba(201,168,76,.07);
+    border: 1px solid rgba(201,168,76,.25);
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin: 24px 0;
+  }
+  .highlight p { color: rgba(250,250,248,.9); margin-bottom: 0; }
+
+  /* ─── DIVIDER ─── */
+  hr {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-mid), transparent);
+    margin: 40px 0;
+  }
+
+  /* ─── FOOTER ─── */
+  footer {
+    margin-top: 80px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+  footer p {
+    font-size: .78rem;
+    color: rgba(250,250,248,.3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  /* ─── TOC ─── */
+  .toc {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px 32px;
+    margin-bottom: 48px;
+  }
+  .toc h4 { margin-top: 0; }
+  .toc ol {
+    list-style: none;
+    counter-reset: toc;
+  }
+  .toc ol li {
+    counter-increment: toc;
+    padding: 5px 0;
+    font-size: .9rem;
+    color: rgba(250,250,248,.65);
+    border-bottom: 1px dotted rgba(201,168,76,.12);
+  }
+  .toc ol li:last-child { border-bottom: none; }
+  .toc ol li::before {
+    content: counter(toc, decimal-leading-zero) ' ';
+    color: var(--gold-mid);
+    font-size: .75rem;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .toc a { color: inherit; text-decoration: none; }
+  .toc a:hover { color: var(--gold-light); }
+
+  /* PRINT */
+  @media print {
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    header .header-print { display: none !important; }
+    html, body {
+      background: #0c0c0c !important;
+      color: #FAFAF8 !important;
+    }
+    header {
+      position: relative !important;
+      background: #0a0a0a !important;
+    }
+    .card { background: rgba(255,255,255,.032) !important; }
+    .toc  { background: rgba(255,255,255,.032) !important; }
+    .highlight { background: rgba(201,168,76,.07) !important; }
+    blockquote { background: rgba(201,168,76,.05) !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <img class="header-logo" src="assets/logo.svg" alt="Founders Led Growth">
+    <span class="header-title">Go Fit · Documento Estratégico · 2026</span>
+    <button class="header-print" onclick="window.print()">Imprimir / PDF</button>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- ─── CAPA ─── -->
+  <div class="cover">
+    <img src="assets/logo.svg" alt="Founders Led Growth" style="width:100px; height:auto; opacity:.85; margin-bottom:2rem; display:block; margin-left:auto; margin-right:auto;">
+    <span class="cover-tag">Founders Led Growth · FLG × Go Fit</span>
+    <h1>Documento Estratégico<br>Go Fit</h1>
+    <p class="cover-sub">Rosane &amp; Antonella · Florianópolis · 2026</p>
+    <hr class="cover-line">
+    <p class="cover-desc">
+      Debriefing completo dos 6 meses de jornada estratégica + metodologia Founders Led Growth
+      + plano de conteúdo para os próximos 6 meses nos canais Instagram, TikTok e YouTube.
+    </p>
+    <p style="margin-top:24px; font-size:.82rem; color:rgba(250,250,248,.35); letter-spacing:2px;">Elaborado por Pedro Aranda · Estrategista FLG · Março 2026</p>
+  </div>
+
+  <!-- ─── SUMÁRIO ─── -->
+  <div class="toc">
+    <h4>Sumário</h4>
+    <ol>
+      <li><a href="#s1">Mini Debriefing — O Que Foi Construído</a></li>
+      <li><a href="#s2">Diagnóstico de Negócio e Posicionamento</a></li>
+      <li><a href="#s3">Mapa de Entregas FLG</a></li>
+      <li><a href="#s4">Resultados e Transformação</a></li>
+      <li><a href="#s5">As Protagonistas: Rosane e Antonella</a></li>
+      <li><a href="#s6">Pesquisa de Mercado — Fitness 2026</a></li>
+      <li><a href="#s7">Metodologia Founders Led Growth</a></li>
+      <li><a href="#s8">Plano de Conteúdo — Próximos 6 Meses</a></li>
+      <li><a href="#s9">Calendário Temático por Mês</a></li>
+      <li><a href="#s10">Estratégia por Canal</a></li>
+      <li><a href="#s11">Próximos Passos e Compromissos</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s1">
+    <span class="section-tag">01 · Debriefing</span>
+    <h2>O Que Foi Construído</h2>
+  </div>
+
+  <p>Ao longo do acompanhamento, a FLG não entregou apenas campanhas isoladas para a Go Fit. O que foi construído foi uma <strong>jornada estratégica completa de seis meses</strong>, com mapeamento inicial, organização de canais, planejamento, validação prática, campanhas, ajustes de rota e fechamento com direcionamento para o próximo ciclo.</p>
+
+  <p>Desde o onboarding, Pedro estruturou a jornada com clareza de fases, cronograma, grupos de suporte, papel da equipe e lógica de implementação, posicionando-se como elo entre cliente e operação da FLG.</p>
+
+  <h3>A Natureza do Trabalho Entregue</h3>
+
+  <p>O trabalho não ficou preso à ideia de "academia" como produto genérico. Ele avançou para o entendimento das <strong>dores centrais do público</strong>: sobrepeso, falta de motivação para hábitos saudáveis e ansiedade. A partir disso, Pedro ajudou a transformar a solução da marca em uma ideia-mãe mais forte: <em>atitude, saída da zona de conforto, constância, acolhimento e evolução real</em>.</p>
+
+  <blockquote>
+    <p>"Ele não entregou só marketing para a Go Fit. Ele ajudou a transformar a academia em uma marca com direção, narrativa, protagonistas e linguagem própria para crescer no digital com mais verdade e mais consistência."</p>
+  </blockquote>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s2">
+    <span class="section-tag">02 · Diagnóstico</span>
+    <h2>Diagnóstico de Negócio e Posicionamento</h2>
+  </div>
+
+  <p>Talvez a principal virada intelectual do ciclo tenha sido o <strong>reposicionamento da Go Fit</strong> como marca de experiência, pertencimento e transformação — e não apenas como uma academia que vende planos.</p>
+
+  <h3>O Que Foi Identificado Internamente</h3>
+
+  <ul class="styled">
+    <li>Gargalos de retenção: alunos entravam mas não ficavam por falta de conexão com a marca</li>
+    <li>Atendimento com espaço para maior personalização e calor humano</li>
+    <li>Cultura interna em construção: equipe precisava de clareza sobre a identidade da academia</li>
+    <li>Experiência do aluno: o "clima" da academia era o maior diferencial, mas não estava sendo comunicado</li>
+    <li>Desalinhamento entre promessas de comunicação e realidade operacional</li>
+    <li>Necessidade de protagonistas visuais claros na marca</li>
+  </ul>
+
+  <h3>A Central de Experiência Fitness</h3>
+
+  <p>Pedro conduziu a estratégia para que a Go Fit fosse percebida como uma <strong>central de experiência fitness</strong>, com:</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>Pilares da Experiência</h3>
+      <ul class="styled">
+        <li>Acolhimento genuíno</li>
+        <li>Atenção individualizada ao aluno</li>
+        <li>Ambiente que puxa para cima</li>
+        <li>Senso real de comunidade</li>
+        <li>Soluções 360 para saúde e bem-estar</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Dores do Público-Alvo</h3>
+      <ul class="styled">
+        <li>Sobrepeso e insatisfação corporal</li>
+        <li>Ansiedade e desregulação emocional</li>
+        <li>Falta de motivação e constância</li>
+        <li>Histórico de desistência em academias</li>
+        <li>Necessidade de ambiente acolhedor</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s3">
+    <span class="section-tag">03 · Entregas</span>
+    <h2>Mapa de Entregas FLG</h2>
+  </div>
+
+  <p>A FLG entregou uma arquitetura completa ao longo dos seis meses. As entregas se dividem em quatro grandes categorias:</p>
+
+  <h3>Entregas Estratégicas e Intelectuais</h3>
+  <ul class="styled">
+    <li><strong>Diagnóstico de posicionamento</strong>: análise das dores do público, gargalos internos e oportunidades</li>
+    <li><strong>Definição da ideia-mãe da marca</strong>: atitude, constância, acolhimento, evolução real</li>
+    <li><strong>Arquitetura do posicionamento</strong>: Go Fit como central de experiência fitness</li>
+    <li><strong>Onboarding completo</strong>: fases, cronograma, grupos, papéis, lógica de implementação</li>
+    <li><strong>Identificação dos protagonistas</strong>: Rosane, Antonella e Talia como canais de aquisição</li>
+    <li><strong>Diagnóstico de negócio</strong>: além de marketing — operação, retenção, cultura interna</li>
+  </ul>
+
+  <h3>Entregas de Conteúdo e Produção</h3>
+  <ul class="styled">
+    <li><strong>Estrutura das 3 Campanhas</strong>: narrativa institucional, manifesto, roteiros com direção de cena</li>
+    <li><strong>Roteiros de Conteúdo Go Fit</strong>: roteiros voltados a disciplina, comunidade, autocuidado, transformação</li>
+    <li><strong>Linha Editorial Go Fit</strong>: verão, energia, constância e pertencimento com coerência de longo prazo</li>
+    <li><strong>Vídeos editados da Campanha 01</strong></li>
+    <li><strong>Manifesto de Natal</strong>: conteúdo institucional de alto valor emocional</li>
+    <li><strong>Roteiros da Campanha Verão 2026 / GoFit Summit</strong></li>
+    <li><strong>Novos roteiros de conteúdo + tráfego</strong></li>
+    <li><strong>Roteiros em Português, Inglês e Espanhol</strong>: adaptação para turistas do Sul da Ilha</li>
+  </ul>
+
+  <h3>Entregas Operacionais e de Captação</h3>
+  <ul class="styled">
+    <li>Criação e abastecimento do <strong>Grupo VIP</strong></li>
+    <li>Scripts de mensagens para abordagem de leads</li>
+    <li>QR codes e folders de divulgação</li>
+    <li>Estrutura de páginas e eventos</li>
+    <li>Configuração da conta de anúncios + definição de verba</li>
+    <li>Impulsionamento e campanhas pagas</li>
+    <li>Calendário de aulões e eventos</li>
+    <li>Apoio à divulgação com influenciadores e parceiros</li>
+  </ul>
+
+  <h3>Campanha GoFit Summit 2026</h3>
+  <p>A sofisticação mais alta do ciclo. A FLG estruturou comunicação de evento com:</p>
+  <ul class="styled">
+    <li>Roteiros para grupo VIP, aulas experimentais e treinos externos</li>
+    <li>Comunicação de virada de ano como senso de comunidade</li>
+    <li>Abordagem para turistas, moradores, Carnaval, Sul da Ilha</li>
+    <li>Integração com TotalPass e Gympass</li>
+    <li>Oferta semanal e funil de captação contínuo</li>
+  </ul>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s4">
+    <span class="section-tag">04 · Resultados</span>
+    <h2>Resultados e Transformação</h2>
+  </div>
+
+  <div class="highlight">
+    <p><strong>Nota importante:</strong> Os principais retornos deste ciclo são imensuráveis em planilha. Eles aparecem como postura, competência, clareza e segurança — ativos que sustentam crescimento orgânico de longo prazo.</p>
+  </div>
+
+  <h3>O Que Rosane Relata ao Final do Ciclo</h3>
+  <ul class="styled">
+    <li>Melhora visível na procura espontânea por matrículas</li>
+    <li>Mês da Mulher com resultado bem-sucedido</li>
+    <li>Aulão de inauguração bem recebido pela comunidade</li>
+    <li>Vídeos com performance e engajamento acima do esperado</li>
+    <li>Equipe mais segura, direcionada e autônoma na produção</li>
+    <li>Percepção de que a academia ficou mais "conhecida" na região</li>
+  </ul>
+
+  <h3>O Que a FLG Construiu de Forma Mensurável</h3>
+  <ul class="styled">
+    <li>Equipe capaz de produzir conteúdo sem depender da consultoria</li>
+    <li>Clareza de quem são os protagonistas da marca</li>
+    <li>Conteúdo como canal principal de aquisição identificado e validado</li>
+    <li>Consciência de narrativa e linguagem própria da Go Fit</li>
+    <li>Academia com direção estratégica, não com improviso</li>
+    <li>Transição bem-sucedida de protagonismo para as fundadoras</li>
+  </ul>
+
+  <blockquote>
+    <p>"Missão cumprida. O principal aprendizado dos seis meses foi identificar o conteúdo como canal principal de aquisição e mostrar que muitos retornos são imensuráveis, porque aparecem como postura, competência, clareza e segurança." — Pedro Aranda</p>
+  </blockquote>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s5">
+    <span class="section-tag">05 · Protagonistas</span>
+    <h2>As Protagonistas: Rosane e Antonella</h2>
+  </div>
+
+  <p>Um dos méritos centrais do ciclo foi a identificação e ativação das fundadoras como os ativos mais valiosos da marca. Nenhuma campanha ou anúncio consegue replicar a autenticidade de quem criou o negócio.</p>
+
+  <h3>Rosane — A Alma da Go Fit</h3>
+
+  <div class="card">
+    <h4>Essência</h4>
+    <p>"A academia que te olha nos olhos, conhece sua história e quer sua evolução real."</p>
+
+    <h4>Pilares de Comunicação</h4>
+    <ul class="styled">
+      <li>Bastidores de quem fundou uma academia do zero — vulnerabilidade e força</li>
+      <li>Histórias reais de alunos que transformaram suas vidas na Go Fit</li>
+      <li>A visão por trás da Go Fit: por que ela existe e para quem</li>
+      <li>Liderança feminina e empreendedorismo no fitness</li>
+      <li>Acolhimento como diferencial competitivo — o "calor humano" da academia</li>
+      <li>Datas comemorativas com significado genuíno (Mês da Mulher, Dia das Mães)</li>
+      <li>Comunidade: reconhecimento de alunos, celebração de conquistas</li>
+    </ul>
+
+    <h4>Canais Prioritários</h4>
+    <p><strong>Instagram</strong> (feed + stories diários) · <strong>YouTube</strong> (entrevistas e bastidores) · <strong>Lives mensais</strong></p>
+
+    <h4>Tom de Voz</h4>
+    <p>Caloroso, humano, autêntico. Fala de dentro. Não performa — mostra. A força vem da vulnerabilidade real e do cuidado genuíno.</p>
+  </div>
+
+  <h3>Antonella — A Força da Go Fit</h3>
+
+  <div class="card">
+    <h4>Essência</h4>
+    <p>"Fitness como estilo de vida. Se eu posso, você pode — e eu vou te mostrar como."</p>
+
+    <h4>Pilares de Comunicação</h4>
+    <ul class="styled">
+      <li>Rotina de treino nos bastidores reais da Go Fit</li>
+      <li>Transformação pessoal: sua jornada como co-fundadora e atleta</li>
+      <li>Treinos do dia a dia e dicas rápidas de motivação</li>
+      <li>Collabs com influenciadores e parceiros fitness de Florianópolis</li>
+      <li>TikTok trends adaptadas para o universo da academia</li>
+      <li>Vida saudável integrada: alimentação, treino e mentalidade</li>
+      <li>Energia jovem que contagia e convida</li>
+    </ul>
+
+    <h4>Canais Prioritários</h4>
+    <p><strong>TikTok</strong> (motor de descoberta) · <strong>Instagram Reels</strong> · <strong>YouTube Vlogs</strong></p>
+
+    <h4>Tom de Voz</h4>
+    <p>Energético, motivador, próximo. Fala como quem treina do seu lado. Conteúdo que inspira a ação imediata.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s6">
+    <span class="section-tag">06 · Mercado</span>
+    <h2>Pesquisa de Mercado — Fitness 2026</h2>
+  </div>
+
+  <h3>O Cenário do Fitness Brasileiro</h3>
+
+  <p>O Brasil ocupa a <strong>2ª posição mundial</strong> em número de academias e o mercado fitness apresentou crescimento consistente pós-pandemia, com expansão de academias boutique e micro-academias personalizadas. O consumidor brasileiro em 2026 está mais seletivo: não busca apenas resultado físico — busca <strong>experiência, comunidade e autenticidade</strong>.</p>
+
+  <table>
+    <tr>
+      <th>Indicador</th>
+      <th>Dados Relevantes</th>
+    </tr>
+    <tr>
+      <td>Posição do Brasil no mercado global</td>
+      <td>2° maior mercado de academias do mundo</td>
+    </tr>
+    <tr>
+      <td>Engajamento founder-driven brands</td>
+      <td>3× mais engajamento que marcas impessoais</td>
+    </tr>
+    <tr>
+      <td>Preferência por autenticidade</td>
+      <td>72% dos consumidores preferem conteúdo real a conteúdo produzido</td>
+    </tr>
+    <tr>
+      <td>Canal de descoberta dominante</td>
+      <td>TikTok e Instagram Reels superam buscas pagas para fitness local</td>
+    </tr>
+    <tr>
+      <td>Retenção via comunidade</td>
+      <td>Academias com senso de comunidade têm taxa de retenção 40% maior</td>
+    </tr>
+  </table>
+
+  <h3>O Que o Concorrente Não Tem</h3>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3 style="color:rgba(250,250,248,.5); font-size:.95rem;">Grandes Redes</h3>
+      <ul class="styled">
+        <li>Marca impessoal, sem rosto humano</li>
+        <li>Comunicação genérica e padronizada</li>
+        <li>Preço baixo como único diferencial</li>
+        <li>Aluno é número, não pessoa</li>
+        <li>Sem história, sem fundador visível</li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:rgba(201,168,76,.35);">
+      <h3>Go Fit com FLG</h3>
+      <ul class="styled">
+        <li>Rosane e Antonella: rostos reais e histórias verdadeiras</li>
+        <li>Narrativa única de acolhimento e transformação</li>
+        <li>Comunidade como moat competitivo impossível de copiar</li>
+        <li>Aluno que vira fã vira promotor da marca</li>
+        <li>Fundadoras visíveis que criam confiança antes da matrícula</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Florianópolis como Vantagem</h3>
+  <p>A localização no Sul da Ilha representa uma oportunidade única: <strong>alta temporada com turistas internacionais</strong> (alvo do conteúdo trilíngue PT/EN/ES), base de moradores com renda elevada e crescente cultura de bem-estar. A Go Fit está geograficamente posicionada para capturar tanto o morador permanente quanto o turista que quer manter a rotina durante a viagem.</p>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s7">
+    <span class="section-tag">07 · Metodologia</span>
+    <h2>Metodologia Founders Led Growth</h2>
+  </div>
+
+  <p>Founders Led Growth é a metodologia que posiciona as fundadoras como o principal canal de aquisição, autoridade e retenção do negócio. É a estratégia correta para negócios como a Go Fit porque cria uma <strong>vantagem competitiva impossível de replicar</strong>: a história e a personalidade das fundadoras.</p>
+
+  <h3>Os 5 Princípios da Metodologia</h3>
+
+  <ol class="styled">
+    <li><strong>O Fundador é o Canal:</strong> A confiança que o público deposita em Rosane e Antonella como pessoas vira confiança na academia. A marca cresce porque os rostos crescem.</li>
+    <li><strong>Conteúdo como Funil:</strong> Instagram, TikTok e YouTube não são apenas "redes sociais" — são o topo, meio e fundo de um funil de vendas orgânico que funciona 24 horas por dia.</li>
+    <li><strong>Comunidade como Retenção:</strong> Quem se conecta com a fundadora não cancela a matrícula. Ele fica pelo pertencimento, pela comunidade, pela sensação de "isso foi feito para mim".</li>
+    <li><strong>Consistência supera viralidade:</strong> Um vídeo viral não constrói marca. A presença diária, a mesma mensagem repetida de formas diferentes, ao longo de meses — isso constrói marca.</li>
+    <li><strong>Narrativa vira ativo:</strong> A história da Go Fit, contada repetidamente por Rosane e Antonella, acumula valor intangível que se traduz em preferência, lealdade e indicação.</li>
+  </ol>
+
+  <h3>Como Aplicar na Prática</h3>
+
+  <table>
+    <tr>
+      <th>Fundadora</th>
+      <th>Canal Primário</th>
+      <th>Frequência</th>
+      <th>Objetivo</th>
+    </tr>
+    <tr>
+      <td>Rosane</td>
+      <td>Instagram + YouTube</td>
+      <td>3–4×/semana + 1 vídeo/mês</td>
+      <td>Autoridade, conexão emocional, comunidade</td>
+    </tr>
+    <tr>
+      <td>Antonella</td>
+      <td>TikTok + Reels</td>
+      <td>4–5×/semana</td>
+      <td>Descoberta, motivação, lifestyle, trends</td>
+    </tr>
+    <tr>
+      <td>Go Fit (perfil)</td>
+      <td>Instagram principal</td>
+      <td>Diário</td>
+      <td>Prova social, ofertas, resultados, institucional</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s8">
+    <span class="section-tag">08 · Plano</span>
+    <h2>Plano de Conteúdo — Próximos 6 Meses</h2>
+  </div>
+
+  <h3>Visão Geral Estratégica</h3>
+
+  <p>O plano dos próximos 6 meses se organiza em três fases progressivas:</p>
+
+  <ul class="styled">
+    <li><strong>Fase 1 — Consolidação (Meses 1–2):</strong> estabelecer presença consistente, definir linha visual, ativar os perfis das fundadoras com conteúdo de autoridade e conexão.</li>
+    <li><strong>Fase 2 — Expansão (Meses 3–4):</strong> ampliar alcance com collabs, aumentar frequência no TikTok, lançar série no YouTube, explorar novos públicos.</li>
+    <li><strong>Fase 3 — Colheita (Meses 5–6):</strong> capitalizar a audiência construída, lançar campanhas de captação com prova social acumulada, evento GoFit Summit 2.0.</li>
+  </ul>
+
+  <h3>Regra de Ouro do Ciclo</h3>
+
+  <div class="highlight">
+    <p>Cada peça de conteúdo serve a um dos três objetivos: <strong>Descoberta</strong> (atrair novos públicos que ainda não conhecem a Go Fit), <strong>Conexão</strong> (aprofundar o relacionamento com quem já segue) ou <strong>Conversão</strong> (levar a uma ação — matricular, agendar aula experimental, entrar no grupo VIP). Nada é publicado sem intenção clara.</p>
+  </div>
+
+  <h3>Frequência Mínima por Canal</h3>
+
+  <table>
+    <tr>
+      <th>Canal</th>
+      <th>Frequência Mínima</th>
+      <th>Formato Principal</th>
+      <th>Responsável</th>
+    </tr>
+    <tr>
+      <td>Instagram (feed)</td>
+      <td>4–5×/semana</td>
+      <td>Reels + carrosséis</td>
+      <td>Rosane + Antonella + Go Fit</td>
+    </tr>
+    <tr>
+      <td>Instagram (stories)</td>
+      <td>Diário</td>
+      <td>Bastidores, enquetes, CTAs</td>
+      <td>Ambas as fundadoras</td>
+    </tr>
+    <tr>
+      <td>TikTok</td>
+      <td>3–4×/semana</td>
+      <td>Vídeos 15–60s</td>
+      <td>Antonella (liderança)</td>
+    </tr>
+    <tr>
+      <td>YouTube</td>
+      <td>1–2×/mês</td>
+      <td>Vídeos 8–15 min</td>
+      <td>Rosane (série) + Antonella (vlogs)</td>
+    </tr>
+    <tr>
+      <td>YouTube Shorts</td>
+      <td>Diário (reaproveitamento)</td>
+      <td>Recortes de TikTok/Reels</td>
+      <td>Automático — recorte de conteúdo</td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s9">
+    <span class="section-tag">09 · Calendário</span>
+    <h2>Calendário Temático por Mês</h2>
+  </div>
+
+  <h3>Mês 1 — Renascimento &amp; Constância</h3>
+  <div class="card">
+    <h4>Tema do Mês · Março/Abril</h4>
+    <ul class="styled">
+      <li><strong>Mês da Mulher:</strong> história das fundadoras, depoimentos de alunas, campanha emocional</li>
+      <li><strong>Rosane:</strong> "Por que abri a Go Fit" — YouTube (vídeo âncora) + recortes para Reels</li>
+      <li><strong>Antonella:</strong> Desafio 30 dias — TikTok diário com atualizações reais</li>
+      <li><strong>Go Fit:</strong> Aula experimental gratuita para novos alunos — campanha de captação</li>
+      <li><strong>Captação:</strong> "Convide um amigo — semana grátis" com QR code</li>
+      <li><strong>Conteúdo trilíngue:</strong> TikTok em PT/EN/ES para turistas da alta temporada</li>
+    </ul>
+  </div>
+
+  <h3>Mês 2 — Comunidade &amp; Pertencimento</h3>
+  <div class="card">
+    <h4>Tema do Mês · Abril/Maio</h4>
+    <ul class="styled">
+      <li><strong>Semana do Aluno Go Fit:</strong> depoimentos em vídeo — prova social orgânica</li>
+      <li><strong>Rosane:</strong> "O que a academia me ensinou sobre liderança"</li>
+      <li><strong>Antonella:</strong> Collab com influenciador fitness de Florianópolis</li>
+      <li><strong>YouTube:</strong> Ep.1 "Histórias de Transformação" — mini-documentário de aluno</li>
+      <li><strong>TikTok:</strong> Challenge interno com alunos — viralidade orgânica</li>
+      <li><strong>Awareness:</strong> TotalPass e Gympass — alcançar novos públicos pagantes</li>
+    </ul>
+  </div>
+
+  <h3>Mês 3 — Autoridade &amp; Conteúdo de Valor</h3>
+  <div class="card">
+    <h4>Tema do Mês · Maio/Junho</h4>
+    <ul class="styled">
+      <li><strong>Rosane:</strong> série "Bastidores de uma academia que cresce" — 2 episódios</li>
+      <li><strong>Antonella:</strong> Rotina de semana real — vlog YouTube completo</li>
+      <li><strong>Dia dos Namorados:</strong> parceria de casal de alunos — conteúdo emocional</li>
+      <li><strong>TikTok:</strong> "3 erros que as pessoas cometem na academia" — conteúdo de valor</li>
+      <li><strong>Grupo VIP 2.0:</strong> reativação com conteúdo exclusivo e oferta especial</li>
+      <li><strong>Campanha inverno:</strong> "O frio não para quem tem um motivo"</li>
+    </ul>
+  </div>
+
+  <h3>Mês 4 — Viralidade &amp; Novos Públicos</h3>
+  <div class="card">
+    <h4>Tema do Mês · Junho/Julho</h4>
+    <ul class="styled">
+      <li><strong>Antonella:</strong> Trend viral adaptada para fitness — máximo alcance</li>
+      <li><strong>Aulão de Inverno:</strong> conteúdo ao vivo e recortes — evento vira conteúdo</li>
+      <li><strong>Rosane:</strong> Entrevista com aluna que transformou a vida</li>
+      <li><strong>YouTube:</strong> Ep.2 "Histórias de Transformação"</li>
+      <li><strong>TikTok:</strong> Tour pela academia — "O que você não sabia sobre a Go Fit"</li>
+      <li><strong>Captação:</strong> anúncios pagos no pico do inverno — temporada de motivação</li>
+    </ul>
+  </div>
+
+  <h3>Mês 5 — Pré-Verão &amp; Captação Acelerada</h3>
+  <div class="card">
+    <h4>Tema do Mês · Julho/Agosto</h4>
+    <ul class="styled">
+      <li><strong>Antonella:</strong> "Meu preparo pré-verão começa agora" — série de 4 vídeos</li>
+      <li><strong>Go Fit:</strong> Lançamento pacote verão + aula experimental com urgência</li>
+      <li><strong>Rosane:</strong> "Por que agosto é o melhor mês para começar"</li>
+      <li><strong>TikTok:</strong> conteúdo bilíngue intensificado para turistas da alta temporada</li>
+      <li><strong>Campanha:</strong> Gympass/TotalPass com contagem regressiva</li>
+      <li><strong>YouTube:</strong> Ep.3 "Histórias de Transformação"</li>
+    </ul>
+  </div>
+
+  <h3>Mês 6 — GoFit Summit 2.0 &amp; Legado</h3>
+  <div class="card">
+    <h4>Tema do Mês · Agosto/Setembro</h4>
+    <ul class="styled">
+      <li><strong>Lançamento GoFit Summit 2.0:</strong> evento de comunidade — planejamento e divulgação</li>
+      <li><strong>Rosane:</strong> "6 meses depois — o que mudou na Go Fit" — vídeo de balanço</li>
+      <li><strong>Antonella:</strong> "Eu treinei 180 dias seguidos — este foi o resultado"</li>
+      <li><strong>Live especial:</strong> Rosane + Antonella juntas no YouTube/Instagram</li>
+      <li><strong>Campanha:</strong> renovação de matrículas com história — retenção emocional</li>
+      <li><strong>Planejamento ciclo 3:</strong> debriefing ao vivo com alunos como conteúdo</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s10">
+    <span class="section-tag">10 · Canais</span>
+    <h2>Estratégia por Canal</h2>
+  </div>
+
+  <h3>Instagram — O Quartel General</h3>
+  <p>O Instagram é onde a Go Fit vive. É onde Rosane mostra o coração da academia e Antonella mostra a energia. O perfil da Go Fit é o destino final — os perfis pessoais são os canais de aquisição que alimentam ele.</p>
+  <ul class="styled">
+    <li><strong>Objetivo:</strong> Autoridade, conexão, conversão</li>
+    <li><strong>Formato prioritário:</strong> Reels (descoberta) + Stories (relacionamento) + Feed (portfólio)</li>
+    <li><strong>Bio:</strong> Revisitar e atualizar com posicionamento claro: "A academia que cuida de você de verdade"</li>
+    <li><strong>Highlights:</strong> Organizar por: Quem Somos · Alunos · Planos · Eventos · Bastidores</li>
+    <li><strong>Rosane lidera:</strong> histórias, acolhimento, comunidade, datas especiais</li>
+    <li><strong>Antonella lidera:</strong> treinos, lifestyle, energia, tendências</li>
+  </ul>
+
+  <h3>TikTok — O Motor de Descoberta</h3>
+  <p>TikTok é onde pessoas que nunca ouviram falar da Go Fit vão descobrir ela. É o canal de topo de funil mais poderoso para a faixa etária 18–35. Antonella é a protagonista natural.</p>
+  <ul class="styled">
+    <li><strong>Objetivo:</strong> Alcance, descoberta, viralidade</li>
+    <li><strong>Gancho nos primeiros 2 segundos:</strong> regra absoluta — sem gancho, sem visualização</li>
+    <li><strong>Trends com contexto:</strong> adaptar trends populares para o universo fitness/Go Fit</li>
+    <li><strong>Conteúdo trilíngue:</strong> PT + EN + ES para turistas de Florianópolis</li>
+    <li><strong>Frequência mínima:</strong> 3–4 vídeos/semana sem exceção</li>
+    <li><strong>Rosane no TikTok:</strong> POV de fundadora, storytelling emocional curto (30–45s)</li>
+  </ul>
+
+  <h3>YouTube — O Construtor de Autoridade</h3>
+  <p>YouTube é onde o conteúdo fica para sempre. É o canal de longo prazo. Quem assiste 10 minutos de Rosane contando a história da Go Fit já está convencido antes de perguntar o preço.</p>
+  <ul class="styled">
+    <li><strong>Objetivo:</strong> Confiança profunda, SEO local, retenção de alunos</li>
+    <li><strong>Série Rosane:</strong> "Por Dentro da Go Fit" — 1 episódio/mês</li>
+    <li><strong>Série Antonella:</strong> "Minha Semana de Treinos" — vlog quinzenal</li>
+    <li><strong>Série Go Fit:</strong> "Histórias de Transformação" — mini-docs mensais</li>
+    <li><strong>YouTube Shorts:</strong> reaproveitamento diário de conteúdo de TikTok/Reels</li>
+    <li><strong>SEO:</strong> títulos com "academia Florianópolis", "treinar em Floripa", "Go Fit"</li>
+  </ul>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s11">
+    <span class="section-tag">11 · Ação</span>
+    <h2>Próximos Passos e Compromissos</h2>
+  </div>
+
+  <h3>Esta Semana</h3>
+  <ul class="styled">
+    <li>Definir frequência de postagem por perfil (acordo formal entre equipe)</li>
+    <li>Gravar o primeiro Reel/TikTok da nova fase com gancho forte</li>
+    <li>Rosane: identificar 3 histórias de alunos para contar ao longo do mês</li>
+    <li>Antonella: rascunhar roteiro da série YouTube e primeiros TikToks</li>
+  </ul>
+
+  <h3>Este Mês</h3>
+  <ul class="styled">
+    <li>Lançar campanha do Mês da Mulher ou data âncora mais próxima</li>
+    <li>Montar sistema de "semana seguinte já planejada" — sem improvisar na hora</li>
+    <li>Criar ou reativar Grupo VIP com conteúdo exclusivo e oferta especial</li>
+    <li>Revisar bio e highlights dos perfis com novo posicionamento</li>
+    <li>Gravar Ep.1 "Por que abri a Go Fit" com Rosane</li>
+  </ul>
+
+  <h3>Encerramento do Ciclo 1</h3>
+
+  <div class="highlight">
+    <p>A FLG entrega agora todo o direcionamento dos próximos 6 meses para que Rosane e Antonella executem da melhor forma possível. O <strong>Pedro estará disponível de forma periódica</strong> para apoiar, tirar dúvidas e ajustar rota quando necessário. O grupo oficial de acompanhamento será encerrado ao longo dos próximos dias. Esse ciclo foi o começo de algo muito maior — e tudo o que foi construído aqui é o alicerce para o crescimento que vem pela frente.</p>
+  </div>
+
+  <blockquote>
+    <p>"O crescimento da Go Fit não vai vir de um vídeo viral. Vai vir de Rosane e Antonella aparecendo todo dia, com verdade, com cuidado e com a mesma mensagem — até que quem assiste não consiga mais imaginar treinar em outro lugar."</p>
+  </blockquote>
+
+  <hr>
+
+  <footer>
+    <p>FLG · Founders Led Growth · Pedro Aranda · Go Fit × Rosane &amp; Antonella · Florianópolis · 2026</p>
+  </footer>
+
+</div><!-- /page -->
+</body>
+</html>

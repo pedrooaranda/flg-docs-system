@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║  FLG — TEMPLATE DE DOCUMENTO ESTRATÉGICO                           ║
+  ║  Founders Led Growth · Pedro Aranda                                 ║
+  ╠══════════════════════════════════════════════════════════════════════╣
+  ║  COMO USAR:                                                         ║
+  ║  1. Substitua todos os {{PLACEHOLDERS}} pelos dados do cliente      ║
+  ║  2. Adicione seções copiando o bloco .section-header + conteúdo     ║
+  ║  3. Atualize o sumário <ol> no .toc com as seções usadas            ║
+  ║  4. Use ./scripts/new-client.sh para automatizar esse processo      ║
+  ╠══════════════════════════════════════════════════════════════════════╣
+  ║  PLACEHOLDERS:                                                      ║
+  ║  {{EMPRESA}}      — "Go Fit"                                        ║
+  ║  {{CLIENTES}}     — "Rosane & Antonella"                            ║
+  ║  {{ESTRATEGISTA}} — "Pedro Aranda"                                  ║
+  ║  {{ANO}}          — "2026"                                          ║
+  ║  {{DATA}}         — "Março 2026"                                    ║
+  ║  {{TITULO_DOC}}   — "Documento Estratégico"                         ║
+  ║  {{DESCRICAO}}    — Descrição do escopo do documento                ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+<title>{{EMPRESA}} × FLG — {{TITULO_DOC}}</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ─── RESET & BASE ─── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ─── DESIGN SYSTEM FLG ─── */
+  :root {
+    --gold-light: #F5D68A;
+    --gold-mid:   #C9A84C;
+    --gold-dark:  #8B6914;
+    --gold-grad:  linear-gradient(135deg, #F5D68A 0%, #C9A84C 50%, #8B6914 100%);
+    --black:      #080808;
+    --white:      #FAFAF8;
+    --grey:       #999;
+    --body-bg:    #0c0c0c;
+    --card-bg:    rgba(255,255,255,.032);
+    --border:     rgba(201,168,76,.18);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--body-bg);
+    color: var(--white);
+    font-family: 'Poppins', sans-serif;
+    font-size: 15px;
+    line-height: 1.8;
+  }
+
+  /* ─── PAGE WRAPPER ─── */
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 60px 40px 100px;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: var(--black);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(12px);
+  }
+  .header-inner {
+    max-width: 900px; margin: 0 auto;
+    padding: 14px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-logo { height: 28px; width: auto; opacity: .8; }
+  .header-title { font-size: 11px; color: rgba(250,250,248,.4); letter-spacing: 2px; }
+  .header-print {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--gold-mid); background: none;
+    border: 1px solid var(--border);
+    padding: 5px 14px; border-radius: 2px;
+    cursor: pointer; font-family: 'Poppins', sans-serif;
+    transition: background .2s;
+  }
+  .header-print:hover { background: rgba(201,168,76,.08); }
+
+  /* ─── COVER ─── */
+  .cover {
+    text-align: center;
+    padding: 60px 0 50px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 60px;
+    position: relative;
+  }
+  .cover::after {
+    content: '';
+    position: absolute; bottom: -1px; left: 20%; right: 20%;
+    height: 1px; background: var(--gold-grad);
+  }
+  .cover-tag {
+    font-size: 10px; letter-spacing: 6px;
+    text-transform: uppercase; color: var(--gold-mid);
+    margin-bottom: 24px; display: block;
+  }
+  .cover h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 3.2rem; font-weight: 700; line-height: 1.1;
+    background: var(--gold-grad);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 16px;
+  }
+  .cover-sub { font-size: .9rem; color: rgba(250,250,248,.55); letter-spacing: 2px; margin-bottom: 32px; }
+  .cover-line { width: 80px; height: 1px; background: var(--gold-grad); margin: 0 auto 32px; border: none; }
+  .cover-desc { font-size: 1.05rem; color: rgba(250,250,248,.75); max-width: 640px; margin: 0 auto; line-height: 1.8; }
+
+  /* ─── SECTION HEADERS ─── */
+  .section-header {
+    margin: 60px 0 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .section-header::before {
+    content: '';
+    position: absolute; bottom: -1px; left: 0; width: 60px; height: 1px;
+    background: var(--gold-grad);
+  }
+  .section-tag {
+    font-size: 9px; letter-spacing: 5px; text-transform: uppercase;
+    color: var(--gold-mid); margin-bottom: 8px; display: block;
+  }
+  .section-header h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem; font-weight: 700; line-height: 1.2;
+    background: var(--gold-grad);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ─── TIPOGRAFIA ─── */
+  h3 { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 600; color: var(--gold-light); margin: 28px 0 12px; }
+  h4 { font-size: .78rem; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--gold-mid); margin: 20px 0 8px; }
+  p  { color: rgba(250,250,248,.78); margin-bottom: 16px; font-size: .95rem; }
+  strong { color: var(--gold-light); font-weight: 500; }
+  em { font-style: italic; color: rgba(250,250,248,.7); }
+
+  /* ─── BLOCKQUOTE ─── */
+  blockquote {
+    border-left: 2px solid var(--gold-mid);
+    padding: 16px 24px; margin: 24px 0;
+    background: rgba(201,168,76,.05);
+    border-radius: 0 4px 4px 0;
+  }
+  blockquote p {
+    font-family: 'Playfair Display', serif;
+    font-style: italic; font-size: 1.05rem;
+    color: var(--gold-light); margin: 0; line-height: 1.7;
+  }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 20px 24px;
+    margin-bottom: 16px; position: relative;
+  }
+  .card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: var(--gold-grad);
+  }
+  .card h3 { margin-top: 0; font-size: 1rem; }
+
+  /* ─── GRID ─── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+
+  /* ─── LISTAS ─── */
+  ul.styled, ol.styled { list-style: none; margin-bottom: 16px; }
+  ul.styled li, ol.styled li {
+    padding: 6px 0 6px 20px; position: relative;
+    font-size: .92rem; color: rgba(250,250,248,.78);
+    border-bottom: 1px solid rgba(201,168,76,.07); line-height: 1.65;
+  }
+  ul.styled li:last-child, ol.styled li:last-child { border-bottom: none; }
+  ul.styled li::before { content: '◆'; position: absolute; left: 0; color: var(--gold-mid); font-size: .45rem; top: 13px; }
+  ol.styled { counter-reset: item; }
+  ol.styled li::before { content: counter(item) '.'; counter-increment: item; position: absolute; left: 0; color: var(--gold-mid); font-size: .82rem; font-weight: 600; top: 7px; }
+
+  /* ─── TABELA ─── */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: .88rem; }
+  th { background: rgba(201,168,76,.1); color: var(--gold-light); padding: 10px 14px; text-align: left; font-size: .72rem; letter-spacing: 2px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; border-bottom: 1px solid rgba(201,168,76,.07); color: rgba(250,250,248,.78); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+
+  /* ─── HIGHLIGHT ─── */
+  .highlight {
+    background: rgba(201,168,76,.07); border: 1px solid rgba(201,168,76,.25);
+    border-radius: 4px; padding: 20px 24px; margin: 24px 0;
+  }
+  .highlight p { color: rgba(250,250,248,.9); margin-bottom: 0; }
+
+  /* ─── HR ─── */
+  hr { border: none; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-mid), transparent); margin: 40px 0; }
+
+  /* ─── TOC ─── */
+  .toc { background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 28px 32px; margin-bottom: 48px; }
+  .toc h4 { margin-top: 0; }
+  .toc ol { list-style: none; counter-reset: toc; }
+  .toc ol li { counter-increment: toc; padding: 5px 0; font-size: .9rem; color: rgba(250,250,248,.65); border-bottom: 1px dotted rgba(201,168,76,.12); }
+  .toc ol li:last-child { border-bottom: none; }
+  .toc ol li::before { content: counter(toc, decimal-leading-zero) ' '; color: var(--gold-mid); font-weight: 600; margin-right: 8px; }
+  .toc a { color: inherit; text-decoration: none; }
+  .toc a:hover { color: var(--gold-light); }
+
+  /* ─── FOOTER ─── */
+  footer { margin-top: 80px; padding-top: 32px; border-top: 1px solid var(--border); text-align: center; }
+  footer p { font-size: .78rem; color: rgba(250,250,248,.3); letter-spacing: 2px; text-transform: uppercase; margin: 0; }
+
+  /* ─── PRINT / PDF ─── */
+  @media print {
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+    header .header-print { display: none !important; }
+    html, body { background: #0c0c0c !important; color: #FAFAF8 !important; }
+    header { position: relative !important; background: #0a0a0a !important; }
+    .card { background: rgba(255,255,255,.032) !important; }
+    .toc  { background: rgba(255,255,255,.032) !important; }
+    .highlight { background: rgba(201,168,76,.07) !important; }
+    blockquote { background: rgba(201,168,76,.05) !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <img class="header-logo" src="../../document_template/assets/logo-flg.svg" alt="Founders Led Growth">
+    <span class="header-title">{{EMPRESA}} · {{TITULO_DOC}} · {{ANO}}</span>
+    <button class="header-print" onclick="window.print()">Imprimir / PDF</button>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- ─── CAPA ─── -->
+  <div class="cover">
+    <img src="../../document_template/assets/logo-flg.svg" alt="Founders Led Growth"
+         style="width:100px; height:auto; opacity:.85; margin-bottom:2rem; display:block; margin-left:auto; margin-right:auto;">
+    <span class="cover-tag">Founders Led Growth · FLG × {{EMPRESA}}</span>
+    <h1>{{TITULO_DOC}}<br>{{EMPRESA}}</h1>
+    <p class="cover-sub">{{CLIENTES}} · {{DATA}}</p>
+    <hr class="cover-line">
+    <p class="cover-desc">{{DESCRICAO}}</p>
+    <p style="margin-top:24px; font-size:.82rem; color:rgba(250,250,248,.35); letter-spacing:2px;">
+      Elaborado por {{ESTRATEGISTA}} · Estrategista FLG · {{DATA}}
+    </p>
+  </div>
+
+
+  <!-- ─── SUMÁRIO ─── -->
+  <!--
+    INSTRUÇÃO: Adicione/remova itens conforme as seções que existem no documento.
+    Cada <li> deve ter um href="#sN" correspondente ao id da section-header.
+  -->
+  <div class="toc">
+    <h4>Sumário</h4>
+    <ol>
+      <li><a href="#s1">{{TITULO_SECAO_1}}</a></li>
+      <li><a href="#s2">{{TITULO_SECAO_2}}</a></li>
+      <li><a href="#s3">{{TITULO_SECAO_3}}</a></li>
+      <li><a href="#s4">{{TITULO_SECAO_4}}</a></li>
+      <li><a href="#s5">{{TITULO_SECAO_5}}</a></li>
+      <!-- Adicione mais itens conforme necessário -->
+    </ol>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════
+       SEÇÃO 1
+       INSTRUÇÃO: Substitua o id, a tag, o h2 e o conteúdo.
+                  Copie este bloco para criar novas seções.
+  ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s1">
+    <span class="section-tag">01 · {{TAG_SECAO_1}}</span>
+    <h2>{{TITULO_SECAO_1}}</h2>
+  </div>
+
+  <p>{{PARAGRAFO_INTRO_S1}}</p>
+
+  <h3>{{SUBTITULO_S1}}</h3>
+  <p>{{CONTEUDO_S1}}</p>
+
+  <ul class="styled">
+    <li>{{ITEM_S1_1}}</li>
+    <li>{{ITEM_S1_2}}</li>
+    <li>{{ITEM_S1_3}}</li>
+  </ul>
+
+  <!--
+    COMPONENTES DISPONÍVEIS — copie e cole conforme necessário:
+
+    ── Card ──────────────────────────────────────────────────
+    <div class="card">
+      <h3>Título do Card</h3>
+      <p>Conteúdo do card.</p>
+    </div>
+
+    ── Grid 2 colunas ────────────────────────────────────────
+    <div class="grid-2">
+      <div class="card"><h3>Coluna 1</h3><p>...</p></div>
+      <div class="card"><h3>Coluna 2</h3><p>...</p></div>
+    </div>
+
+    ── Highlight Box ─────────────────────────────────────────
+    <div class="highlight">
+      <p>Texto em destaque, ideal para conclusões ou alertas.</p>
+    </div>
+
+    ── Blockquote ────────────────────────────────────────────
+    <blockquote>
+      <p>"Frase de impacto aqui."</p>
+    </blockquote>
+
+    ── Tabela ────────────────────────────────────────────────
+    <table>
+      <thead><tr><th>Coluna A</th><th>Coluna B</th></tr></thead>
+      <tbody>
+        <tr><td>Valor</td><td>Valor</td></tr>
+      </tbody>
+    </table>
+
+    ── Lista numerada ────────────────────────────────────────
+    <ol class="styled">
+      <li>Primeiro item</li>
+      <li>Segundo item</li>
+    </ol>
+  -->
+
+
+  <!-- ═══════════════════════════════════════════════
+       SEÇÃO 2
+  ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s2">
+    <span class="section-tag">02 · {{TAG_SECAO_2}}</span>
+    <h2>{{TITULO_SECAO_2}}</h2>
+  </div>
+
+  <p>{{PARAGRAFO_INTRO_S2}}</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>{{CARD_S2_1_TITULO}}</h3>
+      <p>{{CARD_S2_1_CONTEUDO}}</p>
+    </div>
+    <div class="card">
+      <h3>{{CARD_S2_2_TITULO}}</h3>
+      <p>{{CARD_S2_2_CONTEUDO}}</p>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════════
+       SEÇÃO 3
+  ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s3">
+    <span class="section-tag">03 · {{TAG_SECAO_3}}</span>
+    <h2>{{TITULO_SECAO_3}}</h2>
+  </div>
+
+  <p>{{PARAGRAFO_INTRO_S3}}</p>
+
+  <blockquote>
+    <p>"{{CITACAO_S3}}"</p>
+  </blockquote>
+
+  <h3>{{SUBTITULO_S3}}</h3>
+
+  <ol class="styled">
+    <li><strong>{{PONTO_S3_1}}:</strong> {{DESCRICAO_S3_1}}</li>
+    <li><strong>{{PONTO_S3_2}}:</strong> {{DESCRICAO_S3_2}}</li>
+    <li><strong>{{PONTO_S3_3}}:</strong> {{DESCRICAO_S3_3}}</li>
+  </ol>
+
+
+  <!-- ═══════════════════════════════════════════════
+       SEÇÃO 4
+  ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s4">
+    <span class="section-tag">04 · {{TAG_SECAO_4}}</span>
+    <h2>{{TITULO_SECAO_4}}</h2>
+  </div>
+
+  <p>{{PARAGRAFO_INTRO_S4}}</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>{{COLUNA_1}}</th>
+        <th>{{COLUNA_2}}</th>
+        <th>{{COLUNA_3}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{LINHA_1_COL_1}}</td>
+        <td>{{LINHA_1_COL_2}}</td>
+        <td>{{LINHA_1_COL_3}}</td>
+      </tr>
+      <tr>
+        <td>{{LINHA_2_COL_1}}</td>
+        <td>{{LINHA_2_COL_2}}</td>
+        <td>{{LINHA_2_COL_3}}</td>
+      </tr>
+      <!-- Adicione mais linhas conforme necessário -->
+    </tbody>
+  </table>
+
+
+  <!-- ═══════════════════════════════════════════════
+       SEÇÃO 5 — PRÓXIMOS PASSOS / ENCERRAMENTO
+       INSTRUÇÃO: Sempre a última seção.
+  ═══════════════════════════════════════════════ -->
+  <div class="section-header" id="s5">
+    <span class="section-tag">05 · Ação</span>
+    <h2>Próximos Passos</h2>
+  </div>
+
+  <p>{{INTRO_PROXIMOS_PASSOS}}</p>
+
+  <ul class="styled">
+    <li>{{PASSO_1}}</li>
+    <li>{{PASSO_2}}</li>
+    <li>{{PASSO_3}}</li>
+    <li>{{PASSO_4}}</li>
+    <li>{{PASSO_5}}</li>
+  </ul>
+
+  <div class="highlight">
+    <p>{{MENSAGEM_ENCERRAMENTO}}</p>
+  </div>
+
+  <blockquote>
+    <p>"{{CITACAO_FINAL}}"</p>
+  </blockquote>
+
+  <hr>
+
+  <footer>
+    <p>FLG · Founders Led Growth · {{ESTRATEGISTA}} · {{EMPRESA}} × {{CLIENTES}} · {{DATA}}</p>
+  </footer>
+
+</div><!-- /page -->
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Segurança — nunca versionar
+.env
+*.env.local
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Imagens geradas (podem ser grandes)
+# Comente se quiser versionar as imagens
+# clients/**/assets/images/
+
+# Temporários
+*.tmp
+*.bak
+node_modules/

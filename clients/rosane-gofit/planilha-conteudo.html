@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Fit × FLG — Planilha de Conteúdo 6 Meses</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold-light: #F5D68A;
+    --gold-mid:   #C9A84C;
+    --gold-dark:  #8B6914;
+    --gold-grad:  linear-gradient(135deg, #F5D68A 0%, #C9A84C 50%, #8B6914 100%);
+    --black:      #080808;
+    --white:      #FAFAF8;
+    --grey:       #888;
+    --border:     rgba(201,168,76,.18);
+    --row-even:   rgba(255,255,255,.018);
+    --row-hover:  rgba(201,168,76,.05);
+  }
+
+  html, body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: #0a0a0a;
+    border-bottom: 1px solid var(--border);
+    padding: 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .header-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .header-logo {
+    height: 26px;
+    width: auto;
+    opacity: .8;
+  }
+  .header-title {
+    font-size: 11px;
+    color: rgba(250,250,248,.5);
+    letter-spacing: 1px;
+  }
+  .header-actions { display: flex; gap: 8px; }
+  .btn {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold-mid);
+    background: none;
+    border: 1px solid var(--border);
+    padding: 5px 14px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    transition: background .2s;
+  }
+  .btn:hover { background: rgba(201,168,76,.08); }
+  .btn.active { background: rgba(201,168,76,.12); border-color: var(--gold-mid); }
+
+  /* ─── MAIN WRAPPER ─── */
+  .wrapper {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 32px 80px;
+  }
+
+  /* ─── COVER ─── */
+  .cover {
+    text-align: center;
+    padding: 40px 0 32px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 30%; right: 30%;
+    height: 1px;
+    background: var(--gold-grad);
+  }
+  .cover-tag {
+    font-size: 9px;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    color: var(--gold-mid);
+    display: block;
+    margin-bottom: 12px;
+  }
+  .cover h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .cover p { color: rgba(250,250,248,.5); font-size: .85rem; }
+
+  /* ─── STATS BAR ─── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .stat {
+    background: rgba(255,255,255,.025);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 16px;
+    text-align: center;
+    position: relative;
+  }
+  .stat::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: var(--gold-grad);
+  }
+  .stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-label {
+    font-size: .65rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(250,250,248,.45);
+  }
+
+  /* ─── FILTER BAR ─── */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-label {
+    font-size: .7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold-mid);
+    margin-right: 4px;
+  }
+  .filter-btn {
+    font-size: .7rem;
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: none;
+    color: rgba(250,250,248,.55);
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    transition: all .15s;
+    letter-spacing: 1px;
+  }
+  .filter-btn:hover, .filter-btn.on {
+    border-color: var(--gold-mid);
+    color: var(--gold-light);
+    background: rgba(201,168,76,.08);
+  }
+
+  /* ─── SECTION TITLE ─── */
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 28px 0 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-title h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .section-badge {
+    font-size: .65rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    padding: 3px 10px;
+    border-radius: 2px;
+    color: var(--gold-mid);
+  }
+
+  /* ─── TABLE ─── */
+  .table-wrap {
+    overflow-x: auto;
+    margin-bottom: 40px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+  }
+  thead tr {
+    background: rgba(201,168,76,.07);
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: .65rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold-mid);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid rgba(201,168,76,.07);
+    transition: background .15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:nth-child(even) { background: var(--row-even); }
+  tbody tr:hover { background: var(--row-hover); }
+  td {
+    padding: 10px 12px;
+    color: rgba(250,250,248,.78);
+    font-size: .82rem;
+    line-height: 1.5;
+    vertical-align: top;
+  }
+
+  /* ─── BADGES / STATUS ─── */
+  .badge {
+    display: inline-block;
+    font-size: .62rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-ig    { background: rgba(131,58,180,.2); border: 1px solid rgba(131,58,180,.4); color: #d487ff; }
+  .badge-tk    { background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.2); color: #69c9d0; }
+  .badge-yt    { background: rgba(255,0,0,.1); border: 1px solid rgba(255,0,0,.25); color: #ff6b6b; }
+  .badge-all   { background: rgba(201,168,76,.1); border: 1px solid rgba(201,168,76,.3); color: var(--gold-light); }
+  .badge-rosane    { background: rgba(255,192,100,.07); border: 1px solid rgba(255,192,100,.2); color: #ffc064; }
+  .badge-antonella { background: rgba(100,180,255,.07); border: 1px solid rgba(100,180,255,.2); color: #64b4ff; }
+  .badge-gofit     { background: rgba(100,255,150,.07); border: 1px solid rgba(100,255,150,.2); color: #64ff96; }
+
+  .badge-todo   { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); color: rgba(250,250,248,.45); }
+  .badge-doing  { background: rgba(255,200,0,.07); border: 1px solid rgba(255,200,0,.2); color: #ffd040; }
+  .badge-done   { background: rgba(0,200,100,.07); border: 1px solid rgba(0,200,100,.2); color: #40d080; }
+
+  .badge-descoberta  { background: rgba(100,150,255,.07); border: 1px solid rgba(100,150,255,.2); color: #6496ff; }
+  .badge-conexao     { background: rgba(255,150,100,.07); border: 1px solid rgba(255,150,100,.2); color: #ff9664; }
+  .badge-conversao   { background: rgba(201,168,76,.1); border: 1px solid rgba(201,168,76,.3); color: var(--gold-light); }
+
+  /* ─── PRIORITY DOT ─── */
+  .prio { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  .prio-alta { background: #ff6464; }
+  .prio-media { background: #ffd040; }
+  .prio-baixa { background: #64c864; }
+
+  /* ─── FOOTER ─── */
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+  footer p {
+    font-size: .72rem;
+    color: rgba(250,250,248,.25);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* PRINT */
+  @media print {
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    header .header-actions { display: none !important; }
+    .filter-bar { display: none !important; }
+    html, body {
+      background: #080808 !important;
+      color: #FAFAF8 !important;
+    }
+    header { background: #0a0a0a !important; position: relative !important; }
+    .stat  { background: rgba(255,255,255,.025) !important; }
+    .cover { background: transparent !important; }
+    thead tr { background: rgba(201,168,76,.07) !important; }
+    tbody tr:nth-child(even) { background: rgba(255,255,255,.018) !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <img class="header-logo" src="assets/logo.svg" alt="Founders Led Growth">
+    <span class="header-title">Go Fit · Planilha de Conteúdo · 6 Meses · 2026</span>
+    <div class="header-actions">
+      <button class="btn" onclick="window.print()">Imprimir / PDF</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrapper">
+
+  <!-- CAPA -->
+  <div class="cover">
+    <img src="assets/logo.svg" alt="Founders Led Growth" style="width:100px; height:auto; opacity:.85; margin-bottom:2rem; display:block; margin-left:auto; margin-right:auto;">
+    <span class="cover-tag">Founders Led Growth · FLG × Go Fit</span>
+    <h1>Planilha de Conteúdo<br>Próximos 6 Meses</h1>
+    <p>Rosane &amp; Antonella · Instagram · TikTok · YouTube · Março–Setembro 2026</p>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="stat-num">6</div>
+      <div class="stat-label">Meses de Plano</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">3</div>
+      <div class="stat-label">Canais Ativos</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">2</div>
+      <div class="stat-label">Protagonistas</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">72+</div>
+      <div class="stat-label">Peças Planejadas</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">6</div>
+      <div class="stat-label">Temas do Ciclo</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">3</div>
+      <div class="stat-label">Idiomas (PT/EN/ES)</div>
+    </div>
+  </div>
+
+  <!-- MÊS 1 -->
+  <div class="section-title">
+    <h2>Mês 1 — Renascimento &amp; Constância</h2>
+    <span class="section-badge">Março / Abril</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Semana</th>
+          <th>Título / Ideia</th>
+          <th>Canal</th>
+          <th>Responsável</th>
+          <th>Objetivo</th>
+          <th>Formato</th>
+          <th>Status</th>
+          <th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Sem 1</td>
+          <td><strong>Por que abri a Go Fit</strong> — história de origem de Rosane</td>
+          <td><span class="badge badge-yt">YouTube</span> <span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Vídeo 8–12min + Reel âncora</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Ep.1 da série. Recortar em 3+ Reels.</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Sem 1</td>
+          <td><strong>Desafio 30 Dias</strong> — Antonella começa hoje</td>
+          <td><span class="badge badge-tk">TikTok</span> <span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-descoberta">Descoberta</span></td>
+          <td>Vídeo 30s + updates diários</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Gancho: "30 dias. Sem desculpa."</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Sem 1–2</td>
+          <td><strong>Mês da Mulher</strong> — depoimentos de alunas</td>
+          <td><span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Carrossel + Reels curtos</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Selecionar 3–5 alunas para gravar depoimento.</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Sem 2</td>
+          <td><strong>Aula Experimental Grátis</strong> — campanha de captação</td>
+          <td><span class="badge badge-ig">IG</span> <span class="badge badge-tk">TikTok</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conversao">Conversão</span></td>
+          <td>Reel + Stories com link</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>CTA: link bio + DM "QUERO TREINAR"</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Sem 2</td>
+          <td><strong>Liderança feminina no fitness</strong></td>
+          <td><span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Carrossel educativo</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>"O que aprendi abrindo uma academia"</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Sem 3</td>
+          <td><strong>Tour pela Academia</strong> — conteúdo trilíngue PT/EN/ES</td>
+          <td><span class="badge badge-tk">TikTok</span> <span class="badge badge-yt">YT Shorts</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-descoberta">Descoberta</span></td>
+          <td>Vídeo 45s</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Versão PT + EN para turistas Floripa</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Sem 3</td>
+          <td><strong>Convide um Amigo</strong> — semana grátis</td>
+          <td><span class="badge badge-all">Todos</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conversao">Conversão</span></td>
+          <td>Stories + QR code + Post</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Criar QR code especial da campanha</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td>Sem 4</td>
+          <td><strong>Update Desafio 30 Dias</strong> — semana 3</td>
+          <td><span class="badge badge-tk">TikTok</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Vídeo 30–45s</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Mostrar evolução real + o que foi difícil</td>
+        </tr>
+        <tr>
+          <td>9</td>
+          <td>Sem 4</td>
+          <td><strong>Bastidores do Mês da Mulher</strong> — Rosane fala sobre o evento</td>
+          <td><span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Reel 60s + carrossel</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Mostrar o processo, não só o resultado</td>
+        </tr>
+        <tr>
+          <td>10</td>
+          <td>Sem 4</td>
+          <td><strong>Resultado do Mês 1</strong> — stories com recap</td>
+          <td><span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Stories sequência</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Engajar: "Você chegou em março ou saiu?"</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MÊS 2 -->
+  <div class="section-title">
+    <h2>Mês 2 — Comunidade &amp; Pertencimento</h2>
+    <span class="section-badge">Abril / Maio</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Semana</th>
+          <th>Título / Ideia</th>
+          <th>Canal</th>
+          <th>Responsável</th>
+          <th>Objetivo</th>
+          <th>Formato</th>
+          <th>Status</th>
+          <th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>11</td>
+          <td>Sem 1</td>
+          <td><strong>Semana do Aluno Go Fit</strong> — depoimentos em vídeo</td>
+          <td><span class="badge badge-ig">IG</span> <span class="badge badge-tk">TikTok</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>5 vídeos curtos — 1/dia</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Gravar com 5 alunos diferentes. Prova social máxima.</td>
+        </tr>
+        <tr>
+          <td>12</td>
+          <td>Sem 1</td>
+          <td><strong>O que a academia me ensinou</strong> — Rosane</td>
+          <td><span class="badge badge-ig">IG</span> <span class="badge badge-yt">YouTube</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Reel 60s + YouTube 6min</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>"Sobre liderança, obstáculos e crescimento"</td>
+        </tr>
+        <tr>
+          <td>13</td>
+          <td>Sem 2</td>
+          <td><strong>Collab com Influenciador Floripa</strong> — Antonella</td>
+          <td><span class="badge badge-tk">TikTok</span> <span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-descoberta">Descoberta</span></td>
+          <td>Vídeo conjunto 45s–1min</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Identificar perfil alinhado com 10k–50k seguidores</td>
+        </tr>
+        <tr>
+          <td>14</td>
+          <td>Sem 2</td>
+          <td><strong>Histórias de Transformação Ep.1</strong> — mini-doc</td>
+          <td><span class="badge badge-yt">YouTube</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Vídeo 8–10min</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Escolher aluno com história impactante. Edição com cuidado.</td>
+        </tr>
+        <tr>
+          <td>15</td>
+          <td>Sem 3</td>
+          <td><strong>Challenge Go Fit</strong> — alunos participam</td>
+          <td><span class="badge badge-tk">TikTok</span> <span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-descoberta">Descoberta</span></td>
+          <td>Vídeo lançamento + UGC</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Criar hashtag do desafio. Incentivar repost.</td>
+        </tr>
+        <tr>
+          <td>16</td>
+          <td>Sem 3</td>
+          <td><strong>TotalPass / Gympass Awareness</strong></td>
+          <td><span class="badge badge-ig">IG</span> <span class="badge badge-tk">TikTok</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-conversao">Conversão</span></td>
+          <td>Reel educativo 45s</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>"Você sabia que pode treinar aqui com TotalPass?"</td>
+        </tr>
+        <tr>
+          <td>17</td>
+          <td>Sem 4</td>
+          <td><strong>Bastidores de uma semana na Go Fit</strong></td>
+          <td><span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Stories + Reel compilado</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>7 dias de bastidores reais — segunda a domingo</td>
+        </tr>
+        <tr>
+          <td>18</td>
+          <td>Sem 4</td>
+          <td><strong>Encerramento de Mês</strong> — "A Go Fit cresceu. Você também."</td>
+          <td><span class="badge badge-all">Todos</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Post + Stories</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Recap mensal visual + CTA para próximo mês</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MÊS 3 -->
+  <div class="section-title">
+    <h2>Mês 3 — Autoridade &amp; Valor</h2>
+    <span class="section-badge">Maio / Junho</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Semana</th>
+          <th>Título / Ideia</th>
+          <th>Canal</th>
+          <th>Responsável</th>
+          <th>Objetivo</th>
+          <th>Formato</th>
+          <th>Status</th>
+          <th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>19</td>
+          <td>Sem 1</td>
+          <td><strong>Bastidores de uma Academia que Cresce</strong> — Ep.1</td>
+          <td><span class="badge badge-yt">YouTube</span> <span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Vídeo 8min + recortes</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Decisões reais, desafios, crescimento do negócio</td>
+        </tr>
+        <tr>
+          <td>20</td>
+          <td>Sem 1</td>
+          <td><strong>Minha Semana de Treinos</strong> — vlog Antonella</td>
+          <td><span class="badge badge-yt">YouTube</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Vlog 10–15min</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Segunda a sexta. Real, não filtrado. Com dificuldades.</td>
+        </tr>
+        <tr>
+          <td>21</td>
+          <td>Sem 2</td>
+          <td><strong>3 Erros que as Pessoas Cometem na Academia</strong></td>
+          <td><span class="badge badge-tk">TikTok</span> <span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-descoberta">Descoberta</span></td>
+          <td>Vídeo educativo 45s</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Alto potencial viral. Gancho forte no início.</td>
+        </tr>
+        <tr>
+          <td>22</td>
+          <td>Sem 2</td>
+          <td><strong>Dia dos Namorados</strong> — casal de alunos</td>
+          <td><span class="badge badge-ig">IG</span> <span class="badge badge-tk">TikTok</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Vídeo emocional 60s</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>"Começamos a treinar juntos. Mudou tudo."</td>
+        </tr>
+        <tr>
+          <td>23</td>
+          <td>Sem 3</td>
+          <td><strong>Grupo VIP 2.0</strong> — relançamento</td>
+          <td><span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conversao">Conversão</span></td>
+          <td>Stories + Post</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Oferta exclusiva para primeiros 50 membros</td>
+        </tr>
+        <tr>
+          <td>24</td>
+          <td>Sem 3</td>
+          <td><strong>Campanha Inverno</strong> — "O frio não para quem tem motivo"</td>
+          <td><span class="badge badge-all">Todos</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conversao">Conversão</span></td>
+          <td>Reel + Stories + Anúncio</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Iniciar anúncio pago nesta semana</td>
+        </tr>
+        <tr>
+          <td>25</td>
+          <td>Sem 4</td>
+          <td><strong>Bastidores Ep.2</strong> — "O que mudou na academia este mês"</td>
+          <td><span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Reel 60s</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Manter cadência da série</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MÊS 4 -->
+  <div class="section-title">
+    <h2>Mês 4 — Viralidade &amp; Novos Públicos</h2>
+    <span class="section-badge">Junho / Julho</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Semana</th>
+          <th>Título / Ideia</th>
+          <th>Canal</th>
+          <th>Responsável</th>
+          <th>Objetivo</th>
+          <th>Formato</th>
+          <th>Status</th>
+          <th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>26</td>
+          <td>Sem 1</td>
+          <td><strong>Trend do Momento</strong> adaptada para fitness</td>
+          <td><span class="badge badge-tk">TikTok</span> <span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-descoberta">Descoberta</span></td>
+          <td>Vídeo trend 15–30s</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Identificar trend vigente e adaptar para Go Fit</td>
+        </tr>
+        <tr>
+          <td>27</td>
+          <td>Sem 1</td>
+          <td><strong>Aulão de Inverno</strong> — conteúdo ao vivo</td>
+          <td><span class="badge badge-all">Todos</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conversao">Conversão</span></td>
+          <td>Live + recortes + recap</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Evento vira 5+ peças de conteúdo</td>
+        </tr>
+        <tr>
+          <td>28</td>
+          <td>Sem 2</td>
+          <td><strong>Entrevista com Aluna Transformação</strong> — Rosane conduz</td>
+          <td><span class="badge badge-yt">YouTube</span> <span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Vídeo 8–10min + Reel âncora</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Histórias de Transformação Ep.2</td>
+        </tr>
+        <tr>
+          <td>29</td>
+          <td>Sem 2</td>
+          <td><strong>O Que Você Não Sabia Sobre a Go Fit</strong></td>
+          <td><span class="badge badge-tk">TikTok</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-descoberta">Descoberta</span></td>
+          <td>Vídeo 45s</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Surpresas da academia — alto potencial de engajamento</td>
+        </tr>
+        <tr>
+          <td>30</td>
+          <td>Sem 3</td>
+          <td><strong>Anúncios de Captação</strong> — pico do inverno</td>
+          <td><span class="badge badge-ig">IG</span> <span class="badge badge-tk">TikTok</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conversao">Conversão</span></td>
+          <td>Anúncio pago + orgânico</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Aumentar verba em julho — pico de motivação</td>
+        </tr>
+        <tr>
+          <td>31</td>
+          <td>Sem 4</td>
+          <td><strong>Recap do Mês 4</strong> — "Metade do caminho feito"</td>
+          <td><span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Carrossel + Stories</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Celebrar os 4 meses. Engajar comunidade.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MÊS 5 -->
+  <div class="section-title">
+    <h2>Mês 5 — Pré-Verão &amp; Captação Acelerada</h2>
+    <span class="section-badge">Julho / Agosto</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Semana</th>
+          <th>Título / Ideia</th>
+          <th>Canal</th>
+          <th>Responsável</th>
+          <th>Objetivo</th>
+          <th>Formato</th>
+          <th>Status</th>
+          <th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>32</td>
+          <td>Sem 1</td>
+          <td><strong>Meu Preparo Pré-Verão Começa Agora</strong> — Antonella</td>
+          <td><span class="badge badge-tk">TikTok</span> <span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-descoberta">Descoberta</span></td>
+          <td>Série 4 vídeos semanais</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Semanas 1–4: treino, alimentação, mindset, resultado</td>
+        </tr>
+        <tr>
+          <td>33</td>
+          <td>Sem 1</td>
+          <td><strong>Pacote Verão</strong> — lançamento com urgência</td>
+          <td><span class="badge badge-all">Todos</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conversao">Conversão</span></td>
+          <td>Post + Stories + Anúncio</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Incluir aula experimental gratuita como isca</td>
+        </tr>
+        <tr>
+          <td>34</td>
+          <td>Sem 2</td>
+          <td><strong>Por que agosto é o melhor mês para começar</strong> — Rosane</td>
+          <td><span class="badge badge-ig">IG</span> <span class="badge badge-yt">YouTube</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conversao">Conversão</span></td>
+          <td>Reel + Vídeo 6min</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>"Não espere janeiro. Agosto é o novo início."</td>
+        </tr>
+        <tr>
+          <td>35</td>
+          <td>Sem 2</td>
+          <td><strong>Conteúdo bilíngue</strong> — turistas alta temporada</td>
+          <td><span class="badge badge-tk">TikTok</span> <span class="badge badge-yt">YT Shorts</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-descoberta">Descoberta</span></td>
+          <td>Vídeo PT/EN intensificado</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>"Work out in Floripa? Come to Go Fit."</td>
+        </tr>
+        <tr>
+          <td>36</td>
+          <td>Sem 3</td>
+          <td><strong>Histórias de Transformação Ep.3</strong></td>
+          <td><span class="badge badge-yt">YouTube</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Mini-doc 8–10min</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Terceiro aluno com história de impacto</td>
+        </tr>
+        <tr>
+          <td>37</td>
+          <td>Sem 4</td>
+          <td><strong>Gympass/TotalPass com contagem regressiva</strong></td>
+          <td><span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conversao">Conversão</span></td>
+          <td>Stories urgência + Post</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>"Últimas vagas do mês com Gympass"</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MÊS 6 -->
+  <div class="section-title">
+    <h2>Mês 6 — GoFit Summit 2.0 &amp; Legado</h2>
+    <span class="section-badge">Agosto / Setembro</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Semana</th>
+          <th>Título / Ideia</th>
+          <th>Canal</th>
+          <th>Responsável</th>
+          <th>Objetivo</th>
+          <th>Formato</th>
+          <th>Status</th>
+          <th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>38</td>
+          <td>Sem 1</td>
+          <td><strong>Lançamento GoFit Summit 2.0</strong> — teaser</td>
+          <td><span class="badge badge-all">Todos</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-descoberta">Descoberta</span></td>
+          <td>Teaser 30s + Stories contagem</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Criar hype 2 semanas antes do evento</td>
+        </tr>
+        <tr>
+          <td>39</td>
+          <td>Sem 2</td>
+          <td><strong>6 Meses Depois — O que mudou na Go Fit</strong> — Rosane</td>
+          <td><span class="badge badge-yt">YouTube</span> <span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Vídeo 10–12min</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Vídeo âncora do ciclo. Emocional e honesto.</td>
+        </tr>
+        <tr>
+          <td>40</td>
+          <td>Sem 2</td>
+          <td><strong>Eu treinei 180 dias seguidos</strong> — Antonella</td>
+          <td><span class="badge badge-tk">TikTok</span> <span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-descoberta">Descoberta</span></td>
+          <td>Vídeo transformação 60s</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Alto potencial viral. Mostrar resultado real.</td>
+        </tr>
+        <tr>
+          <td>41</td>
+          <td>Sem 3</td>
+          <td><strong>GoFit Summit — dia do evento</strong></td>
+          <td><span class="badge badge-all">Todos</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Live + Stories + Recap</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Gravar tudo. Evento vira 10+ peças de conteúdo.</td>
+        </tr>
+        <tr>
+          <td>42</td>
+          <td>Sem 3</td>
+          <td><strong>Live Especial Rosane + Antonella</strong></td>
+          <td><span class="badge badge-ig">IG</span> <span class="badge badge-yt">YouTube</span></td>
+          <td><span class="badge badge-rosane">Rosane</span> <span class="badge badge-antonella">Antonella</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Live 45–60min</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Q&A com alunos, bastidores do Summit, próximo ciclo</td>
+        </tr>
+        <tr>
+          <td>43</td>
+          <td>Sem 4</td>
+          <td><strong>Campanha Renovação</strong> — "Você já sabe o que a Go Fit faz por você"</td>
+          <td><span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-gofit">Go Fit</span></td>
+          <td><span class="badge badge-conversao">Conversão</span></td>
+          <td>Post + Stories + Anúncio</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>Retenção emocional. Usar depoimentos do ciclo.</td>
+        </tr>
+        <tr>
+          <td>44</td>
+          <td>Sem 4</td>
+          <td><strong>Debriefing ao Vivo com Alunos</strong> — planejamento ciclo 3</td>
+          <td><span class="badge badge-ig">IG</span></td>
+          <td><span class="badge badge-rosane">Rosane</span></td>
+          <td><span class="badge badge-conexao">Conexão</span></td>
+          <td>Live 30min</td>
+          <td><span class="badge badge-todo">A Fazer</span></td>
+          <td>"O que vocês querem ver nos próximos 6 meses?"</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- LEGENDA -->
+  <div class="section-title">
+    <h2>Legenda</h2>
+  </div>
+  <div style="display:flex; gap:24px; flex-wrap:wrap; margin-bottom:40px;">
+    <div>
+      <div style="font-size:.7rem; letter-spacing:2px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:8px;">Canais</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <span><span class="badge badge-ig">IG</span> Instagram</span>
+        <span><span class="badge badge-tk">TikTok</span> TikTok</span>
+        <span><span class="badge badge-yt">YouTube</span> YouTube</span>
+        <span><span class="badge badge-all">Todos</span> Todos os Canais</span>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.7rem; letter-spacing:2px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:8px;">Responsável</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <span><span class="badge badge-rosane">Rosane</span> Rosane</span>
+        <span><span class="badge badge-antonella">Antonella</span> Antonella</span>
+        <span><span class="badge badge-gofit">Go Fit</span> Perfil Go Fit</span>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.7rem; letter-spacing:2px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:8px;">Objetivo</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <span><span class="badge badge-descoberta">Descoberta</span> Novo público</span>
+        <span><span class="badge badge-conexao">Conexão</span> Aprofundar relacionamento</span>
+        <span><span class="badge badge-conversao">Conversão</span> Levar à matrícula</span>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.7rem; letter-spacing:2px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:8px;">Status</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <span><span class="badge badge-todo">A Fazer</span> Não iniciado</span>
+        <span><span class="badge badge-doing">Em Produção</span> Em andamento</span>
+        <span><span class="badge badge-done">Publicado</span> Concluído</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>FLG · Founders Led Growth · Pedro Aranda · Go Fit × Rosane &amp; Antonella · Florianópolis · 2026</p>
+  </footer>
+
+</div><!-- /wrapper -->
+</body>
+</html>

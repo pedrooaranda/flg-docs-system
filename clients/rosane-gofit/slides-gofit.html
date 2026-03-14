@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go Fit × FLG — Apresentação Estratégica</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ─── RESET & BASE ─── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold-light: #F5D68A;
+    --gold-mid:   #C9A84C;
+    --gold-dark:  #8B6914;
+    --gold-grad:  linear-gradient(135deg, #F5D68A 0%, #C9A84C 50%, #8B6914 100%);
+    --gold-grad2: linear-gradient(90deg, #8B6914 0%, #C9A84C 40%, #F5D68A 70%, #C9A84C 100%);
+    --black:      #080808;
+    --black2:     #0f0f0f;
+    --black3:     #161616;
+    --white:      #FAFAF8;
+    --grey:       #888;
+    --grey2:      #555;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #000;
+    font-family: 'Poppins', sans-serif;
+    color: var(--white);
+    overflow: hidden;
+  }
+
+  /* ─── SLIDE WRAPPER ─── */
+  #presentation {
+    width: 100vw; height: 100vh;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    background: var(--black);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 4vw 6vw;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity .55s ease, transform .55s ease;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: all;
+  }
+  .slide.exit {
+    opacity: 0;
+    transform: translateX(-60px);
+    pointer-events: none;
+  }
+
+  /* ─── GOLD BORDER FRAME ─── */
+  .slide::before {
+    content: '';
+    position: absolute;
+    inset: 18px;
+    border: 1px solid rgba(201,168,76,.25);
+    border-radius: 2px;
+    pointer-events: none;
+  }
+  .slide::after {
+    content: '';
+    position: absolute;
+    inset: 22px;
+    border: 1px solid rgba(245,214,138,.08);
+    border-radius: 1px;
+    pointer-events: none;
+  }
+
+  /* ─── CORNER ORNAMENTS ─── */
+  .corner {
+    position: absolute;
+    width: 40px; height: 40px;
+    border-color: var(--gold-mid);
+    border-style: solid;
+    opacity: .6;
+  }
+  .corner.tl { top: 24px; left: 24px; border-width: 1px 0 0 1px; }
+  .corner.tr { top: 24px; right: 24px; border-width: 1px 1px 0 0; }
+  .corner.bl { bottom: 24px; left: 24px; border-width: 0 0 1px 1px; }
+  .corner.br { bottom: 24px; right: 24px; border-width: 0 1px 1px 0; }
+
+  /* ─── LOGO ─── */
+  .logo-flg {
+    position: absolute;
+    top: 36px; right: 52px;
+    height: 32px;
+    opacity: .7;
+  }
+  .logo-flg-text {
+    position: absolute;
+    top: 32px; right: 48px;
+    width: 72px;
+    height: auto;
+    opacity: .75;
+  }
+
+  /* ─── SLIDE NUMBER ─── */
+  .slide-num {
+    position: absolute;
+    bottom: 36px; right: 52px;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--gold-mid);
+    opacity: .5;
+  }
+
+  /* ─── TYPOGRAPHY ─── */
+  .tag {
+    font-size: 10px;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1.2rem;
+    font-weight: 600;
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.4rem, 5.5vw, 5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    margin-bottom: 1.2rem;
+  }
+
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 3.8vw, 3.2rem);
+    font-weight: 700;
+    line-height: 1.2;
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1rem;
+  }
+
+  h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.2rem, 2.2vw, 1.8rem);
+    font-weight: 600;
+    color: var(--gold-light);
+    margin-bottom: .6rem;
+  }
+
+  p {
+    font-size: clamp(.82rem, 1.3vw, 1rem);
+    line-height: 1.75;
+    color: rgba(250,250,248,.75);
+    max-width: 760px;
+    text-align: center;
+  }
+
+  .lead {
+    font-size: clamp(.95rem, 1.5vw, 1.15rem);
+    line-height: 1.8;
+    color: rgba(250,250,248,.9);
+    max-width: 800px;
+    text-align: center;
+    margin-bottom: .8rem;
+  }
+
+  .quote {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.1rem, 2vw, 1.55rem);
+    font-style: italic;
+    line-height: 1.65;
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    max-width: 820px;
+    margin: 1rem auto;
+  }
+
+  /* ─── DIVIDER ─── */
+  .divider {
+    width: 80px; height: 1px;
+    background: var(--gold-grad);
+    margin: 1.2rem auto;
+    border: none;
+  }
+  .divider-full {
+    width: 100%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold-mid), transparent);
+    margin: 1rem 0;
+    border: none;
+  }
+
+  /* ─── SECTION TITLE SLIDE ─── */
+  .slide-section {
+    background: radial-gradient(ellipse at center, #1a1200 0%, var(--black) 70%);
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .section-num {
+    font-size: clamp(5rem, 12vw, 10rem);
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    color: rgba(201,168,76,.06);
+    line-height: 1;
+    position: absolute;
+    right: 8vw;
+    bottom: 8vh;
+  }
+
+  /* ─── GRID LAYOUTS ─── */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    width: 100%;
+    max-width: 1100px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 1100px;
+  }
+  .grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.2rem;
+    width: 100%;
+    max-width: 1100px;
+  }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(201,168,76,.18);
+    border-radius: 4px;
+    padding: 1.5rem 1.8rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--gold-grad);
+  }
+  .card h3 { font-size: clamp(.9rem, 1.4vw, 1.1rem); margin-bottom: .5rem; }
+  .card p { font-size: clamp(.75rem, 1.1vw, .88rem); text-align: left; line-height: 1.65; }
+
+  .card-icon {
+    font-size: 1.6rem;
+    margin-bottom: .8rem;
+    display: block;
+  }
+
+  /* ─── LIST ITEMS ─── */
+  .list-items {
+    list-style: none;
+    width: 100%;
+    max-width: 860px;
+  }
+  .list-items li {
+    display: flex;
+    align-items: flex-start;
+    gap: .8rem;
+    padding: .65rem 0;
+    border-bottom: 1px solid rgba(201,168,76,.1);
+    font-size: clamp(.8rem, 1.25vw, .95rem);
+    color: rgba(250,250,248,.82);
+    line-height: 1.6;
+  }
+  .list-items li:last-child { border-bottom: none; }
+  .list-items li::before {
+    content: '◆';
+    color: var(--gold-mid);
+    font-size: .55rem;
+    margin-top: .38rem;
+    flex-shrink: 0;
+  }
+
+  /* ─── PILAR CARD (founders) ─── */
+  .pilar-card {
+    background: rgba(255,255,255,.025);
+    border: 1px solid rgba(201,168,76,.22);
+    border-radius: 4px;
+    padding: 2rem 2.4rem;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+  }
+  .pilar-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--gold-grad);
+  }
+  .pilar-name {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.3rem, 2.5vw, 2rem);
+    font-weight: 700;
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .pilar-role {
+    font-size: .75rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--grey);
+    margin-bottom: .4rem;
+  }
+  .pilar-essence {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: clamp(.95rem, 1.5vw, 1.15rem);
+    color: var(--gold-light);
+    line-height: 1.6;
+    margin-bottom: .4rem;
+  }
+  .pilar-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-top: .4rem;
+  }
+  .ptag {
+    font-size: .68rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border: 1px solid rgba(201,168,76,.3);
+    padding: .25rem .65rem;
+    border-radius: 2px;
+    color: var(--gold-light);
+    opacity: .8;
+  }
+
+  /* ─── CHANNEL CARD ─── */
+  .channel-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: .9rem 1.2rem;
+    border: 1px solid rgba(201,168,76,.15);
+    border-radius: 4px;
+    background: rgba(255,255,255,.025);
+    width: 100%;
+    max-width: 1000px;
+    margin-bottom: .6rem;
+  }
+  .channel-icon {
+    font-size: 1.4rem;
+    width: 2.4rem;
+    flex-shrink: 0;
+    text-align: center;
+  }
+  .channel-name {
+    font-size: .7rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold-mid);
+    margin-bottom: .25rem;
+  }
+  .channel-desc {
+    font-size: clamp(.75rem, 1.1vw, .88rem);
+    color: rgba(250,250,248,.78);
+    line-height: 1.6;
+  }
+
+  /* ─── MONTH CALENDAR ─── */
+  .month-block {
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(201,168,76,.18);
+    border-radius: 4px;
+    padding: 1.2rem 1.5rem;
+    position: relative;
+  }
+  .month-block::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--gold-grad);
+  }
+  .month-label {
+    font-size: .65rem;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--gold-mid);
+    margin-bottom: .5rem;
+  }
+  .month-theme {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(.9rem, 1.5vw, 1.15rem);
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: .5rem;
+  }
+  .month-block ul { list-style: none; }
+  .month-block ul li {
+    font-size: clamp(.7rem, 1vw, .82rem);
+    color: rgba(250,250,248,.72);
+    padding: .22rem 0;
+    border-bottom: 1px solid rgba(201,168,76,.07);
+    display: flex;
+    align-items: flex-start;
+    gap: .5rem;
+    line-height: 1.5;
+  }
+  .month-block ul li::before { content: '—'; color: var(--gold-dark); flex-shrink: 0; }
+
+  /* ─── STAT BOX ─── */
+  .stat-box {
+    text-align: center;
+    padding: 1.2rem 1rem;
+  }
+  .stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 700;
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+    margin-bottom: .3rem;
+  }
+  .stat-label {
+    font-size: clamp(.7rem, 1vw, .82rem);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(250,250,248,.55);
+  }
+
+  /* ─── COVER SPECIFIC ─── */
+  .cover-sub {
+    font-size: clamp(.8rem, 1.2vw, .95rem);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: rgba(250,250,248,.45);
+    margin-top: .6rem;
+  }
+  .cover-line {
+    width: 120px; height: 1px;
+    background: var(--gold-grad);
+    margin: 1.8rem auto;
+  }
+
+  /* ─── GOLD ACCENT TEXT ─── */
+  .gold { color: var(--gold-light); }
+  .gold-grad {
+    background: var(--gold-grad);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ─── NAVIGATION ─── */
+  #nav {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    z-index: 100;
+    background: rgba(8,8,8,.85);
+    border: 1px solid rgba(201,168,76,.2);
+    border-radius: 40px;
+    padding: .55rem 1.4rem;
+    backdrop-filter: blur(8px);
+  }
+  #nav button {
+    background: none;
+    border: none;
+    color: var(--gold-mid);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: .3rem .6rem;
+    border-radius: 50%;
+    transition: background .2s;
+    font-family: 'Poppins', sans-serif;
+  }
+  #nav button:hover { background: rgba(201,168,76,.12); }
+  #nav button:disabled { opacity: .25; cursor: default; }
+  #nav-counter {
+    font-size: .72rem;
+    letter-spacing: 2px;
+    color: var(--gold-mid);
+    min-width: 54px;
+    text-align: center;
+  }
+
+  /* ─── KEYBOARD HINT ─── */
+  #hint {
+    position: fixed;
+    bottom: 28px;
+    left: 28px;
+    font-size: .65rem;
+    letter-spacing: 2px;
+    color: rgba(201,168,76,.3);
+  }
+
+  /* ─── PRINT / PDF ─── */
+  @media print {
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    html, body {
+      overflow: visible !important;
+      background: #080808 !important;
+      width: 100% !important;
+      height: auto !important;
+    }
+    #nav, #hint { display: none !important; }
+    #presentation {
+      position: relative !important;
+      width: 100% !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+    .slide {
+      position: relative !important;
+      inset: auto !important;
+      width: 100% !important;
+      height: 100vh !important;
+      min-height: 100vh !important;
+      page-break-after: always !important;
+      break-after: page !important;
+      opacity: 1 !important;
+      transform: none !important;
+      pointer-events: all !important;
+      display: flex !important;
+      background: #080808 !important;
+    }
+    .slide-cover { background: radial-gradient(ellipse at 60% 40%, #1f1400 0%, #0a0a00 40%, #080808 100%) !important; }
+    .slide-dark   { background: linear-gradient(160deg, #0d0d0d 0%, #080808 100%) !important; }
+    .slide-rosane { background: radial-gradient(ellipse at 30% 50%, #120d00 0%, #080808 100%) !important; }
+    .slide-antonella { background: radial-gradient(ellipse at 70% 50%, #0a0d12 0%, #080808 100%) !important; }
+    .slide-section { background: radial-gradient(ellipse at center, #1a1200 0%, #080808 70%) !important; }
+    .card { background: rgba(255,255,255,.03) !important; }
+    .pilar-card { background: rgba(255,255,255,.025) !important; }
+    .channel-row { background: rgba(255,255,255,.025) !important; }
+    .month-block { background: rgba(255,255,255,.03) !important; }
+  }
+
+  /* ─── BACKGROUND TEXTURE ─── */
+  .slide-cover {
+    background: radial-gradient(ellipse at 60% 40%, #1f1400 0%, #0a0a00 40%, var(--black) 100%);
+  }
+  .slide-dark {
+    background: linear-gradient(160deg, #0d0d0d 0%, #080808 100%);
+  }
+  .slide-rosane {
+    background: radial-gradient(ellipse at 30% 50%, #120d00 0%, var(--black) 100%);
+  }
+  .slide-antonella {
+    background: radial-gradient(ellipse at 70% 50%, #0a0d12 0%, var(--black) 100%);
+  }
+
+  /* ─── SCROLL WITHIN SLIDE ─── */
+  .slide-scroll {
+    overflow-y: auto;
+    max-height: calc(100vh - 80px);
+    padding-right: .5rem;
+    width: 100%;
+  }
+  .slide-scroll::-webkit-scrollbar { width: 3px; }
+  .slide-scroll::-webkit-scrollbar-track { background: transparent; }
+  .slide-scroll::-webkit-scrollbar-thumb { background: var(--gold-dark); border-radius: 3px; }
+
+  /* full-width inside slide */
+  .w-full { width: 100%; max-width: 100%; }
+  .centered { text-align: center; align-items: center; }
+  .col { display: flex; flex-direction: column; align-items: center; width: 100%; }
+</style>
+</head>
+<body>
+
+<div id="presentation">
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 01 — CAPA
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-cover active" id="s1">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">01 / 27</div>
+
+    <div class="col centered">
+      <img src="assets/logo.svg" alt="Founders Led Growth" style="width:110px; height:auto; opacity:.9; margin-bottom:1.6rem;">
+      <div class="tag">Founders Led Growth · Go Fit × FLG</div>
+      <h1>Go Fit:<br>O Próximo Nível</h1>
+      <div class="cover-line"></div>
+      <p class="lead">Debriefing Estratégico dos Primeiros 6 Meses<br>+ Plano de Crescimento para os Próximos 6 Meses</p>
+      <p class="cover-sub">Rosane &amp; Antonella · 2026</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 02 — AGENDA
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s2">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">02 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1000px; width:100%;">
+      <div class="tag">Agenda</div>
+      <h2>O que vamos cobrir hoje</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-2" style="margin-top:1rem;">
+        <div class="card">
+          <span class="card-icon">◎</span>
+          <h3>Parte 1 — O Que Foi Feito</h3>
+          <p>Debriefing dos 6 meses de jornada estratégica com a FLG. Diagnóstico, reposicionamento, entregas e transformações mensuráveis.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">◈</span>
+          <h3>Parte 2 — As Protagonistas</h3>
+          <p>Os pilares de comunicação de Rosane e Antonella como principais canais de aquisição e autoridade da Go Fit.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">◉</span>
+          <h3>Parte 3 — Mercado &amp; Metodologia</h3>
+          <p>Por que Founders Led Growth é a estratégia certa para academias que querem vencer a concorrência no digital em 2026.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">◇</span>
+          <h3>Parte 4 — Plano 6 Meses</h3>
+          <p>Calendário, pilares, canais (Instagram, TikTok, YouTube) e plano de execução de conteúdo para os próximos 6 meses.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 03 — SEÇÃO 1: DEBRIEFING
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-section" id="s3">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">03 / 27</div>
+
+    <div style="max-width:900px;">
+      <div class="tag">Parte 1</div>
+      <h2>O Que Foi<br>Construído</h2>
+      <hr class="divider" style="margin-left:0;">
+      <p style="text-align:left;">Seis meses de jornada estratégica completa. Não foram campanhas avulsas. Foi a construção de uma marca com direção.</p>
+    </div>
+    <div class="section-num">01</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 04 — A JORNADA
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s4">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">04 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+      <div class="tag">A Jornada</div>
+      <h2>6 Meses de Estratégia Completa</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-3" style="margin-top:.8rem;">
+        <div class="card">
+          <div class="card-icon">①</div>
+          <h3>Onboarding &amp; Mapeamento</h3>
+          <p>Estruturação da jornada com fases claras, cronograma, grupos de suporte e papel de cada membro da equipe.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">②</div>
+          <h3>Diagnóstico &amp; Posicionamento</h3>
+          <p>Identificação das dores reais do público, diagnóstico de gargalos internos e reposicionamento da marca.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">③</div>
+          <h3>Campanhas &amp; Execução</h3>
+          <p>3 campanhas estruturadas, linha editorial, roteiros, vídeos editados, manifestos e conteúdo sazonal.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">④</div>
+          <h3>Captação &amp; Comunidade</h3>
+          <p>Grupo VIP, scripts, QR codes, folders, configuração de anúncios, aulões e apoio com influenciadores.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">⑤</div>
+          <h3>Ajuste de Rota</h3>
+          <p>Identificação de Antonella e Rosane como protagonistas. Reorganização da estratégia com foco nas fundadoras.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">⑥</div>
+          <h3>Fechamento &amp; Legado</h3>
+          <p>Consolidação da consciência de marca, autonomia da equipe e direcionamento claro para o próximo ciclo.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 05 — DIAGNÓSTICO ESTRATÉGICO
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s5">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">05 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1000px; width:100%;">
+      <div class="tag">Diagnóstico</div>
+      <h2>Além do Marketing</h2>
+      <hr class="divider" style="margin-left:0;">
+      <p style="text-align:left; margin-bottom:1.2rem;">Pedro não apenas criou conteúdo. Ele leu o negócio por dentro e corrigiu o foco para que a comunicação refletisse a experiência real.</p>
+
+      <div class="grid-2">
+        <div>
+          <h3 style="font-size:.75rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:.8rem; font-family:'Poppins',sans-serif;">O que foi identificado</h3>
+          <ul class="list-items">
+            <li>Gargalos de retenção e atendimento</li>
+            <li>Cultura interna e experiência do aluno</li>
+            <li>Desalinhamento entre comunicação e realidade</li>
+            <li>Estrutura operacional com espaço para crescimento</li>
+            <li>Necessidade de protagonistas claros na marca</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="font-size:.75rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:.8rem; font-family:'Poppins',sans-serif;">O que foi feito a partir disso</h3>
+          <ul class="list-items">
+            <li>Reposicionamento de "academia" para "experiência fitness"</li>
+            <li>Construção de narrativa de acolhimento e comunidade</li>
+            <li>Identificação das dores reais: sobrepeso, ansiedade, falta de motivação</li>
+            <li>Criação de ideia-mãe: atitude, constância, evolução real</li>
+            <li>Ativação de Rosane e Antonella como canais principais</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 06 — O REPOSICIONAMENTO
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-dark" id="s6">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">06 / 27</div>
+
+    <div class="col centered" style="max-width:900px;">
+      <div class="tag">A Virada Intelectual</div>
+      <h2>De Academia<br>para Marca de Experiência</h2>
+      <div class="cover-line"></div>
+
+      <div class="grid-3" style="margin-top:1rem;">
+        <div class="card" style="text-align:center;">
+          <span class="card-icon">🤝</span>
+          <h3>Acolhimento</h3>
+          <p>Uma academia que te olha nos olhos e te conhece pelo nome.</p>
+        </div>
+        <div class="card" style="text-align:center;">
+          <span class="card-icon">🔥</span>
+          <h3>Pertencimento</h3>
+          <p>Comunidade que puxa para cima e sustenta a constância do aluno.</p>
+        </div>
+        <div class="card" style="text-align:center;">
+          <span class="card-icon">⚡</span>
+          <h3>Transformação Real</h3>
+          <p>Resultados visíveis com atenção individualizada e metodologia 360.</p>
+        </div>
+      </div>
+
+      <div class="quote" style="margin-top:1.5rem;">
+        "A Go Fit não vende planos.<br>Ela vende a versão mais forte de quem entra pela porta."
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 07 — MAPA DE ENTREGAS FLG
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s7">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">07 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+      <div class="tag">Entregas FLG</div>
+      <h2>Tudo Que Foi Produzido</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-4" style="margin-top:.8rem;">
+        <div class="card">
+          <span class="card-icon" style="font-size:1.2rem;">📐</span>
+          <h3>Estratégia</h3>
+          <p>Onboarding, cronograma, jornada, diagnóstico de negócio e definição de posicionamento.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon" style="font-size:1.2rem;">🎬</span>
+          <h3>Conteúdo</h3>
+          <p>Estrutura das 3 Campanhas, roteiros, manifestos, linha editorial, vídeos editados.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon" style="font-size:1.2rem;">📣</span>
+          <h3>Campanhas</h3>
+          <p>Campanha 01, Verão 2026, GoFit Summit, Manifesto de Natal, Carnaval, roteiros PT/EN/ES.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon" style="font-size:1.2rem;">⚙️</span>
+          <h3>Operacional</h3>
+          <p>Grupo VIP, scripts de mensagens, QR codes, folders, conta de anúncios, calendários de aulões.</p>
+        </div>
+      </div>
+
+      <div class="grid-4" style="margin-top:1rem;">
+        <div class="stat-box">
+          <div class="stat-num">3+</div>
+          <div class="stat-label">Campanhas Estruturadas</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">10+</div>
+          <div class="stat-label">Roteiros Produzidos</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">360°</div>
+          <div class="stat-label">Visão de Negócio</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">6</div>
+          <div class="stat-label">Meses de Presença</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 08 — RESULTADOS & TRANSFORMAÇÃO
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s8">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">08 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1000px; width:100%;">
+      <div class="tag">Transformação</div>
+      <h2>O Que Mudou de Verdade</h2>
+      <hr class="divider" style="margin-left:0;">
+      <p style="text-align:left; margin-bottom:1rem;">Os resultados mais importantes não aparecem em planilha — aparecem como postura, competência, clareza e segurança.</p>
+
+      <div class="grid-2">
+        <div>
+          <h3 style="font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:.8rem; font-family:'Poppins',sans-serif;">Rosane relata</h3>
+          <ul class="list-items">
+            <li>Melhora visível na procura por matrículas</li>
+            <li>Mês da Mulher com resultado bem-sucedido</li>
+            <li>Aulão de inauguração com boa recepção</li>
+            <li>Vídeos com performance acima do esperado</li>
+            <li>Equipe mais segura e direcionada</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:.8rem; font-family:'Poppins',sans-serif;">O que a FLG construiu</h3>
+          <ul class="list-items">
+            <li>Equipe capaz de produzir sem depender da consultoria</li>
+            <li>Clareza de quem são os protagonistas da marca</li>
+            <li>Conteúdo como canal principal de aquisição identificado</li>
+            <li>Consciência de narrativa e linguagem própria</li>
+            <li>Academia com direção, não com improviso</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 09 — FECHAMENTO DO CICLO
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-dark" id="s9">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">09 / 27</div>
+
+    <div class="col centered" style="max-width:860px;">
+      <div class="tag">O Saldo</div>
+      <h2>Missão do Ciclo 1<br>Cumprida</h2>
+      <div class="cover-line"></div>
+
+      <div class="quote">
+        "Ele não entregou só marketing para a Go Fit.<br>
+        Ele ajudou a transformar a academia em uma marca com direção,<br>
+        narrativa, protagonistas e linguagem própria para crescer no digital<br>
+        com mais verdade e mais consistência."
+      </div>
+
+      <p style="margin-top:1.2rem; font-size:.85rem; letter-spacing:2px; text-transform:uppercase; color:var(--grey);">— Pedro Aranda · Estrategista FLG</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 10 — SEÇÃO 2: AS PROTAGONISTAS
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-section" id="s10">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">10 / 27</div>
+
+    <div style="max-width:900px;">
+      <div class="tag">Parte 2</div>
+      <h2>As Protagonistas<br>da Marca</h2>
+      <hr class="divider" style="margin-left:0;">
+      <p style="text-align:left;">Rosane e Antonella não são apenas fundadoras. São os canais de aquisição mais poderosos que a Go Fit tem.</p>
+    </div>
+    <div class="section-num">02</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 11 — ROSANE
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-rosane" id="s11">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">11 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+      <div class="tag">Fundadora · Coração da Marca</div>
+      <div class="grid-2" style="margin-top:.5rem; align-items:start;">
+        <div class="pilar-card">
+          <div class="pilar-role">Rosane</div>
+          <div class="pilar-name">A Alma<br>da Go Fit</div>
+          <div class="pilar-essence">"A academia que te olha nos olhos,<br>conhece sua história e quer sua evolução."</div>
+          <div class="pilar-tags">
+            <span class="ptag">Acolhimento</span>
+            <span class="ptag">História Real</span>
+            <span class="ptag">Comunidade</span>
+            <span class="ptag">Liderança Feminina</span>
+            <span class="ptag">Transformação</span>
+          </div>
+        </div>
+        <div>
+          <h3 style="font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:.8rem; font-family:'Poppins',sans-serif;">Seus pilares de conteúdo</h3>
+          <ul class="list-items">
+            <li>Bastidores de quem fundou uma academia do zero</li>
+            <li>Histórias reais de alunos que transformaram a vida</li>
+            <li>A visão por trás da Go Fit: por que ela existe</li>
+            <li>Liderança feminina e empreendedorismo no fitness</li>
+            <li>Acolhimento como diferencial competitivo</li>
+            <li>Mês da Mulher, datas especiais, comunidade</li>
+          </ul>
+          <h3 style="font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin:1rem 0 .8rem; font-family:'Poppins',sans-serif;">Canais prioritários</h3>
+          <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+            <span class="ptag">Instagram</span>
+            <span class="ptag">YouTube (entrevistas)</span>
+            <span class="ptag">Stories diários</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 12 — ANTONELLA
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-antonella" id="s12">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">12 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+      <div class="tag">Co-fundadora · Energia do Futuro</div>
+      <div class="grid-2" style="margin-top:.5rem; align-items:start;">
+        <div class="pilar-card">
+          <div class="pilar-role">Antonella</div>
+          <div class="pilar-name">A Força<br>da Go Fit</div>
+          <div class="pilar-essence">"Fitness como estilo de vida.<br>Se eu posso, você pode — e eu vou te mostrar como."</div>
+          <div class="pilar-tags">
+            <span class="ptag">Motivação</span>
+            <span class="ptag">Lifestyle</span>
+            <span class="ptag">Disciplina</span>
+            <span class="ptag">Energia Viral</span>
+            <span class="ptag">Constância</span>
+          </div>
+        </div>
+        <div>
+          <h3 style="font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:.8rem; font-family:'Poppins',sans-serif;">Seus pilares de conteúdo</h3>
+          <ul class="list-items">
+            <li>Rotina de treino: nos bastidores da Go Fit</li>
+            <li>Transformação pessoal: sua jornada como fundadora-atleta</li>
+            <li>Treinos do dia a dia, dicas rápidas de motivação</li>
+            <li>Collabs com influenciadores e parceiros fitness</li>
+            <li>TikTok trends adaptadas para o universo da academia</li>
+            <li>Vida saudável integrada: alimentação, treino, mindset</li>
+          </ul>
+          <h3 style="font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin:1rem 0 .8rem; font-family:'Poppins',sans-serif;">Canais prioritários</h3>
+          <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+            <span class="ptag">TikTok</span>
+            <span class="ptag">Instagram Reels</span>
+            <span class="ptag">YouTube Vlogs</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 13 — SEÇÃO 3: MERCADO & METODOLOGIA
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-section" id="s13">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">13 / 27</div>
+
+    <div style="max-width:900px;">
+      <div class="tag">Parte 3</div>
+      <h2>Mercado, Concorrência<br>&amp; Metodologia</h2>
+      <hr class="divider" style="margin-left:0;">
+      <p style="text-align:left;">O mercado fitness está crescendo. Quem vai vencer não é quem gasta mais em anúncios — é quem tem a história mais verdadeira.</p>
+    </div>
+    <div class="section-num">03</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 14 — MERCADO FITNESS 2026
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s14">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">14 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+      <div class="tag">Pesquisa de Mercado · 2026</div>
+      <h2>O Cenário do Fitness Brasileiro</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-4" style="margin:.8rem 0 1rem;">
+        <div class="stat-box" style="border:1px solid rgba(201,168,76,.15); border-radius:4px;">
+          <div class="stat-num">2°</div>
+          <div class="stat-label">Brasil em academias no mundo</div>
+        </div>
+        <div class="stat-box" style="border:1px solid rgba(201,168,76,.15); border-radius:4px;">
+          <div class="stat-num">+18%</div>
+          <div class="stat-label">Crescimento pós-pandemia</div>
+        </div>
+        <div class="stat-box" style="border:1px solid rgba(201,168,76,.15); border-radius:4px;">
+          <div class="stat-num">3×</div>
+          <div class="stat-label">Mais engajamento em marcas com founders</div>
+        </div>
+        <div class="stat-box" style="border:1px solid rgba(201,168,76,.15); border-radius:4px;">
+          <div class="stat-num">72%</div>
+          <div class="stat-label">Consumidores preferem autenticidade a perfeição</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>O que o público busca em 2026</h3>
+          <ul class="list-items" style="margin-top:.5rem;">
+            <li>Conexão humana com quem está por trás da marca</li>
+            <li>Comunidade, pertencimento e ambiente que sustenta</li>
+            <li>Autenticidade: histórias reais, não poses</li>
+            <li>Flexibilidade e atenção individualizada</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Como a concorrência joga</h3>
+          <ul class="list-items" style="margin-top:.5rem;">
+            <li>Grandes redes apostam em preço baixo e escala</li>
+            <li>Academias boutique dominam pelo posicionamento</li>
+            <li>Conteúdo orgânico supera anúncios pagos em confiança</li>
+            <li>Quem tem fundadoras visíveis, cria uma vantagem difícil de copiar</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 15 — FOUNDER LED GROWTH
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-dark" id="s15">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">15 / 27</div>
+
+    <div class="col centered" style="max-width:960px;">
+      <div class="tag">A Metodologia</div>
+      <h2>Founders Led Growth</h2>
+      <div class="cover-line"></div>
+      <p class="lead">Crescimento liderado pelas fundadoras.<br>Os rostos da empresa são o maior ativo de marketing da Go Fit.</p>
+
+      <div class="grid-3" style="margin-top:1.2rem;">
+        <div class="card" style="text-align:center;">
+          <span class="card-icon">👤</span>
+          <h3>O Fundador<br>é o Canal</h3>
+          <p>A confiança que o público deposita na pessoa vira confiança na academia.</p>
+        </div>
+        <div class="card" style="text-align:center;">
+          <span class="card-icon">📱</span>
+          <h3>Conteúdo<br>como Funil</h3>
+          <p>Instagram, TikTok e YouTube transformam seguidores em alunos de forma orgânica.</p>
+        </div>
+        <div class="card" style="text-align:center;">
+          <span class="card-icon">🔗</span>
+          <h3>Comunidade<br>como Retenção</h3>
+          <p>Quem se conecta com a fundadora não cancela a matrícula. Ele fica pelo pertencimento.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 16 — POR QUE AS FUNDADORAS GANHAM
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s16">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">16 / 27</div>
+
+    <div class="col centered" style="max-width:960px;">
+      <div class="tag">Vantagem Competitiva</div>
+      <h2>Por Que a Go Fit<br>Vai Vencer</h2>
+      <hr class="divider">
+
+      <div class="grid-2" style="margin-top:1rem; text-align:left;">
+        <div class="card">
+          <h3>Grande rede</h3>
+          <ul class="list-items" style="margin-top:.5rem;">
+            <li>Marca impessoal, sem rosto</li>
+            <li>Comunicação genérica e padronizada</li>
+            <li>Preço como único diferencial</li>
+            <li>Aluno é número, não pessoa</li>
+          </ul>
+        </div>
+        <div class="card" style="border-color:rgba(201,168,76,.4);">
+          <h3 style="color:var(--gold-light);">Go Fit com FLG</h3>
+          <ul class="list-items" style="margin-top:.5rem;">
+            <li>Rosane e Antonella: rostos reais e histórias verdadeiras</li>
+            <li>Narrativa única de acolhimento e transformação</li>
+            <li>Comunidade como moat competitivo</li>
+            <li>Aluno que vira fã vira promotor</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="quote" style="margin-top:1.4rem; font-size:clamp(.9rem,1.5vw,1.1rem);">
+        "Nenhuma rede grande consegue ter a Rosane.<br>Essa é a vantagem que não pode ser comprada."
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 17 — SEÇÃO 4: PLANO 6 MESES
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-section" id="s17">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">17 / 27</div>
+
+    <div style="max-width:900px;">
+      <div class="tag">Parte 4</div>
+      <h2>Plano de Conteúdo<br>Próximos 6 Meses</h2>
+      <hr class="divider" style="margin-left:0;">
+      <p style="text-align:left;">Calendário temático, pilares por fundadora e estratégia canal a canal para Instagram, TikTok e YouTube.</p>
+    </div>
+    <div class="section-num">04</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 18 — ESTRATÉGIA CENTRAL
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s18">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">18 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1000px; width:100%;">
+      <div class="tag">Visão Geral</div>
+      <h2>A Estratégia Central</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-3" style="margin-top:1rem;">
+        <div class="card">
+          <h3>Frequência mínima</h3>
+          <p style="text-align:left; font-size:.82rem; margin-top:.4rem;"><span class="gold">Instagram:</span> 4–5x/semana<br><span class="gold">TikTok:</span> 3–4x/semana<br><span class="gold">YouTube:</span> 1–2x/semana</p>
+        </div>
+        <div class="card">
+          <h3>Formato de conteúdo</h3>
+          <p style="text-align:left; font-size:.82rem; margin-top:.4rem;"><span class="gold">Reels/TikTok:</span> 30–60s, energia<br><span class="gold">Stories:</span> bastidores diários<br><span class="gold">YouTube:</span> 5–12min, profundidade</p>
+        </div>
+        <div class="card">
+          <h3>Divisão por voz</h3>
+          <p style="text-align:left; font-size:.82rem; margin-top:.4rem;"><span class="gold">Rosane:</span> história, comunidade<br><span class="gold">Antonella:</span> treino, lifestyle<br><span class="gold">Go Fit:</span> institucional + resultados</p>
+        </div>
+      </div>
+
+      <div class="card w-full" style="margin-top:1rem; border-color:rgba(201,168,76,.35);">
+        <h3>Regra de ouro do ciclo</h3>
+        <p style="text-align:left; font-size:.9rem; margin-top:.4rem; color:rgba(250,250,248,.9);">Cada peça de conteúdo serve a um dos três objetivos: <span class="gold">Descoberta</span> (atrair novos públicos), <span class="gold">Conexão</span> (aprofundar relacionamento) ou <span class="gold">Conversão</span> (levar à matrícula). Nada é publicado sem intenção.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 19 — INSTAGRAM
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s19">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">19 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+      <div class="tag">Canal · Instagram</div>
+      <h2>Instagram:<br>O Quartel General</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-2" style="margin-top:.8rem; align-items:start;">
+        <div>
+          <div class="channel-row">
+            <div class="channel-icon">📸</div>
+            <div>
+              <div class="channel-name">Rosane no Instagram</div>
+              <div class="channel-desc">Bastidores emocionais, história da fundação, reconhecimento de alunos, datas comemorativas, liderança feminina, manifesto da comunidade.</div>
+            </div>
+          </div>
+          <div class="channel-row">
+            <div class="channel-icon">🎬</div>
+            <div>
+              <div class="channel-name">Antonella no Instagram</div>
+              <div class="channel-desc">Reels de treino, sequências rápidas de motivação, bastidores de aulas, collabs com parceiros, lifestyle fitness, transformações.</div>
+            </div>
+          </div>
+          <div class="channel-row">
+            <div class="channel-icon">🏋️</div>
+            <div>
+              <div class="channel-name">Perfil Go Fit</div>
+              <div class="channel-desc">Resultados de alunos, promoções, eventos, comunicados, repost das fundadoras, prova social e ofertas.</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 style="font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:.8rem; font-family:'Poppins',sans-serif;">Pilares temáticos (6 meses)</h3>
+          <ul class="list-items">
+            <li>Transformação real de alunos</li>
+            <li>Bastidores das fundadoras</li>
+            <li>Comunidade e pertencimento</li>
+            <li>Motivação e constância</li>
+            <li>Datas comemorativas com significado</li>
+            <li>Ofertas e captação integradas à narrativa</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 20 — TIKTOK
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s20">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">20 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+      <div class="tag">Canal · TikTok</div>
+      <h2>TikTok:<br>O Motor de Descoberta</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-2" style="margin-top:.8rem; align-items:start;">
+        <div>
+          <div class="channel-row">
+            <div class="channel-icon">⚡</div>
+            <div>
+              <div class="channel-name">Antonella lidera o TikTok</div>
+              <div class="channel-desc">Energia, trends fitness adaptadas, "antes e depois" de treinos, rotina de academia, desafios, duetos com influenciadores.</div>
+            </div>
+          </div>
+          <div class="channel-row">
+            <div class="channel-icon">🎙️</div>
+            <div>
+              <div class="channel-name">Rosane com storytelling</div>
+              <div class="channel-desc">POV de fundadora, voiceover emocional, "o que a academia me ensinou", momentos reais de comunidade. Conteúdo de conexão profunda.</div>
+            </div>
+          </div>
+          <div class="channel-row">
+            <div class="channel-icon">🌊</div>
+            <div>
+              <div class="channel-name">Go Fit como marca</div>
+              <div class="channel-desc">Conteúdo viral de academia: humor leve, treinos impossíveis, turistas que descobriram a Go Fit, comunidade no Sul da Ilha.</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 style="font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:.8rem; font-family:'Poppins',sans-serif;">Formatos prioritários</h3>
+          <ul class="list-items">
+            <li>Vídeos 15–60s com gancho nos primeiros 2s</li>
+            <li>Trends com contexto fitness: acessa novo público</li>
+            <li>Storytelling emocional curto (30–45s)</li>
+            <li>Roteiros em PT, EN e ES para turistas Floripa</li>
+            <li>Challenge interno com alunos</li>
+            <li>"Dia na Go Fit" — tour de bastidores</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 21 — YOUTUBE
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s21">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">21 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+      <div class="tag">Canal · YouTube</div>
+      <h2>YouTube:<br>O Construtor de Autoridade</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-2" style="margin-top:.8rem; align-items:start;">
+        <div>
+          <div class="channel-row">
+            <div class="channel-icon">🎥</div>
+            <div>
+              <div class="channel-name">Série Rosane: Por Dentro da Go Fit</div>
+              <div class="channel-desc">Episódios mensais: histórias de alunos, bastidores de decisões, o que significa abrir uma academia, liderança na prática.</div>
+            </div>
+          </div>
+          <div class="channel-row">
+            <div class="channel-icon">🏃</div>
+            <div>
+              <div class="channel-name">Série Antonella: Minha Semana de Treinos</div>
+              <div class="channel-desc">Vlogs semanais ou quinzenais de rotina real: treinos, alimentação, mentalidade e vida como co-fundadora atleta.</div>
+            </div>
+          </div>
+          <div class="channel-row">
+            <div class="channel-icon">✨</div>
+            <div>
+              <div class="channel-name">Série Go Fit: Histórias de Transformação</div>
+              <div class="channel-desc">Mini-documentários de alunos que mudaram a vida pela Go Fit. Conteúdo de conversão máxima.</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 style="font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:.8rem; font-family:'Poppins',sans-serif;">Meta do canal</h3>
+          <ul class="list-items">
+            <li>1–2 vídeos longos por mês (8–15 min)</li>
+            <li>YouTube Shorts diários (recorte dos TikToks)</li>
+            <li>SEO para Florianópolis + fitness + bem-estar</li>
+            <li>Base para e-mail marketing e comunidade</li>
+            <li>Prova social de longo prazo</li>
+            <li>Fundo de funil: quem assiste, converte</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 22 — CALENDÁRIO MÊS 1-2
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s22">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">22 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+      <div class="tag">Calendário Temático</div>
+      <h2>Meses 1 &amp; 2 — Consolidação</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-2" style="margin-top:.8rem;">
+        <div class="month-block">
+          <div class="month-label">Mês 1 · Março / Abril</div>
+          <div class="month-theme">Renascimento &amp; Constância</div>
+          <ul>
+            <li>Mês da Mulher: história das fundadoras, depoimentos</li>
+            <li>Rosane: "Por que abri a Go Fit" (YouTube + Reels)</li>
+            <li>Antonella: Desafio 30 dias — TikTok diário</li>
+            <li>Go Fit: Aula experimental para novos alunos</li>
+            <li>Campanha: Convide um amigo — semana grátis</li>
+            <li>Roteiro trilíngue (PT/EN/ES) para turistas</li>
+          </ul>
+        </div>
+        <div class="month-block">
+          <div class="month-label">Mês 2 · Abril / Maio</div>
+          <div class="month-theme">Comunidade &amp; Pertencimento</div>
+          <ul>
+            <li>Semana do Aluno Go Fit: depoimentos em vídeo</li>
+            <li>Rosane: "O que a academia me ensinou sobre liderança"</li>
+            <li>Antonella: Collab com influenciador de Floripa</li>
+            <li>Série YouTube: "Histórias de transformação" ep.1</li>
+            <li>TikTok: Challenge interno com alunos</li>
+            <li>Instagram: Campanha TotalPass / Gympass awareness</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 23 — CALENDÁRIO MÊS 3-4
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s23">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">23 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+      <div class="tag">Calendário Temático</div>
+      <h2>Meses 3 &amp; 4 — Expansão</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-2" style="margin-top:.8rem;">
+        <div class="month-block">
+          <div class="month-label">Mês 3 · Maio / Junho</div>
+          <div class="month-theme">Autoridade &amp; Conteúdo de Valor</div>
+          <ul>
+            <li>Rosane: série "Bastidores de uma academia que cresce"</li>
+            <li>Antonella: Rotina de semana real — vlog YouTube</li>
+            <li>Dia dos Namorados: parceria de duo de alunos</li>
+            <li>TikTok: "3 erros que as pessoas cometem na academia"</li>
+            <li>Instagram: Lançamento Grupo VIP 2.0</li>
+            <li>Campanha de inverno: energia x frio — não para!</li>
+          </ul>
+        </div>
+        <div class="month-block">
+          <div class="month-label">Mês 4 · Junho / Julho</div>
+          <div class="month-theme">Viralidade &amp; Novos Públicos</div>
+          <ul>
+            <li>Antonella: Trend do momento adaptada para fitness</li>
+            <li>Go Fit: "Aulão de inverno" — conteúdo do evento ao vivo</li>
+            <li>Rosane: Entrevista com aluna que transformou a vida</li>
+            <li>YouTube: Ep.2 "Histórias de transformação"</li>
+            <li>TikTok: Tour pela academia (para novos seguidores)</li>
+            <li>Anúncios de captação no pico do inverno</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 24 — CALENDÁRIO MÊS 5-6
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s24">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">24 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1060px; width:100%;">
+      <div class="tag">Calendário Temático</div>
+      <h2>Meses 5 &amp; 6 — Colheita</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-2" style="margin-top:.8rem;">
+        <div class="month-block">
+          <div class="month-label">Mês 5 · Julho / Agosto</div>
+          <div class="month-theme">Pré-Verão &amp; Captação Acelerada</div>
+          <ul>
+            <li>Antonella: "Meu preparo pré-verão começa agora"</li>
+            <li>Go Fit: Lançamento pacote verão + aula experimental</li>
+            <li>Rosane: "Por que agosto é o melhor mês para começar"</li>
+            <li>TikTok: conteúdo bilíngue para turistas de alta temporada</li>
+            <li>Campanha Gympass / TotalPass com urgência</li>
+            <li>YouTube: Ep.3 "Histórias de transformação"</li>
+          </ul>
+        </div>
+        <div class="month-block">
+          <div class="month-label">Mês 6 · Agosto / Setembro</div>
+          <div class="month-theme">GoFit Summit 2.0 &amp; Legado</div>
+          <ul>
+            <li>Lançamento GoFit Summit: evento de comunidade</li>
+            <li>Rosane: "6 meses depois — o que mudou na Go Fit"</li>
+            <li>Antonella: "Eu treinei 180 dias seguidos — resultado"</li>
+            <li>Live especial: Rosane + Antonella no YouTube/Instagram</li>
+            <li>Campanha de renovação de matrículas com história</li>
+            <li>Planejamento ciclo seguinte: debriefing ao vivo com alunos</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 25 — COMO A GO FIT VIRA MARCA NO DIGITAL
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-dark" id="s25">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">25 / 27</div>
+
+    <div class="col centered" style="max-width:960px;">
+      <div class="tag">O Modelo</div>
+      <h2>Como a Go Fit<br>Vira Marca no Digital</h2>
+      <div class="cover-line"></div>
+
+      <div class="grid-3" style="margin-top:1.2rem; text-align:left;">
+        <div class="card">
+          <span class="card-icon">🔑</span>
+          <h3>Passo 1</h3>
+          <p><strong>Presença consistente</strong><br>Frequência supera perfeição. Aparecer todo dia constrói autoridade.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">❤️</span>
+          <h3>Passo 2</h3>
+          <p><strong>Conexão genuína</strong><br>Histórias reais de Rosane e Antonella criam audiências leais, não só seguidores.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">🚀</span>
+          <h3>Passo 3</h3>
+          <p><strong>Conversão natural</strong><br>Quem acompanha a jornada já confia. A matrícula é consequência, não esforço.</p>
+        </div>
+      </div>
+
+      <p style="margin-top:1.4rem; font-size:.88rem; color:rgba(250,250,248,.65);">
+        O conteúdo não é mais "publicidade". É a prova de que a Go Fit existe,<br>pulsa e cuida de verdade — todo dia.
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 26 — PRÓXIMOS PASSOS
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s26">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">26 / 27</div>
+
+    <div class="col" style="align-items:flex-start; max-width:1000px; width:100%;">
+      <div class="tag">Ação</div>
+      <h2>Próximos Passos</h2>
+      <hr class="divider" style="margin-left:0;">
+
+      <div class="grid-2" style="margin-top:.8rem;">
+        <div>
+          <h3 style="font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:.8rem; font-family:'Poppins',sans-serif;">Esta semana</h3>
+          <ul class="list-items">
+            <li>Definir frequência de postagem por perfil</li>
+            <li>Gravar o primeiro Reel/TikTok com gancho forte</li>
+            <li>Rosane: escolher 3 histórias de alunos para o mês</li>
+            <li>Antonella: iniciar roteiro da série YouTube</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="font-size:.72rem; letter-spacing:3px; text-transform:uppercase; color:var(--gold-mid); margin-bottom:.8rem; font-family:'Poppins',sans-serif;">Este mês</h3>
+          <ul class="list-items">
+            <li>Lançar campanha do Mês da Mulher ou data âncora</li>
+            <li>Montar grupo de conteúdo para semana seguinte sempre</li>
+            <li>Criar ou reativar Grupo VIP com conteúdo exclusivo</li>
+            <li>Revisar bio e highlights dos perfis com novo posicionamento</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card w-full" style="margin-top:1.2rem; border-color:rgba(201,168,76,.4);">
+        <h3>Encerramento do Ciclo 1</h3>
+        <p style="text-align:left; font-size:.88rem; color:rgba(250,250,248,.88);">A FLG entrega agora todo o direcionamento dos próximos 6 meses para que Rosane e Antonella executem da melhor forma possível. O Pedro estará disponível de forma periódica para apoiar, tirar dúvidas e ajustar rota — mas o grupo oficial de acompanhamento será encerrado ao longo dos próximos dias. Esse ciclo foi o começo de algo muito maior.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       SLIDE 27 — ENCERRAMENTO
+  ═══════════════════════════════════════════════ -->
+  <div class="slide slide-cover" id="s27">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <img class="logo-flg-text" src="assets/logo.svg" alt="Founders Led Growth">
+    <div class="slide-num">27 / 27</div>
+
+    <div class="col centered" style="max-width:860px;">
+      <img src="assets/logo.svg" alt="Founders Led Growth" style="width:110px; height:auto; opacity:.9; margin-bottom:1.6rem;">
+      <div class="tag">Founders Led Growth · FLG</div>
+      <h1>Go Fit.<br>A Marca que<br>Cresce com Verdade.</h1>
+      <div class="cover-line"></div>
+      <p class="lead">Rosane &amp; Antonella — as fundadoras que a concorrência não consegue copiar.</p>
+      <p style="margin-top:1.2rem; font-size:.78rem; letter-spacing:4px; text-transform:uppercase; color:rgba(201,168,76,.45);">FLG · Founders Led Growth · Pedro Aranda · 2026</p>
+    </div>
+  </div>
+
+</div><!-- /presentation -->
+
+<!-- ─── NAVIGATION ─── -->
+<div id="nav">
+  <button id="btn-prev" onclick="changeSlide(-1)" title="Anterior">←</button>
+  <span id="nav-counter">1 / 27</span>
+  <button id="btn-next" onclick="changeSlide(1)" title="Próximo">→</button>
+</div>
+<div id="hint">← → para navegar · P para imprimir</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let current = 0;
+  const total = slides.length;
+
+  function goTo(n) {
+    slides[current].classList.remove('active');
+    slides[current].classList.add('exit');
+    setTimeout(() => slides[current < n ? current : current].classList.remove('exit'), 600);
+    const prev = current;
+    current = Math.max(0, Math.min(n, total - 1));
+    slides[current].classList.add('active');
+    setTimeout(() => slides[prev].classList.remove('exit'), 600);
+    document.getElementById('nav-counter').textContent = (current + 1) + ' / ' + total;
+    document.getElementById('btn-prev').disabled = current === 0;
+    document.getElementById('btn-next').disabled = current === total - 1;
+  }
+
+  function changeSlide(dir) { goTo(current + dir); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); changeSlide(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); changeSlide(-1); }
+    if (e.key === 'p' || e.key === 'P') window.print();
+  });
+
+  // Touch swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) changeSlide(dx < 0 ? 1 : -1);
+  }, {passive:true});
+
+  // init
+  goTo(0);
+</script>
+</body>
+</html>
