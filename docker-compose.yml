@@ -1,0 +1,57 @@
+services:
+
+  # ─── Backend: FastAPI + AgentOS (Agno) ───────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./backend/assets:/app/assets:ro    # imagens estáticas dos encontros
+    networks:
+      - traefik_default
+    labels:
+      - "traefik.enable=true"
+      # Rota: docs.foundersledgrowth.online/api/* → backend (porta 8000)
+      - "traefik.http.routers.flg-api.rule=Host(`docs.foundersledgrowth.online`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.flg-api.entrypoints=websecure"
+      - "traefik.http.routers.flg-api.tls.certresolver=le"
+      # Strip prefix /api antes de chegar no FastAPI
+      - "traefik.http.middlewares.flg-strip-api.stripprefix.prefixes=/api"
+      - "traefik.http.routers.flg-api.middlewares=flg-strip-api"
+      - "traefik.http.services.flg-api.loadbalancer.server.port=8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Frontend: React + Vite (Nginx) ──────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+        - VITE_API_URL=${VITE_API_URL}
+    restart: unless-stopped
+    networks:
+      - traefik_default
+    labels:
+      - "traefik.enable=true"
+      # Rota: docs.foundersledgrowth.online → frontend (porta 80)
+      - "traefik.http.routers.flg-frontend.rule=Host(`docs.foundersledgrowth.online`)"
+      - "traefik.http.routers.flg-frontend.entrypoints=websecure"
+      - "traefik.http.routers.flg-frontend.tls.certresolver=le"
+      # Menor prioridade que /api (Traefik usa o mais específico primeiro)
+      - "traefik.http.routers.flg-frontend.priority=1"
+      - "traefik.http.services.flg-frontend.loadbalancer.server.port=80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+networks:
+  traefik_default:
+    external: true

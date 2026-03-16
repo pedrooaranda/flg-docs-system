@@ -1,6 +1,26 @@
 # Segurança — nunca versionar
 .env
 *.env.local
+.env.production
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Node / React
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.local
 
 # macOS
 .DS_Store

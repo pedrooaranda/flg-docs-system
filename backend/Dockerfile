@@ -1,0 +1,35 @@
+FROM python:3.12-slim
+
+# ─── Dependências de sistema para WeasyPrint + Docling ───────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # WeasyPrint
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf2.0-0 \
+    libffi-dev \
+    shared-mime-info \
+    # Docling
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    # Utilitários
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ─── Dependências Python ──────────────────────────────────────────────────────
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ─── Código da aplicação ──────────────────────────────────────────────────────
+COPY . .
+
+# ─── Assets (imagens estáticas dos encontros) ─────────────────────────────────
+# Montado como volume no docker-compose: ./backend/assets:/app/assets
+RUN mkdir -p /app/assets/images
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
