@@ -26,7 +26,7 @@ def create_flg_agent(system_prompt: str, session_id: str) -> Agent:
     """
     return Agent(
         name="Assistente FLG",
-        agent_id="assistente-flg",
+        id="assistente-flg",
         model=Claude(id="claude-sonnet-4-6"),
         db=PostgresDb(
             db_url=settings.supabase_db_url,
@@ -44,5 +44,4 @@ def create_flg_agent(system_prompt: str, session_id: str) -> Agent:
         add_history_to_context=True,
         num_history_runs=10,
         markdown=True,
-        show_tool_calls=False,
     )

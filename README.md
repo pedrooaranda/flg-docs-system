@@ -1,139 +1,101 @@
-# FLG — Sistema de Documentação de Clientes
+# FLG Jornada System
 
-> **Founders Led Growth** · Pedro Aranda · Sistema de produção de materiais estratégicos
-
----
-
-## Visão Geral
-
-Este repositório é o **centro de operações de documentação** da FLG. Ele contém:
-
-- **Templates** de apresentação e documento estratégico prontos para reutilização
-- **Framework de IA** com prompts e workflows para geração automatizada de conteúdo
-- **Projetos de clientes** organizados e versionados
-- **Scripts** para criar novos clientes com um único comando
+> **Founders Led Growth** — Plataforma de gestão estratégica de clientes com IA
 
 ---
 
-## Estrutura de Pastas
+## Sobre
+
+O **FLG Jornada System** é uma plataforma interna que apoia consultores da Founders Led Growth na condução da jornada de 15 encontros com founders. O sistema centraliza o perfil de cada cliente, histórico de conversas, geração de materiais estratégicos e sincronização de dados operacionais.
+
+---
+
+## Arquitetura
+
+```
+docs.foundersledgrowth.online          → Frontend React (consultor)
+docs.foundersledgrowth.online/api/*    → Backend FastAPI + Agente IA
+```
+
+| Camada      | Tecnologia                        |
+|-------------|-----------------------------------|
+| Frontend    | React + Vite + Tailwind CSS       |
+| Backend     | Python / FastAPI + Agno           |
+| Agente IA   | Claude (Anthropic) via Agno       |
+| Banco       | Supabase (PostgreSQL)             |
+| Storage     | Supabase Storage                  |
+| Auth        | Supabase Auth (JWT)               |
+| PDF         | WeasyPrint                        |
+| Deploy      | Docker Compose + Traefik (VPS)    |
+
+---
+
+## Funcionalidades
+
+- **Dashboard de clientes** — visão geral da jornada de cada founder
+- **Chat com agente IA** — assistente especializado no perfil do cliente e na metodologia FLG
+- **Geração de slides HTML + PDF** — materiais personalizados por encontro
+- **Upload e processamento de documentos** — planejamento estratégico e estudos de mercado via Docling
+- **Base de conhecimento dinâmica** — injeção de conteúdo metodológico no agente via painel admin
+- **Sincronização ClickUp** — agente de rotina que lê comentários e atualiza perfis automaticamente
+
+---
+
+## Estrutura do Repositório
 
 ```
 documentos_oficiais/
 │
-├── README.md                        ← Este arquivo
+├── backend/                    ← FastAPI + Agno (agente IA)
+│   ├── agents/                 ← Definição dos agentes
+│   ├── tools/                  ← Ferramentas do agente (cliente, slides, ClickUp)
+│   ├── prompts/                ← System prompt e prompt de slides
+│   ├── routes/                 ← Endpoints REST
+│   ├── assets/images/          ← Imagens estáticas dos 15 encontros
+│   ├── main.py
+│   ├── config.py
+│   ├── requirements.txt
+│   └── Dockerfile
 │
-├── document_template/               ← Templates oficiais FLG
-│   ├── README.md                    ← Como usar os templates
-│   ├── assets/                      ← Logo FLG + fontes compartilhadas
+├── frontend/                   ← React + Vite
+│   ├── src/
+│   │   ├── components/         ← Login, Dashboard, Chat, Slides, Admin
+│   │   └── lib/                ← Supabase client + API wrapper
+│   ├── nginx.conf
+│   └── Dockerfile
+│
+├── supabase/
+│   └── migrations/             ← Schema SQL + seeds
+│
+├── document_template/          ← Templates visuais FLG (referência)
 │   ├── slides/
-│   │   ├── template.html            ← Template de apresentação (slides)
-│   │   ├── GUIDE.md                 ← Guia completo de uso
-│   │   └── ai-image-prompts.md      ← Framework de imagens com IA
 │   └── documento/
-│       ├── template.html            ← Template de documento estratégico
-│       └── GUIDE.md
 │
-├── ai-framework/                    ← Integração com IA
-│   ├── README.md                    ← Visão geral e como configurar
-│   ├── prompts/
-│   │   ├── client-intake.md         ← Formulário de intake do cliente
-│   │   ├── slides-generation.md     ← Prompt para gerar slides via Claude
-│   │   ├── documento-generation.md  ← Prompt para gerar documento via Claude
-│   │   └── images/
-│   │       ├── README.md            ← Como gerar imagens para slides
-│   │       └── style-guide.md       ← Guia de estilo visual FLG
-│   └── workflows/
-│       └── step-by-step.md          ← Workflow completo (manual e automatizado)
-│
-├── scripts/                         ← Automação
-│   ├── README.md
-│   ├── new-client.sh                ← Cria novo cliente a partir do template
-│   └── generate-ai.sh               ← Gera conteúdo via Claude API
-│
-├── .github/
-│   └── workflows/
-│       └── generate-docs.yml        ← GitHub Actions (geração automática)
-│
-└── clients/                         ← Projetos finalizados
-    └── rosane-gofit/                ← Go Fit × Rosane & Antonella (referência)
-        ├── assets/
-        ├── slides-gofit.html
-        ├── documento-estrategico.html
-        ├── planilha-conteudo.html
-        └── PROJECT.md
+└── docker-compose.yml
 ```
 
 ---
 
-## Como Criar um Novo Cliente
+## Padrão Visual
 
-### Opção 1 — Script Automático (recomendado)
-
-```bash
-cd documentos_oficiais
-./scripts/new-client.sh \
-  "nome-cliente" \
-  "Nome do Cliente" \
-  "Empresa Cliente" \
-  "Pedro Aranda" \
-  "2026" \
-  "Setor / Indústria"
-```
-
-Isso cria `clients/nome-cliente/` com slides e documento prontos para edição.
-
-### Opção 2 — Manual
-
-1. Duplique `document_template/slides/template.html` para `clients/SEU-CLIENTE/slides.html`
-2. Duplique `document_template/documento/template.html` para `clients/SEU-CLIENTE/documento.html`
-3. Substitua todos os `{{PLACEHOLDERS}}` com os dados do cliente
-4. Coloque os assets do cliente em `clients/SEU-CLIENTE/assets/`
-
-### Opção 3 — Geração com IA
-
-```bash
-# 1. Preencha o brief do cliente
-cp ai-framework/prompts/client-intake.md clients/SEU-CLIENTE/brief.md
-# edite o brief.md com os dados do cliente
-
-# 2. Configure a API key
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
-
-# 3. Gere os documentos
-./scripts/generate-ai.sh SEU-CLIENTE
-```
+| Elemento       | Valor                               |
+|----------------|--------------------------------------|
+| Fundo          | `#080808`                           |
+| Texto          | `#FAFAF8`                           |
+| Gold principal | `#C9A84C`                           |
+| Gold claro     | `#F5D68A`                           |
+| Gold escuro    | `#8B6914`                           |
+| Título         | Playfair Display                    |
+| Corpo          | Poppins                             |
 
 ---
 
-## Padrão Visual FLG
+## Deploy
 
-| Elemento       | Valor                              |
-|---------------|-------------------------------------|
-| Fundo         | `#080808` (preto)                  |
-| Texto         | `#FAFAF8` (branco quente)          |
-| Gold principal| `#C9A84C`                          |
-| Gold claro    | `#F5D68A`                          |
-| Gold escuro   | `#8B6914`                          |
-| Título        | Playfair Display (serif, gold grad) |
-| Corpo         | Poppins (sans-serif)               |
+O sistema roda em VPS com Docker Compose + Traefik (HTTPS automático via Let's Encrypt).
+
+Variáveis de ambiente necessárias estão documentadas em `.env.example`.
 
 ---
 
-## Imagens nos Slides
-
-Os slides suportam imagens de fundo opcionais. Cada slide tem um **slot de imagem** documentado com:
-- Tamanho recomendado (1920×1080)
-- Prompt sugerido para Midjourney / DALL-E / Flux
-- Opacidade de overlay (padrão: 15%)
-
-Consulte `document_template/slides/ai-image-prompts.md` para o framework completo.
-
----
-
-## Deploy (VPS ou GitHub Pages)
-
-Consulte `ai-framework/workflows/step-by-step.md` para instruções de deploy.
-
----
-
-*FLG · Founders Led Growth · Pedro Aranda · Florianópolis*
+*Founders Led Growth · São Paulo*

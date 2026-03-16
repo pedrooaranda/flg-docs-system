@@ -42,7 +42,7 @@ INSTRUÇÕES:
 
 agente_rotina = Agent(
     name="Agente de Rotina FLG",
-    agent_id="agente-rotina",
+    id="agente-rotina",
     model=Claude(id="claude-haiku-4-5-20251001"),
     tools=[read_clickup_comments, update_client_profile],
     instructions=ROTINA_SYSTEM_PROMPT,
