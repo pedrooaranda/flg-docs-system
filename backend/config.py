@@ -11,7 +11,6 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_key: str                  # service role key
     supabase_db_url: str               # postgresql+psycopg://...
-    supabase_jwt_secret: str = ""      # opcional — fallback para validação JWT
 
     # ClickUp
     clickup_api_token: str = ""
