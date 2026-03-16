@@ -8,7 +8,7 @@ injetado dinamicamente baseado no cliente e encontro em questão.
 
 from agno.agent import Agent
 from agno.models.anthropic import Claude
-from agno.storage.postgres import PostgresAgentStorage
+from agno.db.postgres import PgAgentStorage as PostgresAgentStorage
 
 from config import settings
 from tools.client_tools import (
