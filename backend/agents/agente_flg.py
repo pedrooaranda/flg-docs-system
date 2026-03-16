@@ -8,7 +8,7 @@ injetado dinamicamente baseado no cliente e encontro em questão.
 
 from agno.agent import Agent
 from agno.models.anthropic import Claude
-from agno.db.postgres import PgAgentStorage as PostgresAgentStorage
+from agno.db.postgres import PostgresDb
 
 from config import settings
 from tools.client_tools import (
@@ -28,9 +28,9 @@ def create_flg_agent(system_prompt: str, session_id: str) -> Agent:
         name="Assistente FLG",
         agent_id="assistente-flg",
         model=Claude(id="claude-sonnet-4-6"),
-        storage=PostgresAgentStorage(
-            table_name="conversas_agente",
+        db=PostgresDb(
             db_url=settings.supabase_db_url,
+            session_table="conversas_agente",
         ),
         session_id=session_id,
         description="Assistente estratégico da Founders Led Growth para preparação de encontros com founders.",
