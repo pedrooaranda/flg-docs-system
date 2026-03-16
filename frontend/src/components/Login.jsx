@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
+import { Spinner } from './ui/Spinner'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -12,58 +14,80 @@ export default function Login() {
     setLoading(true)
     setError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(error.message)
+    if (error) setError('E-mail ou senha incorretos')
     setLoading(false)
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black px-4">
-      <div className="w-full max-w-sm">
-        {/* Logo FLG */}
+    <div className="min-h-screen flex items-center justify-center bg-[#080808] px-4 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full opacity-[0.04]"
+          style={{ background: 'radial-gradient(circle, #C9A84C 0%, transparent 70%)' }} />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        className="w-full max-w-sm relative z-10"
+      >
         <div className="text-center mb-10">
-          <img src="/api/assets/logo-flg.svg" alt="FLG" className="w-20 mx-auto mb-6 opacity-90" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl gold-gradient mb-5">
+            <span className="font-display font-bold text-2xl text-[#080808]">F</span>
+          </div>
           <h1 className="font-display text-3xl font-bold gold-text">Jornada System</h1>
-          <p className="text-sm text-white/40 mt-2 tracking-widest uppercase">Founders Led Growth</p>
+          <p className="text-xs text-white/25 mt-2 tracking-widest uppercase">Founders Led Growth</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card-flg p-8 space-y-5">
-          <div>
-            <label className="block text-xs tracking-widest uppercase text-white/50 mb-2">E-mail</label>
+          <div className="space-y-1.5">
+            <label className="block text-[10px] tracking-widest uppercase text-white/35 font-medium">E-mail</label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-gold-mid transition-colors"
+              autoFocus
+              className="input-flg"
               placeholder="seu@email.com"
             />
           </div>
-          <div>
-            <label className="block text-xs tracking-widest uppercase text-white/50 mb-2">Senha</label>
+
+          <div className="space-y-1.5">
+            <label className="block text-[10px] tracking-widest uppercase text-white/35 font-medium">Senha</label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-sm text-white placeholder-white/20 focus:outline-none focus:border-gold-mid transition-colors"
+              className="input-flg"
               placeholder="••••••••"
             />
           </div>
 
           {error && (
-            <p className="text-red-400 text-xs text-center">{error}</p>
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-red-400 text-xs text-center bg-red-500/8 border border-red-500/15 rounded py-2 px-3"
+            >
+              {error}
+            </motion.p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded text-sm font-semibold tracking-widest uppercase transition-opacity disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #F5D68A 0%, #C9A84C 50%, #8B6914 100%)', color: '#080808' }}
+            className="btn-gold w-full py-3 flex items-center justify-center gap-2 uppercase tracking-widest text-xs"
           >
-            {loading ? 'Entrando…' : 'Entrar'}
+            {loading ? <><Spinner size="sm" /> Entrando…</> : 'Entrar'}
           </button>
         </form>
-      </div>
+
+        <p className="text-center text-[10px] text-white/12 mt-6 tracking-wide">
+          Acesso restrito · Founders Led Growth
+        </p>
+      </motion.div>
     </div>
   )
 }
