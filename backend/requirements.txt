@@ -10,6 +10,7 @@ python-multipart>=0.0.12        # upload de arquivos
 # ─── Supabase ─────────────────────────────────────────────────────────────────
 supabase>=2.10.0
 psycopg[binary]>=3.2.0          # driver PostgreSQL para Agno PgStorage
+sqlalchemy>=2.0.0               # requerido por agno.db.postgres
 
 # ─── Processamento de documentos ──────────────────────────────────────────────
 docling>=2.15.0                 # extração de texto de PDFs
