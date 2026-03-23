@@ -111,9 +111,9 @@ jobs:
 
               echo "🏥 Healthcheck do backend..."
               HEALTHY=false
-              sleep 15
+              sleep 10
               for i in 1 2 3 4 5 6 7 8 9 10; do
-                if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+                if docker compose exec -T backend curl -sf http://localhost:8000/health > /dev/null 2>&1; then
                   echo "✅ Backend saudável (tentativa $i)"
                   HEALTHY=true
                   break
