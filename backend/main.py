@@ -40,6 +40,8 @@ async def _apply_migration_003():
     import psycopg
     db_url = settings.supabase_db_url.replace("postgresql+psycopg://", "postgresql://")
     stmts = [
+        # Coluna status em clientes (se não existir)
+        "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ativo'",
         # Colunas novas em encontros_base
         """ALTER TABLE encontros_base
            ADD COLUMN IF NOT EXISTS imagem_principal_url TEXT,
@@ -267,9 +269,10 @@ async def generate_slides_endpoint(
 async def list_clientes(user=Depends(get_current_user)):
     result = _supabase.table("clientes").select(
         "id, nome, empresa, consultor_responsavel, "
-        "encontro_atual, status, updated_at, created_at"
+        "encontro_atual, updated_at, created_at"
     ).order("created_at", desc=True).execute()
-    return result.data
+    # Adicionar status default caso a coluna ainda não exista no schema
+    return [{"status": "ativo", **c} for c in result.data]
 
 
 @app.get("/clientes/{client_id}")
