@@ -111,14 +111,15 @@ jobs:
 
               echo "🏥 Healthcheck do backend..."
               HEALTHY=false
-              for i in 1 2 3 4 5 6; do
-                sleep 5
+              sleep 15
+              for i in 1 2 3 4 5 6 7 8 9 10; do
                 if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
                   echo "✅ Backend saudável (tentativa $i)"
                   HEALTHY=true
                   break
                 fi
-                echo "⏳ Aguardando backend... ($i/6)"
+                echo "⏳ Aguardando backend... ($i/10)"
+                sleep 8
               done
 
               if [ "$HEALTHY" = "false" ]; then
