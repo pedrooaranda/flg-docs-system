@@ -269,10 +269,9 @@ async def generate_slides_endpoint(
 async def list_clientes(user=Depends(get_current_user)):
     result = _supabase.table("clientes").select(
         "id, nome, empresa, consultor_responsavel, "
-        "encontro_atual, updated_at, created_at"
+        "encontro_atual, status, updated_at, created_at"
     ).order("created_at", desc=True).execute()
-    # Adicionar status default caso a coluna ainda não exista no schema
-    return [{"status": "ativo", **c} for c in result.data]
+    return result.data
 
 
 @app.get("/clientes/{client_id}")
