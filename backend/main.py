@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -32,16 +32,20 @@ scheduler = AsyncIOScheduler()
 
 # ─── Migration 003 auto-apply ─────────────────────────────────────────────────
 async def _apply_migration_003():
-    """Apply migration 003 (tables/columns) at startup if not yet applied."""
+    """Apply migration 003 (tables/columns) at startup if not yet applied.
+    Each statement is executed independently — failures are logged and skipped.
+    """
     import psycopg
     db_url = settings.supabase_db_url.replace("postgresql+psycopg://", "postgresql://")
     stmts = [
+        # Colunas novas em encontros_base
         """ALTER TABLE encontros_base
            ADD COLUMN IF NOT EXISTS imagem_principal_url TEXT,
            ADD COLUMN IF NOT EXISTS imagens_extras JSONB DEFAULT '[]',
            ADD COLUMN IF NOT EXISTS intelecto_versao INT DEFAULT 1,
            ADD COLUMN IF NOT EXISTS intelecto_updated_at TIMESTAMPTZ DEFAULT NOW(),
            ADD COLUMN IF NOT EXISTS intelecto_updated_by TEXT""",
+        # Tabela de histórico do intelecto
         """CREATE TABLE IF NOT EXISTS intelecto_historico (
            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
            encontro_numero INT REFERENCES encontros_base(numero) ON DELETE CASCADE,
@@ -51,6 +55,8 @@ async def _apply_migration_003():
            created_at TIMESTAMPTZ DEFAULT NOW()
         )""",
         "CREATE INDEX IF NOT EXISTS idx_intelecto_historico_encontro ON intelecto_historico(encontro_numero)",
+        "ALTER TABLE intelecto_historico ENABLE ROW LEVEL SECURITY",
+        # Tabela de copies do Copywriter
         """CREATE TABLE IF NOT EXISTS materiais_copy (
            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
            cliente_id UUID REFERENCES clientes(id) ON DELETE CASCADE,
@@ -62,6 +68,8 @@ async def _apply_migration_003():
            created_at TIMESTAMPTZ DEFAULT NOW()
         )""",
         "CREATE INDEX IF NOT EXISTS idx_materiais_copy_cliente ON materiais_copy(cliente_id)",
+        "ALTER TABLE materiais_copy ENABLE ROW LEVEL SECURITY",
+        # Tabela de configuração dos agentes
         """CREATE TABLE IF NOT EXISTS agentes_config (
            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
            agente_tipo VARCHAR(50) UNIQUE NOT NULL,
@@ -72,17 +80,35 @@ async def _apply_migration_003():
            updated_by TEXT,
            updated_at TIMESTAMPTZ DEFAULT NOW()
         )""",
+        "ALTER TABLE agentes_config ENABLE ROW LEVEL SECURITY",
+        # Seed dos agentes
         """INSERT INTO agentes_config (agente_tipo, system_prompt_base)
-           VALUES ('preparacao_encontro', ''), ('copywriter', ''), ('materiais', '')
+           VALUES ('preparacao_encontro', ''), ('copywriter', ''), ('materiais', ''), ('intelecto', '')
            ON CONFLICT (agente_tipo) DO NOTHING""",
+        # Policy UPDATE em encontros_base (SELECT já existe na migration 001)
+        """DO $$ BEGIN
+             CREATE POLICY "auth_update_encontros_base" ON encontros_base
+               FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+           EXCEPTION WHEN duplicate_object THEN NULL;
+           END $$""",
+        # Bucket de imagens dos encontros (público para URLs funcionarem nos slides)
+        """INSERT INTO storage.buckets (id, name, public)
+           VALUES ('encontros', 'encontros', true)
+           ON CONFLICT (id) DO NOTHING""",
     ]
     try:
         async with await psycopg.AsyncConnection.connect(db_url, autocommit=True) as conn:
+            ok, skipped = 0, 0
             for stmt in stmts:
-                await conn.execute(stmt)
-        logger.info("✅ Migration 003 verificada/aplicada")
+                try:
+                    await conn.execute(stmt)
+                    ok += 1
+                except Exception as stmt_err:
+                    logger.warning(f"Migration 003 stmt skipped: {stmt_err}")
+                    skipped += 1
+        logger.info(f"✅ Migration 003 concluída ({ok} ok, {skipped} skipped)")
     except Exception as e:
-        logger.warning(f"⚠️ Migration 003 não pôde ser aplicada automaticamente: {e}")
+        logger.warning(f"⚠️ Migration 003 conexão falhou: {e}")
 
 
 # ─── Lifespan ─────────────────────────────────────────────────────────────────
@@ -321,6 +347,59 @@ async def list_encontros_realizados(
     if cliente_id:
         q = q.eq("cliente_id", cliente_id)
     return q.execute().data
+
+
+# ─── Upload imagem de encontro ────────────────────────────────────────────────
+@app.post("/upload-imagem-encontro")
+async def upload_imagem_encontro(
+    encontro_numero: int = Form(...),
+    tipo: str = Form("principal"),
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+):
+    """Upload de imagem principal para um encontro. Salva no bucket 'encontros'."""
+    ALLOWED = {"image/jpeg", "image/png", "image/webp"}
+    if file.content_type not in ALLOWED:
+        raise HTTPException(status_code=400, detail="Formato não suportado (use jpg, png ou webp)")
+
+    contents = await file.read()
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    storage_path = f"encontro-{encontro_numero:02d}-{tipo}.{ext}"
+
+    # Garantir que o bucket existe
+    try:
+        _supabase.storage.create_bucket("encontros", options={"public": True})
+    except Exception:
+        pass  # Já existe
+
+    # Upload com upsert (cria ou substitui)
+    try:
+        _supabase.storage.from_("encontros").upload(
+            path=storage_path,
+            file=contents,
+            file_options={"content-type": file.content_type},
+        )
+    except Exception:
+        # Arquivo já existe — substituir
+        try:
+            _supabase.storage.from_("encontros").update(
+                path=storage_path,
+                file=contents,
+                file_options={"content-type": file.content_type},
+            )
+        except Exception as e:
+            logger.error(f"Erro ao fazer upload da imagem: {e}")
+            raise HTTPException(status_code=500, detail=f"Erro no upload: {e}")
+
+    url = _supabase.storage.from_("encontros").get_public_url(storage_path)
+
+    # Atualizar encontros_base com a URL da imagem
+    _supabase.table("encontros_base").update(
+        {"imagem_principal_url": url}
+    ).eq("numero", encontro_numero).execute()
+
+    logger.info(f"Imagem do encontro {encontro_numero} enviada: {storage_path}")
+    return {"url": url}
 
 
 # ─── Materiais Copy API ────────────────────────────────────────────────────────
