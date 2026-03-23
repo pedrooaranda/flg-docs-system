@@ -10,16 +10,18 @@ import { supabase } from '../../lib/supabase'
 import { Avatar } from '../ui/Avatar'
 import { cn, getUserDisplayName } from '../../lib/utils'
 
+// matchPrefix: true → usa startsWith (para rotas com sub-rotas como /clientes/:id)
+// matchPrefix: false (default) → match exato
 const consultantNav = [
   { icon: LayoutDashboard, label: 'Dashboard',    path: '/' },
-  { icon: Users,          label: 'Meus Clientes', path: '/clientes' },
+  { icon: Users,          label: 'Meus Clientes', path: '/clientes', matchPrefix: true },
   { icon: FileText,       label: 'Materiais',      path: '/materiais' },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
 ]
 
 const adminNav = [
   { icon: LayoutDashboard, label: 'Dashboard',  path: '/' },
-  { icon: Users,          label: 'Clientes',     path: '/clientes' },
+  { icon: Users,          label: 'Clientes',     path: '/clientes', matchPrefix: true },
   { icon: FileText,       label: 'Materiais',    path: '/materiais' },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
 ]
@@ -30,11 +32,15 @@ const adminOnlyNav = [
   { icon: Settings, label: 'Configurações',  path: '/admin' },
 ]
 
+function itemIsActive(item, pathname) {
+  if (item.path === '/') return pathname === '/'
+  if (item.matchPrefix) return pathname.startsWith(item.path)
+  return pathname === item.path
+}
+
 function NavItem({ item, badge, collapsed, onClick }) {
-  const location = useLocation()
-  const active = item.path === '/'
-    ? location.pathname === '/'
-    : location.pathname.startsWith(item.path)
+  const { pathname } = useLocation()
+  const active = itemIsActive(item, pathname)
 
   return (
     <button
@@ -84,11 +90,19 @@ function NavItem({ item, badge, collapsed, onClick }) {
 }
 
 export default function Sidebar({ user, isAdmin }) {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem('sidebar_collapsed') === 'true'
+  )
   const navigate = useNavigate()
   const userName = getUserDisplayName(user)
   const roleLabel = isAdmin ? 'Admin' : 'Consultor'
   const mainItems = isAdmin ? adminNav : consultantNav
+
+  function handleToggle() {
+    const next = !collapsed
+    setCollapsed(next)
+    localStorage.setItem('sidebar_collapsed', String(next))
+  }
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -97,7 +111,7 @@ export default function Sidebar({ user, isAdmin }) {
   return (
     <motion.aside
       animate={{ width: collapsed ? 64 : 220 }}
-      transition={{ duration: 0.25, ease: 'easeInOut' }}
+      transition={{ duration: 0.2, ease: 'easeInOut' }}
       className="relative flex flex-col h-screen flex-shrink-0 overflow-hidden"
       style={{ background: '#0a0a0a', borderRight: '1px solid rgba(201, 168, 76, 0.12)' }}
     >
@@ -215,10 +229,11 @@ export default function Sidebar({ user, isAdmin }) {
         </button>
       </div>
 
-      {/* Collapse toggle */}
+      {/* Collapse toggle — borda direita, centralizado verticalmente */}
       <button
-        onClick={() => setCollapsed(c => !c)}
-        className="absolute -right-3 top-20 w-6 h-6 rounded-full border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-colors z-10 cursor-pointer"
+        onClick={handleToggle}
+        title={collapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
+        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:border-white/30 transition-all z-10 cursor-pointer"
         style={{ background: '#1A1A1A' }}
       >
         {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
