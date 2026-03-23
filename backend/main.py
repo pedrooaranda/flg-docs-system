@@ -5,6 +5,7 @@ AgentOS (Agno) + rotas customizadas + APScheduler para agente de rotina.
 
 import json
 import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Optional
@@ -160,6 +161,17 @@ async def get_current_user(authorization: str = Header(...)):
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "FLG Jornada System"}
+
+
+# ─── Deploy status ────────────────────────────────────────────────────────────
+@app.get("/deploy-status")
+async def deploy_status():
+    """Retorna o SHA do git baked no build e confirma que o serviço está rodando."""
+    return {
+        "git_sha": os.getenv("GIT_SHA", "unknown"),
+        "service": "FLG Jornada System",
+        "status": "running",
+    }
 
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────

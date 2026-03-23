@@ -1,0 +1,150 @@
+name: FLG — Agente de Deploy Automático
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Este workflow é o agente de deploy da FLG.
+# Dispara automaticamente em cada push para main e sincroniza a VPS.
+#
+# CONFIGURAÇÃO INICIAL (uma única vez):
+#   GitHub → Settings → Secrets and variables → Actions → New repository secret
+#   VPS_HOST     = 72.61.54.192
+#   VPS_USER     = root
+#   VPS_SSH_PASS = (senha da VPS)
+#
+# REGRAS DE REBUILD:
+#   - Mudanças em backend/** → rebuild + restart do container backend
+#   - Mudanças em frontend/** → rebuild + restart do container frontend
+#   - Mudanças só em *.md ou clients/** → deploy ignorado
+#   - workflow_dispatch com force_rebuild=true → rebuild completo de tudo
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'clients/**'
+      - 'document_template/**'
+      - '.github/workflows/generate-docs.yml'
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Forçar rebuild completo (backend + frontend)?'
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    name: Deploy → VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout com histórico para poder fazer diff ─────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      # ── 2. Detectar quais serviços precisam de rebuild ──────────────────────
+      - name: Detectar mudanças
+        id: changes
+        run: |
+          # No workflow_dispatch com force_rebuild, reconstruir tudo
+          if [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            echo "backend=true"  >> $GITHUB_OUTPUT
+            echo "frontend=true" >> $GITHUB_OUTPUT
+            echo "📦 Rebuild forçado completo"
+            exit 0
+          fi
+
+          BACKEND_COUNT=$(git diff HEAD~1 --name-only | grep -c "^backend/" || true)
+          FRONTEND_COUNT=$(git diff HEAD~1 --name-only | grep -c "^frontend/" || true)
+
+          echo "backend=$([ $BACKEND_COUNT -gt 0 ] && echo true || echo false)"   >> $GITHUB_OUTPUT
+          echo "frontend=$([ $FRONTEND_COUNT -gt 0 ] && echo true || echo false)" >> $GITHUB_OUTPUT
+
+          echo "Backend mudou: $BACKEND_COUNT arquivos | Frontend mudou: $FRONTEND_COUNT arquivos"
+
+      # ── 3. Resumo do que será feito ─────────────────────────────────────────
+      - name: Resumo do deploy
+        run: |
+          echo "## 🚀 Deploy FLG — $(date '+%d/%m/%Y %H:%M')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Serviço | Ação |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | ${{ steps.changes.outputs.backend == 'true' && '🔨 Rebuild' || '⏭ Skip' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ steps.changes.outputs.frontend == 'true' && '🔨 Rebuild' || '⏭ Skip' }} |" >> $GITHUB_STEP_SUMMARY
+
+      # ── 4. Deploy via SSH ───────────────────────────────────────────────────
+      - name: Deploy na VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_SSH_PASS }}
+          command_timeout: 10m
+          script: |
+            set -e
+            cd /opt/flg-jornada
+
+            echo "📥 Verificando atualizações..."
+            git fetch --quiet
+
+            LOCAL=$(git rev-parse HEAD)
+            REMOTE=$(git rev-parse origin/main)
+
+            if [ "$LOCAL" = "$REMOTE" ] && [ "${{ inputs.force_rebuild }}" != "true" ]; then
+              echo "✅ VPS já está atualizada (SHA: $LOCAL)"
+              exit 0
+            fi
+
+            git pull
+            GIT_SHA=$(git rev-parse HEAD)
+            echo "📦 Código atualizado: $GIT_SHA"
+
+            # ── Backend ──────────────────────────────────────────────────────
+            if [ "${{ steps.changes.outputs.backend }}" = "true" ]; then
+              echo "🔨 Rebuilding backend..."
+              GIT_SHA=$GIT_SHA docker compose build backend
+
+              echo "🔄 Reiniciando backend..."
+              docker compose up -d --no-deps backend
+
+              echo "🏥 Healthcheck do backend..."
+              HEALTHY=false
+              for i in 1 2 3 4 5 6; do
+                sleep 5
+                if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+                  echo "✅ Backend saudável (tentativa $i)"
+                  HEALTHY=true
+                  break
+                fi
+                echo "⏳ Aguardando backend... ($i/6)"
+              done
+
+              if [ "$HEALTHY" = "false" ]; then
+                echo "❌ Backend falhou no healthcheck — iniciando rollback..."
+                git reset --hard HEAD~1
+                GIT_SHA=$(git rev-parse HEAD)
+                GIT_SHA=$GIT_SHA docker compose build backend
+                docker compose up -d --no-deps backend
+                echo "⚠️ Rollback concluído para: $GIT_SHA"
+                exit 1
+              fi
+            fi
+
+            # ── Frontend ─────────────────────────────────────────────────────
+            if [ "${{ steps.changes.outputs.frontend }}" = "true" ]; then
+              echo "🔨 Rebuilding frontend..."
+              docker compose build frontend
+
+              echo "🔄 Reiniciando frontend..."
+              docker compose up -d --no-deps frontend
+              echo "✅ Frontend atualizado"
+            fi
+
+            echo ""
+            echo "🚀 Deploy concluído!"
+            echo "   SHA: $GIT_SHA"
+            echo "   Backend: ${{ steps.changes.outputs.backend }}"
+            echo "   Frontend: ${{ steps.changes.outputs.frontend }}"
+            docker compose ps --format "table {{.Name}}\t{{.Status}}"
