@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, X, Clock, Image, MessageSquare, ChevronRight, RotateCcw, Wand2 } from 'lucide-react'
-import { api } from '../../lib/api'
+import { api, uploadImagemEncontro } from '../../lib/api'
 import { Spinner, PageSpinner } from '../ui/Spinner'
 import { useToast } from '../../lib/toast'
 import { cn, formatDate } from '../../lib/utils'
@@ -247,13 +247,7 @@ function ImagensTab({ enc, onSaved }) {
     if (file.size > 5 * 1024 * 1024) { toast?.({ title: 'Arquivo muito grande (máx 5MB)', variant: 'error' }); return }
     setUploading(true)
     try {
-      const form = new FormData()
-      form.append('file', file)
-      form.append('encontro_numero', enc.numero)
-      form.append('tipo', 'principal')
-      const result = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/upload-imagem-encontro`, {
-        method: 'POST', body: form,
-      }).then(r => r.json())
+      const result = await uploadImagemEncontro(enc.numero, 'principal', file)
       const updated = { ...enc, imagem_principal_url: result.url }
       onSaved(updated)
       dispatch({ type: 'ENCONTRO_UPDATE', payload: updated })

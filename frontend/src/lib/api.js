@@ -68,6 +68,25 @@ export async function apiStream(path, body, onChunk, onDone, signal) {
   }
 }
 
+export async function uploadImagemEncontro(encontroNumero, tipo, file) {
+  const token = await getToken()
+  const form = new FormData()
+  form.append('encontro_numero', encontroNumero)
+  form.append('tipo', tipo)
+  form.append('file', file)
+
+  const res = await fetch(`${API_URL}/upload-imagem-encontro`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: form,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(err.detail || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function uploadPdf(clientId, docType, file) {
   const token = await getToken()
   const form = new FormData()

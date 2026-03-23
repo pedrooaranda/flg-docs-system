@@ -9,6 +9,7 @@ import { StatusBadge } from './ui/Badge'
 import { Spinner, PageSpinner } from './ui/Spinner'
 import { useToast } from '../lib/toast'
 import { formatDate, progressPercent, cn } from '../lib/utils'
+import { useAutoSave, AutoSaveIndicator } from '../hooks/useAutoSave'
 
 const CAMPOS_PERFIL = [
   { key: 'tom_de_voz',          label: 'Tom de Voz' },
@@ -19,6 +20,26 @@ const CAMPOS_PERFIL = [
   { key: 'objetivo_em_6_meses', label: 'Objetivo em 6 Meses' },
   { key: 'principal_dor_hoje',  label: 'Principal Dor Hoje' },
 ]
+
+function CampoPerfilCard({ clientId, fieldKey, label, initialValue }) {
+  const [val, setVal] = useState(initialValue || '')
+  const { status } = useAutoSave(`/clientes/${clientId}`, fieldKey, val)
+  return (
+    <div className="card-flg p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] tracking-widest uppercase text-white/30">{label}</p>
+        <AutoSaveIndicator status={status} />
+      </div>
+      <textarea
+        rows={3}
+        value={val}
+        onChange={e => setVal(e.target.value)}
+        className="w-full bg-transparent text-sm text-white/75 leading-relaxed resize-none focus:outline-none placeholder:text-white/20"
+        placeholder="Não informado"
+      />
+    </div>
+  )
+}
 
 function JornadaTimeline({ encontros_realizados = [], encontroAtual, clientId }) {
   const navigate = useNavigate()
@@ -75,6 +96,8 @@ export default function PerfilCliente() {
   const [pendingDocType, setPendingDocType] = useState(null)
 
   useEffect(() => {
+    setLoading(true)
+    setCliente(null)
     api(`/clientes/${clientId}`)
       .then(data => { setCliente(data); setLoading(false) })
       .catch(() => setLoading(false))
@@ -187,12 +210,13 @@ export default function PerfilCliente() {
         <Tabs.Content value="perfil">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {CAMPOS_PERFIL.map(({ key, label }) => (
-              <div key={key} className="card-flg p-4">
-                <p className="text-[10px] tracking-widest uppercase text-white/30 mb-2">{label}</p>
-                <p className="text-sm text-white/75 leading-relaxed">
-                  {cliente[key] || <span className="text-white/20 italic">Não informado</span>}
-                </p>
-              </div>
+              <CampoPerfilCard
+                key={key}
+                clientId={clientId}
+                fieldKey={key}
+                label={label}
+                initialValue={cliente[key]}
+              />
             ))}
           </div>
         </Tabs.Content>
