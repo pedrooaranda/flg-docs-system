@@ -1,22 +1,30 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { ToastProvider } from './lib/toast'
 import Layout from './components/layout/Layout'
 import Login from './components/Login'
-import Dashboard from './components/Dashboard'
-import PerfilCliente from './components/PerfilCliente'
-import NovoCliente from './components/NovoCliente'
-import PreparacaoEncontro from './components/PreparacaoEncontro'
-import AdminPanel from './components/AdminPanel'
-import ConhecimentoBase from './components/ConhecimentoBase'
 import { PageSpinner } from './components/ui/Spinner'
+
+// Lazy-loaded routes
+const Dashboard        = lazy(() => import('./components/Dashboard'))
+const PerfilCliente    = lazy(() => import('./components/PerfilCliente'))
+const NovoCliente      = lazy(() => import('./components/NovoCliente'))
+const PreparacaoEncontro = lazy(() => import('./components/PreparacaoEncontro'))
+const AdminPanel       = lazy(() => import('./components/AdminPanel'))
+const ConhecimentoBase = lazy(() => import('./components/ConhecimentoBase'))
+const Materiais        = lazy(() => import('./components/Materiais'))
+const Copywriter       = lazy(() => import('./components/Copywriter'))
+const IntelecFLG       = lazy(() => import('./components/admin/IntelecFLG'))
+const AgentesConfig    = lazy(() => import('./components/admin/AgentesConfig'))
 
 function AuthGuard({ session, children, title, subtitle }) {
   if (!session) return <Navigate to="/login" replace />
   return (
     <Layout session={session} title={title} subtitle={subtitle}>
-      {children}
+      <Suspense fallback={<PageSpinner />}>
+        {children}
+      </Suspense>
     </Layout>
   )
 }
@@ -37,16 +45,77 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
-          <Route path="/" element={<AuthGuard session={session}><Dashboard session={session} /></AuthGuard>} />
-          <Route path="/clientes/novo" element={<AuthGuard session={session} title="Novo Cliente"><NovoCliente /></AuthGuard>} />
-          <Route path="/clientes/:clientId" element={<AuthGuard session={session}><PerfilCliente /></AuthGuard>} />
-          <Route path="/clientes/:clientId/encontro/:encontroNum" element={
-            <Layout session={session}>
-              <PreparacaoEncontro />
-            </Layout>
+
+          <Route path="/" element={
+            <AuthGuard session={session} title="Dashboard">
+              <Dashboard session={session} />
+            </AuthGuard>
           } />
-          <Route path="/admin" element={<AuthGuard session={session} title="Admin"><AdminPanel /></AuthGuard>} />
-          <Route path="/admin/conhecimento" element={<AuthGuard session={session} title="Base de Conhecimento"><ConhecimentoBase /></AuthGuard>} />
+
+          <Route path="/clientes/novo" element={
+            <AuthGuard session={session} title="Novo Cliente">
+              <NovoCliente />
+            </AuthGuard>
+          } />
+
+          <Route path="/clientes" element={
+            <AuthGuard session={session} title="Clientes">
+              <Dashboard session={session} />
+            </AuthGuard>
+          } />
+
+          <Route path="/clientes/:clientId" element={
+            <AuthGuard session={session}>
+              <PerfilCliente />
+            </AuthGuard>
+          } />
+
+          <Route path="/clientes/:clientId/encontro/:encontroNum" element={
+            session ? (
+              <Layout session={session}>
+                <Suspense fallback={<PageSpinner />}>
+                  <PreparacaoEncontro />
+                </Suspense>
+              </Layout>
+            ) : <Navigate to="/login" replace />
+          } />
+
+          <Route path="/materiais" element={
+            <AuthGuard session={session} title="Materiais">
+              <Materiais session={session} />
+            </AuthGuard>
+          } />
+
+          <Route path="/copywriter" element={
+            <AuthGuard session={session} title="Copywriter FLG">
+              <Copywriter session={session} />
+            </AuthGuard>
+          } />
+
+          <Route path="/admin" element={
+            <AuthGuard session={session} title="Configurações">
+              <AdminPanel />
+            </AuthGuard>
+          } />
+
+          <Route path="/admin/conhecimento" element={
+            <AuthGuard session={session} title="Base de Conhecimento">
+              <ConhecimentoBase />
+            </AuthGuard>
+          } />
+
+          <Route path="/admin/intelecto" element={
+            <AuthGuard session={session} title="Intelecto FLG">
+              <IntelecFLG />
+            </AuthGuard>
+          } />
+
+          <Route path="/admin/agentes" element={
+            <AuthGuard session={session} title="Agentes FLG">
+              <AgentesConfig />
+            </AuthGuard>
+          } />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
