@@ -34,7 +34,15 @@ const adminOnlyNav = [
 
 function itemIsActive(item, pathname) {
   if (item.path === '/') return pathname === '/'
-  if (item.matchPrefix) return pathname.startsWith(item.path)
+  // Admin sub-rotas com item próprio: match exato ou seus sub-paths
+  if (item.path.startsWith('/admin/')) {
+    return pathname === item.path || pathname.startsWith(item.path + '/')
+  }
+  // Rotas com matchPrefix (ex: /clientes): path exato ou sub-path com barra
+  if (item.matchPrefix) {
+    return pathname === item.path || pathname.startsWith(item.path + '/')
+  }
+  // Default: match exato apenas
   return pathname === item.path
 }
 
@@ -109,6 +117,7 @@ export default function Sidebar({ user, isAdmin }) {
   }
 
   return (
+    <>
     <motion.aside
       animate={{ width: collapsed ? 64 : 220 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
@@ -229,15 +238,40 @@ export default function Sidebar({ user, isAdmin }) {
         </button>
       </div>
 
-      {/* Collapse toggle — borda direita, centralizado verticalmente */}
+    </motion.aside>
+
+    {/* Toggle fixo na borda da sidebar — sempre visível independente do overflow */}
+    <div
+      style={{
+        position: 'fixed',
+        left: collapsed ? '52px' : '208px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        zIndex: 50,
+        transition: 'left 0.2s ease',
+      }}
+    >
       <button
         onClick={handleToggle}
-        title={collapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border border-white/10 flex items-center justify-center text-white/40 hover:text-white hover:border-white/30 transition-all z-10 cursor-pointer"
-        style={{ background: '#1A1A1A' }}
+        title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+        className="w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all"
+        style={{
+          background: '#141414',
+          border: '1px solid rgba(201,168,76,0.25)',
+          color: '#C9A84C',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = 'rgba(201,168,76,0.12)'
+          e.currentTarget.style.borderColor = '#C9A84C'
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = '#141414'
+          e.currentTarget.style.borderColor = 'rgba(201,168,76,0.25)'
+        }}
       >
         {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
       </button>
-    </motion.aside>
+    </div>
+    </>
   )
 }
