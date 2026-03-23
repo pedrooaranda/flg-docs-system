@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Search, Plus, Users, TrendingUp, Calendar, UserCheck, Filter } from 'lucide-react'
+import { Search, Plus, Users, TrendingUp, Calendar, UserCheck } from 'lucide-react'
 import { api } from '../lib/api'
 import { Avatar } from './ui/Avatar'
 import { StatusBadge, Badge } from './ui/Badge'
 import { SkeletonCard } from './ui/Skeleton'
-import { progressPercent, formatDate } from '../lib/utils'
+import { progressPercent, formatDate, isAdmin as checkAdmin } from '../lib/utils'
 
 function MetricCard({ icon: Icon, label, value, sub, delay = 0 }) {
   return (
@@ -87,7 +87,7 @@ export default function Dashboard({ session }) {
   const [filterConsultor, setFilterConsultor] = useState('todos')
   const navigate = useNavigate()
 
-  const isAdmin = session?.user?.email?.includes('pedro') || session?.user?.user_metadata?.role === 'admin'
+  const isAdmin = checkAdmin(session?.user)
   const userEmail = session?.user?.email
 
   useEffect(() => {

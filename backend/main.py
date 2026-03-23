@@ -123,8 +123,9 @@ async def chat_stream(
         has_trigger = False
         full_response = ""
 
-        async for chunk in await agent.arun(body.message, stream=True):
-            if hasattr(chunk, "content") and chunk.content:
+        # agent.arun() with stream=True returns an AsyncGenerator directly (not awaitable)
+        async for chunk in agent.arun(body.message, stream=True, session_id=session_id):
+            if hasattr(chunk, "content") and chunk.content and isinstance(chunk.content, str):
                 text = chunk.content
                 full_response += text
                 yield f"data: {json.dumps({'type': 'text_delta', 'content': text})}\n\n"
@@ -138,7 +139,11 @@ async def chat_stream(
     return StreamingResponse(
         stream_generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # disable Nginx/Traefik response buffering for SSE
+        },
     )
 
 

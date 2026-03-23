@@ -2,6 +2,7 @@ import { Bell, Settings } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar } from '../ui/Avatar'
 import * as Tooltip from '@radix-ui/react-tooltip'
+import { getUserDisplayName } from '../../lib/utils'
 
 function TooltipBtn({ label, icon, onClick }) {
   return (
@@ -28,7 +29,7 @@ function TooltipBtn({ label, icon, onClick }) {
 
 export default function Topbar({ user, isAdmin, title, subtitle }) {
   const navigate = useNavigate()
-  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário'
+  const userName = getUserDisplayName(user)
 
   const now = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
   const displayTitle = title || `Olá, ${userName.split(' ')[0]}`

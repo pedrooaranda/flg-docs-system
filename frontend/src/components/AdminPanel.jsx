@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { BookOpen, Users, Layers, Pencil, Check, X } from 'lucide-react'
 import { api } from '../lib/api'
+import { progressPercent } from '../lib/utils'
 import { Avatar } from './ui/Avatar'
-import { StatusBadge } from './ui/Badge'
 import { Spinner, PageSpinner } from './ui/Spinner'
 import { useToast } from '../lib/toast'
 import { cn } from '../lib/utils'
@@ -194,7 +194,7 @@ export default function AdminPanel() {
                       <div className="h-1.5 w-20 bg-white/5 rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full gold-gradient"
-                          style={{ width: `${Math.round(((c.encontro_atual || 1) / 15) * 100)}%` }}
+                          style={{ width: `${progressPercent(c.encontro_atual)}%` }}
                         />
                       </div>
                       <span className="text-xs text-gold-mid font-medium">

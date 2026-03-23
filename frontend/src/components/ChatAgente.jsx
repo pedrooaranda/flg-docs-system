@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Sparkles } from 'lucide-react'
 import { apiStream } from '../lib/api'
@@ -54,19 +54,29 @@ export default function ChatAgente({ clientId, encontroNum, onSlidesReady }) {
   const [streaming, setStreaming] = useState(false)
   const bottomRef = useRef()
   const textareaRef = useRef()
+  const abortRef = useRef(null) // AbortController for in-flight stream
   const sessionId = `${clientId}_${encontroNum}`
 
+  // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  async function send() {
+  // Cancel any in-flight stream on unmount
+  useEffect(() => {
+    return () => abortRef.current?.abort()
+  }, [])
+
+  const send = useCallback(async () => {
     if (!input.trim() || streaming) return
     const userMsg = input.trim()
     setInput('')
     setMessages(m => [...m, { role: 'user', content: userMsg }])
     setStreaming(true)
     setMessages(m => [...m, { role: 'assistant', content: '' }])
+
+    const controller = new AbortController()
+    abortRef.current = controller
 
     try {
       await apiStream(
@@ -80,18 +90,22 @@ export default function ChatAgente({ clientId, encontroNum, onSlidesReady }) {
         },
         (done) => {
           if (done.trigger_slides) onSlidesReady()
-        }
+        },
+        controller.signal,
       )
     } catch (err) {
+      // Ignore abort errors (user navigated away)
+      if (err.name === 'AbortError') return
       setMessages(m => {
-        const last = { ...m[m.length - 1], content: `Erro ao conectar com o assistente.` }
+        const last = { ...m[m.length - 1], content: 'Erro ao conectar com o assistente.' }
         return [...m.slice(0, -1), last]
       })
     } finally {
+      abortRef.current = null
       setStreaming(false)
       setTimeout(() => textareaRef.current?.focus(), 100)
     }
-  }
+  }, [input, streaming, clientId, encontroNum, sessionId, onSlidesReady])
 
   function handleKey(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }

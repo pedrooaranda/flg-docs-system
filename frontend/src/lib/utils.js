@@ -18,3 +18,11 @@ export function formatDate(iso) {
 export function progressPercent(current, total = 15) {
   return Math.min(Math.round(((current || 1) / total) * 100), 100)
 }
+
+export function isAdmin(user) {
+  return user?.email?.includes('pedro') || user?.user_metadata?.role === 'admin'
+}
+
+export function getUserDisplayName(user) {
+  return user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário'
+}

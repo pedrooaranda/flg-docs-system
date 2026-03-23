@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Home, Users, Settings, Users2, BookOpen, LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Home, Users, Settings, BookOpen, LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { Avatar } from '../ui/Avatar'
-import { cn } from '../../lib/utils'
+import { cn, getUserDisplayName } from '../../lib/utils'
 
 const navItems = [
   { icon: Home,     label: 'Dashboard',       path: '/',              adminOnly: false },
@@ -19,7 +19,7 @@ export default function Sidebar({ user, isAdmin }) {
   const location = useLocation()
 
   const items = navItems.filter(i => !i.adminOnly || isAdmin)
-  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário'
+  const userName = getUserDisplayName(user)
   const roleLabel = isAdmin ? 'Admin' : 'Consultor'
 
   async function handleLogout() {

@@ -8,7 +8,7 @@ import { Avatar } from './ui/Avatar'
 import { StatusBadge } from './ui/Badge'
 import { Spinner, PageSpinner } from './ui/Spinner'
 import { useToast } from '../lib/toast'
-import { formatDate, cn } from '../lib/utils'
+import { formatDate, progressPercent, cn } from '../lib/utils'
 
 const CAMPOS_PERFIL = [
   { key: 'tom_de_voz',          label: 'Tom de Voz' },
@@ -105,7 +105,7 @@ export default function PerfilCliente() {
   if (!cliente) return <div className="flex items-center justify-center h-64 text-white/30">Cliente não encontrado</div>
 
   const encontroAtual = cliente.encontro_atual || 1
-  const pct = Math.round((encontroAtual / 15) * 100)
+  const pct = progressPercent(encontroAtual)
 
   return (
     <motion.div

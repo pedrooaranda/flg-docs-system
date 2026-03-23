@@ -25,7 +25,11 @@ export async function api(path, options = {}) {
   return res.json()
 }
 
-export async function apiStream(path, body, onChunk, onDone) {
+/**
+ * SSE streaming fetch. Returns a cancel function.
+ * Pass an AbortSignal via options.signal to cancel externally.
+ */
+export async function apiStream(path, body, onChunk, onDone, signal) {
   const token = await getToken()
   const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
@@ -34,6 +38,7 @@ export async function apiStream(path, body, onChunk, onDone) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+    signal,
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
@@ -41,21 +46,25 @@ export async function apiStream(path, body, onChunk, onDone) {
   const decoder = new TextDecoder()
   let buffer = ''
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() // keep incomplete line
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() // keep incomplete line
 
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      try {
-        const event = JSON.parse(line.slice(6))
-        if (event.type === 'text_delta') onChunk(event.content)
-        if (event.type === 'done') onDone(event)
-      } catch {}
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        try {
+          const event = JSON.parse(line.slice(6))
+          if (event.type === 'text_delta') onChunk(event.content)
+          if (event.type === 'done') onDone(event)
+        } catch {}
+      }
     }
+  } finally {
+    reader.cancel()
   }
 }
 

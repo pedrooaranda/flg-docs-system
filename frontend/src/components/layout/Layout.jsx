@@ -1,9 +1,10 @@
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import { isAdmin as checkAdmin } from '../../lib/utils'
 
 export default function Layout({ session, children, title, subtitle }) {
   const user = session?.user
-  const isAdmin = user?.email?.includes('pedro') || user?.user_metadata?.role === 'admin'
+  const isAdmin = checkAdmin(user)
 
   return (
     <div className="flex h-screen bg-[#080808] overflow-hidden">
