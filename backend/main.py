@@ -6,6 +6,7 @@ AgentOS (Agno) + rotas customizadas + APScheduler para agente de rotina.
 import json
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -280,7 +281,12 @@ async def create_cliente(data: dict, user=Depends(get_current_user)):
 
 @app.patch("/clientes/{client_id}")
 async def update_cliente(client_id: str, data: dict, user=Depends(get_current_user)):
-    result = _supabase.table("clientes").update(data).eq("id", client_id).execute()
+    try:
+        result = _supabase.table("clientes").update(data).eq("id", client_id).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar cliente: {e}")
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado ou sem permissão")
     return result.data[0]
 
 
@@ -299,7 +305,12 @@ async def create_conhecimento(data: dict, user=Depends(get_current_user)):
 
 @app.patch("/conhecimento-base/{item_id}")
 async def update_conhecimento(item_id: int, data: dict, user=Depends(get_current_user)):
-    result = _supabase.table("conhecimento_base").update(data).eq("id", item_id).execute()
+    try:
+        result = _supabase.table("conhecimento_base").update(data).eq("id", item_id).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar conhecimento: {e}")
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Item não encontrado")
     return result.data[0]
 
 
@@ -319,7 +330,12 @@ async def list_encontros_base(user=Depends(get_current_user)):
 @app.patch("/encontros-base/{numero}")
 async def update_encontro_base(numero: int, data: dict, user=Depends(get_current_user)):
     """Admin only — atualiza intelecto_base de um encontro."""
-    result = _supabase.table("encontros_base").update(data).eq("numero", numero).execute()
+    try:
+        result = _supabase.table("encontros_base").update(data).eq("numero", numero).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar encontro: {e}")
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Encontro não encontrado ou sem permissão de UPDATE (verifique RLS)")
     return result.data[0]
 
 
@@ -420,7 +436,12 @@ async def list_materiais_copy(
 @app.post("/materiais-copy")
 async def create_material_copy(data: dict, user=Depends(get_current_user)):
     data["consultor_email"] = user.email
-    result = _supabase.table("materiais_copy").insert(data).execute()
+    try:
+        result = _supabase.table("materiais_copy").insert(data).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao criar material: {e}")
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Material não foi criado (tabela materiais_copy pode não existir ainda)")
     return result.data[0]
 
 
@@ -439,16 +460,21 @@ async def list_agentes_config(user=Depends(get_current_user)):
 @app.patch("/agentes-config/{agente_tipo}")
 async def update_agente_config(agente_tipo: str, data: dict, user=Depends(get_current_user)):
     data["updated_by"] = user.email
-    data["updated_at"] = "now()"
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
     # Increment versão
-    current = _supabase.table("agentes_config").select("versao").eq(
-        "agente_tipo", agente_tipo
-    ).single().execute()
-    if current.data:
-        data["versao"] = (current.data.get("versao") or 1) + 1
-    result = _supabase.table("agentes_config").update(data).eq(
-        "agente_tipo", agente_tipo
-    ).execute()
+    try:
+        current = _supabase.table("agentes_config").select("versao").eq(
+            "agente_tipo", agente_tipo
+        ).single().execute()
+        if current.data:
+            data["versao"] = (current.data.get("versao") or 1) + 1
+        result = _supabase.table("agentes_config").update(data).eq(
+            "agente_tipo", agente_tipo
+        ).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar agente: {e}")
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Agente não encontrado (tabela agentes_config pode não existir ainda — aguarde inicialização)")
     return result.data[0]
 
 
@@ -491,9 +517,14 @@ async def update_encontro_base_historico(
         **data,
         "intelecto_versao": nova_versao,
         "intelecto_updated_by": user.email,
-        "intelecto_updated_at": "now()",
+        "intelecto_updated_at": datetime.now(timezone.utc).isoformat(),
     }
-    result = _supabase.table("encontros_base").update(update_data).eq("numero", numero).execute()
+    try:
+        result = _supabase.table("encontros_base").update(update_data).eq("numero", numero).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar intelecto: {e}")
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Encontro não encontrado ou colunas intelecto_versao/intelecto_updated_by ausentes — execute a migration 003")
     return result.data[0]
 
 
