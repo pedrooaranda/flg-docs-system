@@ -266,7 +266,7 @@ async def generate_slides_endpoint(
 @app.get("/clientes")
 async def list_clientes(user=Depends(get_current_user)):
     result = _supabase.table("clientes").select(
-        "id, nome, empresa, consultor_responsavel, consultor_responsavel_email, "
+        "id, nome, empresa, consultor_responsavel, "
         "encontro_atual, status, updated_at, created_at"
     ).order("created_at", desc=True).execute()
     return result.data

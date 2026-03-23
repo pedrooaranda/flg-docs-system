@@ -96,8 +96,7 @@ export default function Dashboard({ session }) {
 
   const myClientes = allClientes.filter(c => {
     if (isAdmin) return true
-    return c.consultor_responsavel_email === userEmail ||
-      c.consultor_responsavel?.toLowerCase().includes(userEmail?.split('@')[0] || '')
+    return c.consultor_responsavel?.toLowerCase().includes(userEmail?.split('@')[0] || '')
   })
 
   const ativos      = myClientes.filter(c => (c.status || 'ativo') === 'ativo').length

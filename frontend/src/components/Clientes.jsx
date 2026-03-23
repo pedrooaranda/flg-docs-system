@@ -319,7 +319,7 @@ export default function Clientes({ session }) {
     const matchSearch    = !search || c.nome?.toLowerCase().includes(search.toLowerCase()) || c.empresa?.toLowerCase().includes(search.toLowerCase())
     const matchStatus    = filterStatus === 'todos' || (c.status || 'ativo') === filterStatus
     const matchConsultor = filterConsultor === 'todos' || c.consultor_responsavel === filterConsultor
-    const matchOwner     = isAdmin || c.consultor_responsavel_email === userEmail || c.consultor_responsavel?.toLowerCase().includes(userEmail?.split('@')[0] || '')
+    const matchOwner     = isAdmin || c.consultor_responsavel?.toLowerCase().includes(userEmail?.split('@')[0] || '')
     return matchSearch && matchStatus && matchConsultor && matchOwner
   }), [allClientes, search, filterStatus, filterConsultor, isAdmin, userEmail])
 
