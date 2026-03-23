@@ -9,7 +9,7 @@ import { StatusBadge } from './ui/Badge'
 import { Spinner, PageSpinner } from './ui/Spinner'
 import { useToast } from '../lib/toast'
 import { formatDate, progressPercent, cn } from '../lib/utils'
-import { useAutoSave, AutoSaveIndicator } from '../hooks/useAutoSave'
+import { useAutoSave, AutoSaveIndicator } from '../hooks/useAutoSave.jsx'
 
 const CAMPOS_PERFIL = [
   { key: 'tom_de_voz',          label: 'Tom de Voz' },
