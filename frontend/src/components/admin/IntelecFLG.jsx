@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, Clock, Image, MessageSquare, ChevronRight, RotateCcw } from 'lucide-react'
+import { Check, X, Clock, Image, MessageSquare, ChevronRight, RotateCcw, Wand2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Spinner, PageSpinner } from '../ui/Spinner'
 import { useToast } from '../../lib/toast'
 import { cn, formatDate } from '../../lib/utils'
+import { useApp } from '../../contexts/AppContext'
 import ChatAgente from '../ChatAgente'
 
 const TABS = [
@@ -19,13 +20,10 @@ function EncontroListItem({ enc, active, onClick }) {
     <button
       onClick={onClick}
       className={cn(
-        'w-full flex items-center gap-3 px-4 py-3 text-left transition-all cursor-pointer relative',
+        'w-full flex items-center gap-3 px-4 py-3 text-left transition-all cursor-pointer',
         active ? 'text-gold-mid' : 'text-white/50 hover:text-white/80 hover:bg-white/3'
       )}
-      style={active ? {
-        background: 'rgba(201,168,76,0.08)',
-        borderLeft: '3px solid #C9A84C',
-      } : {}}
+      style={active ? { background: 'rgba(201,168,76,0.08)', borderLeft: '3px solid #C9A84C' } : {}}
     >
       <div className={cn(
         'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold',
@@ -38,12 +36,8 @@ function EncontroListItem({ enc, active, onClick }) {
           {enc.nome || `Encontro ${enc.numero}`}
         </p>
         <div className="flex items-center gap-2 mt-0.5">
-          {hasIntelecto && (
-            <span className="text-[9px] text-green-400/70">✓ intelecto</span>
-          )}
-          {enc.imagem_principal_url && (
-            <span className="text-[9px] text-blue-400/70">✓ imagem</span>
-          )}
+          {hasIntelecto && <span className="text-[9px] text-green-400/70">✓ intelecto</span>}
+          {enc.imagem_principal_url && <span className="text-[9px] text-blue-400/70">✓ imagem</span>}
         </div>
       </div>
       {active && <ChevronRight size={12} className="flex-shrink-0 text-gold-mid/50" />}
@@ -53,22 +47,41 @@ function EncontroListItem({ enc, active, onClick }) {
 
 function ConteudoTab({ enc, onSaved }) {
   const toast = useToast()
+  const { dispatch } = useApp()
   const [valor, setValor] = useState(enc.intelecto_base || '')
   const [saving, setSaving] = useState(false)
   const [historico, setHistorico] = useState([])
   const [showHistorico, setShowHistorico] = useState(false)
   const [loadingHist, setLoadingHist] = useState(false)
+  // Sugestão recebida do chat (via Chat tab)
+  const [pendingSugestao, setPendingSugestao] = useState(null)
+
   const versao = enc.intelecto_versao || 1
+
+  // Sincronizar com enc quando o encontro muda
+  useEffect(() => {
+    setValor(enc.intelecto_base || '')
+    setPendingSugestao(null)
+  }, [enc.numero])
+
+  // Expor setPendingSugestao via enc._onSugestao (padrão de callback via prop)
+  useEffect(() => {
+    if (enc._onSugestao) {
+      enc._onSugestao(setPendingSugestao)
+    }
+  }, [enc])
 
   async function handleSave() {
     setSaving(true)
     try {
-      await api(`/encontros-base/${enc.numero}`, {
+      const updated = await api(`/encontros-base/${enc.numero}/com-historico`, {
         method: 'PATCH',
         body: JSON.stringify({ intelecto_base: valor }),
       })
-      onSaved({ ...enc, intelecto_base: valor })
-      toast?.({ title: 'Intelecto salvo', description: `Encontro ${enc.numero} — versão ${versao}`, variant: 'success' })
+      const novo = { ...enc, ...updated }
+      onSaved(novo)
+      dispatch({ type: 'ENCONTRO_UPDATE', payload: novo })
+      toast?.({ title: 'Intelecto salvo', description: `Encontro ${enc.numero} — versão ${versao + 1}`, variant: 'success' })
     } catch (err) {
       toast?.({ title: 'Erro ao salvar', description: err.message, variant: 'error' })
     } finally {
@@ -81,11 +94,8 @@ function ConteudoTab({ enc, onSaved }) {
     try {
       const data = await api(`/intelecto-historico?encontro_numero=${enc.numero}`)
       setHistorico(data)
-    } catch {
-      setHistorico([])
-    } finally {
-      setLoadingHist(false)
-    }
+    } catch { setHistorico([]) }
+    finally { setLoadingHist(false) }
   }
 
   function toggleHistorico() {
@@ -93,10 +103,17 @@ function ConteudoTab({ enc, onSaved }) {
     setShowHistorico(h => !h)
   }
 
-  function restaurar(versaoConteudo) {
-    setValor(versaoConteudo)
+  function restaurar(conteudo) {
+    setValor(conteudo)
     setShowHistorico(false)
     toast?.({ title: 'Versão restaurada — salve para confirmar', variant: 'success' })
+  }
+
+  function aplicarSugestao() {
+    if (!pendingSugestao) return
+    setValor(pendingSugestao)
+    setPendingSugestao(null)
+    toast?.({ title: 'Sugestão aplicada — salve para confirmar', variant: 'success' })
   }
 
   const charCount = valor.length
@@ -113,30 +130,53 @@ function ConteudoTab({ enc, onSaved }) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={toggleHistorico}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs transition-all cursor-pointer btn-ghost"
-          >
-            <Clock size={11} />
-            Ver histórico
+          <button onClick={toggleHistorico} className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1.5">
+            <Clock size={11} /> Ver histórico
           </button>
         </div>
       </div>
 
-      {/* Versão badge */}
+      {/* Versão + última edição */}
       <div className="flex items-center gap-2">
         <span className="text-[10px] px-2 py-0.5 rounded"
           style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)', color: '#C9A84C' }}>
           Versão {versao}
         </span>
         {enc.intelecto_updated_at && (
-          <span className="text-[10px] text-white/25">
-            salvo em {formatDate(enc.intelecto_updated_at)}
-          </span>
+          <span className="text-[10px] text-white/25">salvo em {formatDate(enc.intelecto_updated_at)}</span>
         )}
       </div>
 
-      {/* Textarea */}
+      {/* Banner de sugestão pendente */}
+      <AnimatePresence>
+        {pendingSugestao && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg"
+            style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)' }}
+          >
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Wand2 size={13} style={{ color: '#C9A84C' }} className="flex-shrink-0" />
+              <p className="text-xs text-white/60 truncate">
+                O agente gerou uma sugestão de intelecto
+              </p>
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <button onClick={aplicarSugestao} className="btn-gold text-xs py-1.5 px-3 flex items-center gap-1.5">
+                <Wand2 size={11} /> Aplicar
+              </button>
+              <button onClick={() => setPendingSugestao(null)}
+                className="w-7 h-7 rounded flex items-center justify-center text-white/30 hover:text-white transition-colors cursor-pointer">
+                <X size={12} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Textarea principal */}
       <div>
         <textarea
           rows={16}
@@ -148,31 +188,21 @@ function ConteudoTab({ enc, onSaved }) {
         />
         <div className="flex items-center justify-between mt-2">
           <span className="text-[10px] text-white/20">{charCount} caracteres</span>
-          <button onClick={handleSave} disabled={saving}
-            className="btn-gold flex items-center gap-2 text-xs py-2 px-4 disabled:opacity-50">
+          <button onClick={handleSave} disabled={saving} className="btn-gold flex items-center gap-2 text-xs py-2 px-4 disabled:opacity-50">
             {saving ? <Spinner size="sm" /> : <Check size={12} />}
             Salvar versão
           </button>
         </div>
       </div>
 
-      {/* Histórico drawer */}
+      {/* Histórico */}
       <AnimatePresence>
         {showHistorico && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="border rounded-lg overflow-hidden"
-              style={{ background: '#1a1a1a', borderColor: 'rgba(255,255,255,0.06)' }}>
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <div className="border rounded-lg overflow-hidden" style={{ background: '#1a1a1a', borderColor: 'rgba(255,255,255,0.06)' }}>
               <div className="px-4 py-2.5 border-b border-white/5 flex items-center justify-between">
                 <p className="text-xs text-white/50 font-medium">Versões anteriores</p>
-                <button onClick={() => setShowHistorico(false)}
-                  className="text-white/25 hover:text-white transition-colors cursor-pointer">
-                  <X size={13} />
-                </button>
+                <button onClick={() => setShowHistorico(false)} className="text-white/25 hover:text-white transition-colors cursor-pointer"><X size={13} /></button>
               </div>
               {loadingHist ? (
                 <div className="flex justify-center py-6"><Spinner size="sm" /></div>
@@ -192,8 +222,7 @@ function ConteudoTab({ enc, onSaved }) {
                       </div>
                       <button onClick={() => restaurar(h.intelecto_conteudo)}
                         className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-white/40 hover:text-gold-mid border border-white/8 hover:border-gold-mid/30 transition-all cursor-pointer flex-shrink-0">
-                        <RotateCcw size={10} />
-                        Restaurar
+                        <RotateCcw size={10} /> Restaurar
                       </button>
                     </div>
                   ))}
@@ -209,15 +238,13 @@ function ConteudoTab({ enc, onSaved }) {
 
 function ImagensTab({ enc, onSaved }) {
   const toast = useToast()
+  const { dispatch } = useApp()
   const [uploading, setUploading] = useState(false)
 
   async function handleUpload(e) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      toast?.({ title: 'Arquivo muito grande (máx 5MB)', variant: 'error' })
-      return
-    }
+    if (file.size > 5 * 1024 * 1024) { toast?.({ title: 'Arquivo muito grande (máx 5MB)', variant: 'error' }); return }
     setUploading(true)
     try {
       const form = new FormData()
@@ -225,50 +252,39 @@ function ImagensTab({ enc, onSaved }) {
       form.append('encontro_numero', enc.numero)
       form.append('tipo', 'principal')
       const result = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/upload-imagem-encontro`, {
-        method: 'POST',
-        body: form,
+        method: 'POST', body: form,
       }).then(r => r.json())
-      onSaved({ ...enc, imagem_principal_url: result.url })
-      toast?.({ title: 'Imagem enviada com sucesso', variant: 'success' })
-    } catch {
-      toast?.({ title: 'Erro ao enviar imagem', variant: 'error' })
-    } finally {
-      setUploading(false)
-    }
+      const updated = { ...enc, imagem_principal_url: result.url }
+      onSaved(updated)
+      dispatch({ type: 'ENCONTRO_UPDATE', payload: updated })
+      toast?.({ title: 'Imagem enviada', variant: 'success' })
+    } catch { toast?.({ title: 'Erro ao enviar imagem', variant: 'error' }) }
+    finally { setUploading(false) }
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="font-display text-lg font-semibold text-white mb-1">
-          Imagens do Encontro {enc.numero}
-        </h3>
-        <p className="text-xs text-white/35">Imagem principal usada nos slides gerados. Formatos: jpg, png, webp — máx 5MB.</p>
+        <h3 className="font-display text-lg font-semibold text-white mb-1">Imagens do Encontro {enc.numero}</h3>
+        <p className="text-xs text-white/35">Imagem principal para os slides. Formatos: jpg, png, webp — máx 5MB.</p>
       </div>
-
-      {/* Imagem principal */}
       <div>
         <p className="text-xs text-white/30 tracking-widest uppercase mb-3">Imagem principal</p>
         {enc.imagem_principal_url ? (
           <div className="relative w-full max-w-sm">
             <img src={enc.imagem_principal_url} alt={`Encontro ${enc.numero}`}
-              className="w-full rounded-lg object-cover"
-              style={{ border: '1px solid rgba(201,168,76,0.2)', maxHeight: 200 }}
-            />
+              className="w-full rounded-lg object-cover" style={{ border: '1px solid rgba(201,168,76,0.2)', maxHeight: 200 }} />
             <span className="absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded"
               style={{ background: 'rgba(0,0,0,0.7)', color: '#C9A84C', border: '1px solid rgba(201,168,76,0.3)' }}>
               Imagem principal
             </span>
           </div>
         ) : (
-          <div
-            className="w-full max-w-sm h-36 rounded-lg flex items-center justify-center"
-            style={{ background: '#1a1a1a', border: '2px dashed rgba(201,168,76,0.2)' }}
-          >
+          <div className="w-full max-w-sm h-36 rounded-lg flex items-center justify-center"
+            style={{ background: '#1a1a1a', border: '2px dashed rgba(201,168,76,0.2)' }}>
             <p className="text-xs text-white/25">Sem imagem principal</p>
           </div>
         )}
-
         <label className="mt-3 inline-flex items-center gap-2 btn-ghost text-xs py-2 px-4 cursor-pointer">
           {uploading ? <Spinner size="sm" /> : <Image size={12} />}
           {enc.imagem_principal_url ? 'Substituir imagem' : 'Enviar imagem'}
@@ -280,32 +296,53 @@ function ImagensTab({ enc, onSaved }) {
 }
 
 export default function IntelecFLG() {
-  const [encontros, setEncontros] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { encontrosBase, loading } = useApp()
   const [selectedNum, setSelectedNum] = useState(1)
   const [activeTab, setActiveTab] = useState('conteudo')
+  // Sugestão do chat para o ConteudoTab
+  const sugestaoSettersRef = useRef({})
 
+  // Se AppContext ainda não carregou, usar fetch local
+  const [localEncontros, setLocalEncontros] = useState([])
   useEffect(() => {
-    api('/encontros-base')
-      .then(data => { setEncontros(data); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [])
+    if (encontrosBase.length === 0 && !loading) {
+      api('/encontros-base').then(setLocalEncontros).catch(() => {})
+    }
+  }, [encontrosBase.length, loading])
 
-  if (loading) return <PageSpinner />
+  const encontros = encontrosBase.length > 0 ? encontrosBase : localEncontros
+
+  if (loading && encontros.length === 0) return <PageSpinner />
 
   const enc = encontros.find(e => e.numero === selectedNum)
 
   function updateEncontro(updated) {
-    setEncontros(prev => prev.map(e => e.numero === updated.numero ? updated : e))
+    // AppContext Realtime vai sincronizar automaticamente
+    setLocalEncontros(prev => prev.map(e => e.numero === updated.numero ? updated : e))
   }
+
+  // Callback do chat para enviar sugestão ao ConteudoTab
+  function handleChatMessage(content) {
+    // Só sugerir se tiver conteúdo substancial (> 200 chars)
+    if (content && content.length > 200) {
+      const setter = sugestaoSettersRef.current[selectedNum]
+      if (setter) setter(content)
+    }
+  }
+
+  // Registrar o setter do ConteudoTab
+  const encWithCallback = enc ? {
+    ...enc,
+    _onSugestao: (setter) => {
+      sugestaoSettersRef.current[selectedNum] = setter
+    }
+  } : null
 
   return (
     <div className="flex h-full overflow-hidden">
       {/* Lista lateral */}
-      <div
-        className="flex-shrink-0 overflow-y-auto"
-        style={{ width: 240, borderRight: '1px solid rgba(255,255,255,0.05)', background: '#0e0e0e' }}
-      >
+      <div className="flex-shrink-0 overflow-y-auto"
+        style={{ width: 240, borderRight: '1px solid rgba(255,255,255,0.05)', background: '#0e0e0e' }}>
         <div className="px-4 py-3 border-b border-white/5">
           <p className="text-xs tracking-widest uppercase text-white/25 font-semibold">15 Encontros</p>
         </div>
@@ -314,51 +351,54 @@ export default function IntelecFLG() {
             key={e.numero}
             enc={e}
             active={e.numero === selectedNum}
-            onClick={() => setSelectedNum(e.numero)}
+            onClick={() => { setSelectedNum(e.numero); setActiveTab('conteudo') }}
           />
         ))}
       </div>
 
       {/* Painel principal */}
-      {enc ? (
+      {encWithCallback ? (
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Tabs */}
-          <div
-            className="flex items-center gap-1 px-4 py-2 flex-shrink-0"
-            style={{ background: '#111111', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
-          >
+          <div className="flex items-center gap-1 px-4 py-2 flex-shrink-0"
+            style={{ background: '#111111', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded text-xs transition-all cursor-pointer',
-                  activeTab === tab.id ? 'text-gold-mid' : 'text-white/40 hover:text-white/70'
-                )}
-                style={activeTab === tab.id ? {
-                  background: 'rgba(201,168,76,0.1)',
-                  border: '1px solid rgba(201,168,76,0.2)',
-                } : {}}
+                className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded text-xs transition-all cursor-pointer',
+                  activeTab === tab.id ? 'text-gold-mid' : 'text-white/40 hover:text-white/70')}
+                style={activeTab === tab.id ? { background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)' } : {}}
               >
-                <tab.icon size={12} />
-                {tab.label}
+                <tab.icon size={12} />{tab.label}
               </button>
             ))}
+            {activeTab === 'chat' && (
+              <p className="ml-auto text-[10px] text-white/25">
+                Respostas longas → banner "Aplicar" no conteúdo
+              </p>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto p-6">
             {activeTab === 'conteudo' && (
-              <ConteudoTab enc={enc} onSaved={updateEncontro} />
+              <ConteudoTab
+                key={encWithCallback.numero}
+                enc={encWithCallback}
+                onSaved={updateEncontro}
+                onSwitchToChat={() => setActiveTab('chat')}
+              />
             )}
             {activeTab === 'imagens' && (
-              <ImagensTab enc={enc} onSaved={updateEncontro} />
+              <ImagensTab enc={encWithCallback} onSaved={updateEncontro} />
             )}
             {activeTab === 'chat' && (
               <div className="h-full min-h-[500px] rounded-xl overflow-hidden border border-white/5">
                 <ChatAgente
-                  endpoint={`/chat-intelecto/${enc.numero}`}
-                  sessionId={`intelecto_${enc.numero}`}
-                  initialMessage={`Vamos trabalhar no conteúdo intelectual do Encontro ${enc.numero}${enc.nome ? ` — ${enc.nome}` : ''}. O que você quer desenvolver?`}
+                  endpoint={`/chat-intelecto/${encWithCallback.numero}`}
+                  sessionId={`intelecto_${encWithCallback.numero}`}
+                  initialMessage={`Vamos trabalhar no Encontro ${encWithCallback.numero}${encWithCallback.nome ? ` — ${encWithCallback.nome}` : ''}. O que você quer desenvolver? Posso gerar uma proposta de intelecto completa se você quiser.`}
+                  onMessageComplete={handleChatMessage}
                 />
               </div>
             )}

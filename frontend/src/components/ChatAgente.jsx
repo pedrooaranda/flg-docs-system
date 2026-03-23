@@ -66,6 +66,7 @@ function Message({ msg, isLast, streaming }) {
  *   sessionId — override do session_id
  *   initialMessage — mensagem inicial do agente
  *   onSlidesReady — callback quando trigger_slides = true
+ *   onMessageComplete — callback(content) chamado ao fim de cada resposta do agente
  */
 export default function ChatAgente({
   clientId,
@@ -74,6 +75,7 @@ export default function ChatAgente({
   sessionId: sessionIdProp,
   initialMessage,
   onSlidesReady,
+  onMessageComplete,
 }) {
   const defaultMsg = initialMessage
     ?? `Olá! Estou pronto para preparar o Encontro ${encontroNum}. Vamos conversar sobre o cliente e o contexto deste encontro.`
@@ -134,8 +136,16 @@ export default function ChatAgente({
       abortRef.current = null
       setStreaming(false)
       setTimeout(() => textareaRef.current?.focus(), 100)
+      // Notificar com o conteúdo completo da última resposta
+      setMessages(m => {
+        const last = m[m.length - 1]
+        if (last?.role === 'assistant' && last.content) {
+          onMessageComplete?.(last.content)
+        }
+        return m
+      })
     }
-  }, [input, streaming, resolvedEndpoint, sessionId, onSlidesReady])
+  }, [input, streaming, resolvedEndpoint, sessionId, onSlidesReady, onMessageComplete])
 
   function handleKey(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
