@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { ToastProvider } from './lib/toast'
+import { AppProvider } from './contexts/AppContext'
 import Layout from './components/layout/Layout'
 import Login from './components/Login'
 import { PageSpinner } from './components/ui/Spinner'
@@ -41,6 +42,7 @@ export default function App() {
   if (session === undefined) return <PageSpinner />
 
   return (
+    <AppProvider session={session}>
     <ToastProvider>
       <BrowserRouter>
         <Routes>
@@ -120,5 +122,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </ToastProvider>
+    </AppProvider>
   )
 }
