@@ -69,7 +69,11 @@
     width: 100%;
   }
   .input-flg::placeholder { color: rgba(250,250,248,0.2); }
-  .input-flg:focus { outline: none; border-color: rgba(201,168,76,0.5); }
+  .input-flg:focus { outline: none; border-color: rgba(201,168,76,0.5); box-shadow: 0 0 0 2px rgba(201,168,76,0.08); }
+  select.input-flg { cursor: pointer; }
+  select.input-flg option { background: #1a1a1a; color: #FAFAF8; }
+  textarea.input-flg { cursor: text; }
+  .input-flg:disabled { opacity: 0.45; cursor: not-allowed; }
   .btn-gold {
     background: linear-gradient(135deg, #F5D68A 0%, #C9A84C 50%, #8B6914 100%);
     color: #080808;

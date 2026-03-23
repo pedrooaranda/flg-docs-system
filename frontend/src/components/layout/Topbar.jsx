@@ -11,7 +11,7 @@ function TooltipBtn({ label, icon, onClick }) {
         <Tooltip.Trigger asChild>
           <button
             onClick={onClick}
-            className="w-8 h-8 rounded-md flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/5 transition-all"
+            className="w-8 h-8 rounded-md flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/5 transition-all cursor-pointer active:scale-95"
           >
             {icon}
           </button>

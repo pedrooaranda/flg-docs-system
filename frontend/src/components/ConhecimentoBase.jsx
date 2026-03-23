@@ -258,14 +258,12 @@ export default function ConhecimentoBase() {
   }
 
   async function handleDelete(id) {
-    const item = items.find(i => i.id === id)
-    if (!window.confirm(`Excluir "${item?.titulo}"?`)) return
     try {
       await api(`/conhecimento-base/${id}`, { method: 'DELETE' })
       setItems(its => its.filter(i => i.id !== id))
-      toast?.({ title: 'Excluído', variant: 'success' })
+      toast?.({ title: 'Item excluído', variant: 'success' })
     } catch (err) {
-      toast?.({ title: 'Erro', description: err.message, variant: 'error' })
+      toast?.({ title: 'Erro ao excluir', description: err.message, variant: 'error' })
     }
   }
 
