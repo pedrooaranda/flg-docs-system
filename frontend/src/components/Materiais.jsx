@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Search, FileText, FileDown, Eye, Trash2, Upload, ChevronDown } from 'lucide-react'
@@ -8,6 +8,7 @@ import { Spinner } from './ui/Spinner'
 import { formatDate } from '../lib/utils'
 import { useToast } from '../lib/toast'
 import ChatAgente from './ChatAgente'
+import { useApp } from '../contexts/AppContext'
 
 function ClienteSelector({ clientes, selectedId, onSelect }) {
   const [open, setOpen] = useState(false)
@@ -221,15 +222,11 @@ function BibliotecaTab({ clienteId, activeTab, setActiveTab }) {
   )
 }
 
-export default function Materiais({ session }) {
+export default function Materiais() {
   const [searchParams] = useSearchParams()
-  const [clientes, setClientes] = useState([])
+  const { clientes } = useApp()
   const [selectedId, setSelectedId] = useState(searchParams.get('cliente') || '')
   const [activeTab, setActiveTab] = useState('slides')
-
-  useEffect(() => {
-    api('/clientes').then(setClientes).catch(() => {})
-  }, [])
 
   const cliente = clientes.find(c => c.id === selectedId)
 

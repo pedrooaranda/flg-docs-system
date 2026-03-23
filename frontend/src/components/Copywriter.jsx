@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FileText, LayoutTemplate, PieChart, Megaphone,
@@ -10,6 +10,7 @@ import { Avatar } from './ui/Avatar'
 import { Spinner } from './ui/Spinner'
 import { formatDate } from '../lib/utils'
 import { useToast } from '../lib/toast'
+import { useApp } from '../contexts/AppContext'
 
 const MATERIAL_TYPES = [
   { id: 'roteiro_conteudo',    icon: FileText,       label: 'Roteiros de Conteúdo',    desc: 'Posts, threads e artigos estratégicos' },
@@ -277,15 +278,11 @@ function HistoricoCopies({ clienteId, cliente }) {
   )
 }
 
-export default function Copywriter({ session }) {
+export default function Copywriter() {
+  const { clientes } = useApp()
   const [stage, setStage] = useState('select') // 'select' | 'chat'
-  const [clientes, setClientes] = useState([])
   const [selectedId, setSelectedId] = useState('')
   const [tipoMaterial, setTipoMaterial] = useState('')
-
-  useEffect(() => {
-    api('/clientes').then(setClientes).catch(() => {})
-  }, [])
 
   const cliente = clientes.find(c => c.id === selectedId)
 
