@@ -11,8 +11,8 @@ function TypingDots() {
       {[0, 150, 300].map(delay => (
         <span
           key={delay}
-          className="w-1.5 h-1.5 bg-gold-mid/60 rounded-full animate-bounce"
-          style={{ animationDelay: `${delay}ms` }}
+          className="w-1.5 h-1.5 rounded-full animate-bounce"
+          style={{ background: '#C9A84C', animationDelay: `${delay}ms` }}
         />
       ))}
     </span>
@@ -29,16 +29,27 @@ function Message({ msg, isLast, streaming }) {
       className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}
     >
       {!isUser && (
-        <div className="w-7 h-7 rounded-full gold-gradient flex items-center justify-center flex-shrink-0 mt-1">
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-1 gold-gradient"
+        >
           <Sparkles size={12} className="text-[#080808]" />
         </div>
       )}
-      <div className={cn(
-        'max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap',
-        isUser
-          ? 'bg-gold-mid/15 border border-gold-mid/25 text-white rounded-tr-sm'
-          : 'bg-white/5 border border-white/8 text-white/85 rounded-tl-sm'
-      )}>
+      <div
+        className={cn(
+          'max-w-[80%] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap',
+          isUser ? 'rounded-2xl rounded-tr-sm' : 'rounded-2xl rounded-tl-sm'
+        )}
+        style={isUser ? {
+          background: 'rgba(201, 168, 76, 0.15)',
+          border: '1px solid rgba(201, 168, 76, 0.25)',
+          color: '#FAFAF8',
+        } : {
+          background: '#1a1a1a',
+          border: '1px solid rgba(255,255,255,0.06)',
+          color: '#e8e8e6',
+        }}
+      >
         {msg.content || (isLast && streaming ? <TypingDots /> : null)}
       </div>
       {isUser && <Avatar name="Você" size="sm" className="mt-1 flex-shrink-0" />}
@@ -46,23 +57,43 @@ function Message({ msg, isLast, streaming }) {
   )
 }
 
-export default function ChatAgente({ clientId, encontroNum, onSlidesReady }) {
+/**
+ * ChatAgente — reutilizável para preparação, materiais e copywriter.
+ *
+ * Props:
+ *   clientId, encontroNum — para preparação (/chat/{id}/{num})
+ *   endpoint — override explícito do endpoint de POST
+ *   sessionId — override do session_id
+ *   initialMessage — mensagem inicial do agente
+ *   onSlidesReady — callback quando trigger_slides = true
+ */
+export default function ChatAgente({
+  clientId,
+  encontroNum,
+  endpoint,
+  sessionId: sessionIdProp,
+  initialMessage,
+  onSlidesReady,
+}) {
+  const defaultMsg = initialMessage
+    ?? `Olá! Estou pronto para preparar o Encontro ${encontroNum}. Vamos conversar sobre o cliente e o contexto deste encontro.`
+
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: `Olá! Estou pronto para preparar o Encontro ${encontroNum}. Vamos conversar sobre o cliente e o contexto deste encontro.` }
+    { role: 'assistant', content: defaultMsg }
   ])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const bottomRef = useRef()
   const textareaRef = useRef()
-  const abortRef = useRef(null) // AbortController for in-flight stream
-  const sessionId = `${clientId}_${encontroNum}`
+  const abortRef = useRef(null)
 
-  // Scroll to bottom on new messages
+  const resolvedEndpoint = endpoint ?? `/chat/${clientId}/${encontroNum}`
+  const sessionId = sessionIdProp ?? `${clientId}_${encontroNum}`
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Cancel any in-flight stream on unmount
   useEffect(() => {
     return () => abortRef.current?.abort()
   }, [])
@@ -80,7 +111,7 @@ export default function ChatAgente({ clientId, encontroNum, onSlidesReady }) {
 
     try {
       await apiStream(
-        `/chat/${clientId}/${encontroNum}`,
+        resolvedEndpoint,
         { message: userMsg, session_id: sessionId },
         (chunk) => {
           setMessages(m => {
@@ -89,12 +120,11 @@ export default function ChatAgente({ clientId, encontroNum, onSlidesReady }) {
           })
         },
         (done) => {
-          if (done.trigger_slides) onSlidesReady()
+          if (done.trigger_slides) onSlidesReady?.()
         },
         controller.signal,
       )
     } catch (err) {
-      // Ignore abort errors (user navigated away)
       if (err.name === 'AbortError') return
       setMessages(m => {
         const last = { ...m[m.length - 1], content: 'Erro ao conectar com o assistente.' }
@@ -105,16 +135,19 @@ export default function ChatAgente({ clientId, encontroNum, onSlidesReady }) {
       setStreaming(false)
       setTimeout(() => textareaRef.current?.focus(), 100)
     }
-  }, [input, streaming, clientId, encontroNum, sessionId, onSlidesReady])
+  }, [input, streaming, resolvedEndpoint, sessionId, onSlidesReady])
 
   function handleKey(e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={{ background: '#141414' }}>
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+        style={{ background: '#141414' }}
+      >
         <AnimatePresence initial={false}>
           {messages.map((msg, i) => (
             <Message
@@ -129,7 +162,10 @@ export default function ChatAgente({ clientId, encontroNum, onSlidesReady }) {
       </div>
 
       {/* Input area */}
-      <div className="p-4 border-t border-white/5 flex-shrink-0">
+      <div
+        className="p-4 flex-shrink-0"
+        style={{ background: '#111111', borderTop: '1px solid rgba(201, 168, 76, 0.15)' }}
+      >
         <div className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
@@ -139,22 +175,29 @@ export default function ChatAgente({ clientId, encontroNum, onSlidesReady }) {
             disabled={streaming}
             rows={2}
             placeholder="Escreva para o assistente… (Enter envia, Shift+Enter nova linha)"
-            className={cn(
-              'flex-1 bg-white/4 border border-white/8 rounded-xl px-4 py-3 text-sm text-white',
-              'placeholder-white/20 focus:outline-none focus:border-gold-mid/40 transition-colors',
-              'resize-none disabled:opacity-40'
-            )}
+            className="flex-1 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none transition-all disabled:opacity-40"
+            style={{
+              background: '#1a1a1a',
+              border: '1px solid rgba(201, 168, 76, 0.2)',
+              color: '#FAFAF8',
+              caretColor: '#C9A84C',
+            }}
+            onFocus={e => {
+              e.target.style.borderColor = '#C9A84C'
+              e.target.style.boxShadow = '0 0 0 2px rgba(201, 168, 76, 0.1)'
+            }}
+            onBlur={e => {
+              e.target.style.borderColor = 'rgba(201, 168, 76, 0.2)'
+              e.target.style.boxShadow = 'none'
+            }}
           />
           <button
             onClick={send}
             disabled={streaming || !input.trim()}
-            className={cn(
-              'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all',
-              'gold-gradient text-[#080808] disabled:opacity-30 disabled:grayscale',
-              'hover:opacity-90 active:scale-95'
-            )}
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 gold-gradient transition-all active:scale-95 disabled:opacity-30 disabled:grayscale"
+            style={{ cursor: 'pointer' }}
           >
-            <Send size={15} />
+            <Send size={15} className="text-[#080808]" />
           </button>
         </div>
       </div>
