@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, FileText, PenTool,
   Brain, Bot, Settings, LogOut,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, BarChart2,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { Avatar } from '../ui/Avatar'
@@ -15,6 +15,7 @@ import { cn, getUserDisplayName } from '../../lib/utils'
 const consultantNav = [
   { icon: LayoutDashboard, label: 'Dashboard',    path: '/' },
   { icon: Users,          label: 'Meus Clientes', path: '/clientes', matchPrefix: true },
+  { icon: BarChart2,      label: 'Métricas',       path: '/metricas', badge: 'Beta' },
   { icon: FileText,       label: 'Materiais',      path: '/materiais' },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
 ]
@@ -22,6 +23,7 @@ const consultantNav = [
 const adminNav = [
   { icon: LayoutDashboard, label: 'Dashboard',  path: '/' },
   { icon: Users,          label: 'Clientes',     path: '/clientes', matchPrefix: true },
+  { icon: BarChart2,      label: 'Métricas',      path: '/metricas', badge: 'Beta' },
   { icon: FileText,       label: 'Materiais',    path: '/materiais' },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
 ]
@@ -153,6 +155,7 @@ export default function Sidebar({ user, isAdmin }) {
           <NavItem
             key={item.path}
             item={item}
+            badge={item.badge}
             collapsed={collapsed}
             onClick={() => navigate(item.path)}
           />

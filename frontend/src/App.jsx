@@ -19,6 +19,7 @@ const Materiais        = lazy(() => import('./components/Materiais'))
 const Copywriter       = lazy(() => import('./components/Copywriter'))
 const IntelecFLG       = lazy(() => import('./components/admin/IntelecFLG'))
 const AgentesConfig    = lazy(() => import('./components/admin/AgentesConfig'))
+const Metricas         = lazy(() => import('./components/Metricas'))
 
 function AuthGuard({ session, children, title, subtitle }) {
   if (!session) return <Navigate to="/login" replace />
@@ -81,6 +82,12 @@ export default function App() {
                 </Suspense>
               </Layout>
             ) : <Navigate to="/login" replace />
+          } />
+
+          <Route path="/metricas" element={
+            <AuthGuard session={session} title="Métricas Instagram">
+              <Metricas session={session} />
+            </AuthGuard>
           } />
 
           <Route path="/materiais" element={

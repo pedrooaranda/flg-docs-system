@@ -24,6 +24,7 @@ from agents.agente_rotina import run_rotina_sync
 from prompts.system_prompt import build_system_prompt, TRIGGER_PHRASE
 from tools.client_tools import get_client_profile, get_encontro_base
 from routes.uploads import router as uploads_router
+from routes.metricas import router as metricas_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -136,6 +137,7 @@ app.router.lifespan_context = lifespan
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 app.include_router(uploads_router)
+app.include_router(metricas_router)
 
 app.add_middleware(
     CORSMiddleware,
