@@ -8,7 +8,7 @@
  * Uso:
  *   const { clientes, encontrosBase, dispatch } = useApp()
  */
-import { createContext, useContext, useReducer, useEffect } from 'react'
+import { createContext, useContext, useReducer, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { api } from '../lib/api'
 
@@ -59,9 +59,15 @@ function reducer(state, action) {
 
 export function AppProvider({ children, session }) {
   const [state, dispatch] = useReducer(reducer, initialState)
+  const loadedUserId = useRef(null)
 
   useEffect(() => {
     if (!session) return
+
+    // Evitar triple-fetch: só recarregar quando o usuário mudar (não em renovações de token)
+    const userId = session.user?.id
+    if (userId && userId === loadedUserId.current) return
+    loadedUserId.current = userId
 
     // Carga inicial em paralelo
     Promise.all([

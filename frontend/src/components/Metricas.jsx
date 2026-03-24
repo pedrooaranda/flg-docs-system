@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, useInView, animate } from 'framer-motion'
 import {
-  AreaChart, Area, LineChart, Line, BarChart, Bar,
+  AreaChart, Area, LineChart, Line,
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { Users, TrendingUp, Eye, Heart, Bookmark, MessageCircle, Link2, BarChart2, Wifi, WifiOff } from 'lucide-react'
+import { Users, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Wifi, WifiOff } from 'lucide-react'
 import { api } from '../lib/api'
 import { isAdmin as checkAdmin } from '../lib/utils'
+import { useApp } from '../contexts/AppContext'
 import { PageSpinner } from './ui/Spinner'
 
 const GOLD = '#C9A84C'
@@ -243,7 +244,14 @@ export default function Metricas({ session }) {
   const user = session?.user
   const admin = checkAdmin(user)
 
-  const [clientes, setClientes] = useState([])
+  // Reutiliza dados já carregados pelo AppContext — sem chamada duplicada a /clientes
+  const { clientes: allClientes } = useApp()
+  const clientes = admin
+    ? allClientes
+    : allClientes.filter(c =>
+        c.consultor_responsavel?.toLowerCase().includes(user?.email?.split('@')[0] || '')
+      )
+
   const [clienteId, setClienteId] = useState('')
   const [periodo, setPeriodo] = useState(30)
   const [loading, setLoading] = useState(false)
@@ -253,16 +261,13 @@ export default function Metricas({ session }) {
   const [horarios, setHorarios] = useState([])
   const [ranking, setRanking] = useState([])
 
-  // Carregar lista de clientes
+  // Selecionar primeiro cliente disponível quando a lista carrega
   useEffect(() => {
-    api('/clientes').then(data => {
-      const filtered = admin ? data : data.filter(c =>
-        c.consultor_responsavel?.toLowerCase().includes(user?.email?.split('@')[0] || '')
-      )
-      setClientes(filtered)
-      if (filtered.length > 0 && !clienteId) setClienteId(filtered[0].id)
-    }).catch(() => {})
+    if (clientes.length > 0 && !clienteId) setClienteId(clientes[0].id)
+  }, [clientes])
 
+  // Ranking admin — única chamada extra ao backend
+  useEffect(() => {
     if (admin) {
       api('/metricas/ranking').then(d => setRanking(d.ranking || [])).catch(() => {})
     }
