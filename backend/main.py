@@ -27,6 +27,7 @@ from tools.client_tools import get_client_profile, get_encontro_base
 from routes.uploads import router as uploads_router
 from routes.metricas import router as metricas_router
 from routes.conexoes import router as conexoes_router
+from routes.notas import router as notas_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -142,6 +143,7 @@ app.router.lifespan_context = lifespan
 app.include_router(uploads_router)
 app.include_router(metricas_router)
 app.include_router(conexoes_router)
+app.include_router(notas_router)
 
 app.add_middleware(
     CORSMiddleware,

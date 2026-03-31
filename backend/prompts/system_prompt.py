@@ -35,6 +35,9 @@ Seguidores Instagram: {seguidores_instagram}
 Tem tráfego pago: {tem_trafego_pago}
 Tem equipe de conteúdo: {tem_equipe_conteudo}
 
+NOTAS DO CONSULTOR (percepções humanas sobre o cliente):
+{notas_consultor}
+
 PLANEJAMENTO ESTRATÉGICO (extraído do documento oficial):
 {planejamento_estrategico}
 
@@ -73,6 +76,7 @@ def build_system_prompt(cliente: dict, encontro: dict) -> str:
     from tools.knowledge_tools import load_conhecimento_base
 
     historico = _format_historico(cliente.get("encontros_realizados", []))
+    notas = _load_notas_consultor(cliente.get("id", ""))
 
     planejamento = (
         cliente.get("planejamento_estrategico_texto")
@@ -103,10 +107,37 @@ def build_system_prompt(cliente: dict, encontro: dict) -> str:
         seguidores_instagram=cliente.get("seguidores_instagram") or "Não informado",
         tem_trafego_pago="Sim" if cliente.get("tem_trafego_pago") else "Não",
         tem_equipe_conteudo="Sim" if cliente.get("tem_equipe_conteudo") else "Não",
+        notas_consultor=notas or "Nenhuma nota registrada ainda.",
         planejamento_estrategico=planejamento[:3000] + "..." if len(planejamento) > 3000 else planejamento,
         historico_encontros=historico,
         intelecto_base=encontro.get("intelecto_base") or "Não definido",
     )
+
+
+def _load_notas_consultor(cliente_id: str) -> str:
+    """Busca as últimas 5 notas do consultor para injetar no prompt."""
+    if not cliente_id:
+        return ""
+    try:
+        from deps import supabase_client
+        result = supabase_client.table("notas_consultor").select(
+            "tipo, conteudo, consultor_email, created_at"
+        ).eq("cliente_id", cliente_id).order(
+            "created_at", desc=True
+        ).limit(5).execute()
+
+        if not result.data:
+            return ""
+
+        linhas = []
+        for n in result.data:
+            email_short = (n.get("consultor_email") or "").split("@")[0]
+            data = (n.get("created_at") or "")[:10]
+            tipo = n.get("tipo", "geral").upper()
+            linhas.append(f"[{tipo}] {data} ({email_short}): {n['conteudo'][:200]}")
+        return "\n".join(linhas)
+    except Exception:
+        return ""
 
 
 def _format_historico(encontros: list) -> str:

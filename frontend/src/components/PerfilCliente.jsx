@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import * as Tabs from '@radix-ui/react-tabs'
-import { ExternalLink, FileText, BarChart2, CheckCircle2 } from 'lucide-react'
+import { ExternalLink, FileText, BarChart2, CheckCircle2, Pin, PinOff, Trash2, Send } from 'lucide-react'
 import { api, uploadPdf } from '../lib/api'
 import { Avatar } from './ui/Avatar'
 import { StatusBadge } from './ui/Badge'
@@ -82,6 +82,141 @@ function JornadaTimeline({ encontros_realizados = [], encontroAtual, clientId })
           </button>
         )
       })}
+    </div>
+  )
+}
+
+const TIPOS_NOTA = [
+  { value: 'geral',     label: 'Geral',     color: '#C9A84C' },
+  { value: 'percepcao', label: 'Percepção',  color: '#60A5FA' },
+  { value: 'trava',     label: 'Trava',      color: '#F87171' },
+  { value: 'evolucao',  label: 'Evolução',   color: '#34D399' },
+  { value: 'alerta',    label: 'Alerta',     color: '#FBBF24' },
+  { value: 'tarefa',    label: 'Tarefa',     color: '#A78BFA' },
+]
+
+function NotasTab({ clientId }) {
+  const [notas, setNotas] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [texto, setTexto] = useState('')
+  const [tipo, setTipo] = useState('geral')
+  const [sending, setSending] = useState(false)
+  const inputRef = useRef(null)
+
+  const loadNotas = useCallback(() => {
+    api(`/notas/${clientId}`).then(d => setNotas(d.notas || [])).catch(() => {}).finally(() => setLoading(false))
+  }, [clientId])
+
+  useEffect(() => { loadNotas() }, [loadNotas])
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!texto.trim()) return
+    setSending(true)
+    try {
+      await api(`/notas/${clientId}`, {
+        method: 'POST',
+        body: JSON.stringify({ conteudo: texto.trim(), tipo }),
+      })
+      setTexto('')
+      loadNotas()
+    } catch (err) { console.error(err) }
+    finally { setSending(false); inputRef.current?.focus() }
+  }
+
+  async function togglePin(nota) {
+    await api(`/notas/${nota.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ fixada: !nota.fixada }),
+    })
+    loadNotas()
+  }
+
+  async function deleteNota(id) {
+    await api(`/notas/${id}`, { method: 'DELETE' })
+    loadNotas()
+  }
+
+  const tipoInfo = (t) => TIPOS_NOTA.find(n => n.value === t) || TIPOS_NOTA[0]
+
+  return (
+    <div className="space-y-4">
+      {/* Input */}
+      <form onSubmit={handleSubmit} className="card-flg p-4 space-y-3">
+        <div className="flex gap-1.5 flex-wrap">
+          {TIPOS_NOTA.map(t => (
+            <button type="button" key={t.value} onClick={() => setTipo(t.value)}
+              className="text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all cursor-pointer"
+              style={tipo === t.value
+                ? { background: `${t.color}20`, color: t.color, border: `1px solid ${t.color}40` }
+                : { color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.06)' }
+              }>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input ref={inputRef} value={texto} onChange={e => setTexto(e.target.value)}
+            placeholder="Escreva uma nota sobre este cliente..."
+            className="flex-1 bg-transparent text-sm text-white/80 placeholder:text-white/20 outline-none"
+            disabled={sending} />
+          <button type="submit" disabled={sending || !texto.trim()}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer disabled:opacity-20"
+            style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C' }}>
+            <Send size={14} />
+          </button>
+        </div>
+      </form>
+
+      {/* Timeline */}
+      {loading ? (
+        <div className="flex justify-center py-8"><Spinner /></div>
+      ) : notas.length === 0 ? (
+        <p className="text-center text-white/20 text-sm py-8">Nenhuma nota ainda. Adicione a primeira acima.</p>
+      ) : (
+        <div className="space-y-2">
+          <AnimatePresence>
+            {notas.map((nota, i) => {
+              const ti = tipoInfo(nota.tipo)
+              return (
+                <motion.div key={nota.id}
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="card-flg p-4 group"
+                  style={nota.fixada ? { borderColor: 'rgba(201,168,76,0.2)' } : undefined}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-1 self-stretch rounded-full flex-shrink-0 mt-1" style={{ background: ti.color }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                          style={{ background: `${ti.color}15`, color: ti.color }}>
+                          {ti.label}
+                        </span>
+                        {nota.fixada && <Pin size={10} className="text-gold-mid" />}
+                        <span className="text-[9px] text-white/20 ml-auto">
+                          {nota.consultor_email?.split('@')[0]} · {new Date(nota.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-white/70 leading-relaxed whitespace-pre-wrap">{nota.conteudo}</p>
+                    </div>
+                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      <button onClick={() => togglePin(nota)} className="p-1 rounded hover:bg-white/5 transition-colors cursor-pointer"
+                        title={nota.fixada ? 'Desafixar' : 'Fixar'}>
+                        {nota.fixada ? <PinOff size={12} className="text-white/30" /> : <Pin size={12} className="text-white/30" />}
+                      </button>
+                      <button onClick={() => deleteNota(nota.id)} className="p-1 rounded hover:bg-red-500/10 transition-colors cursor-pointer"
+                        title="Deletar">
+                        <Trash2 size={12} className="text-red-400/40" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   )
 }
@@ -190,6 +325,7 @@ export default function PerfilCliente() {
         <Tabs.List className="flex gap-1 p-1 rounded-lg bg-white/3 border border-white/5 mb-6 w-fit">
           {[
             { value: 'perfil',      label: 'Perfil' },
+            { value: 'notas',       label: 'Notas' },
             { value: 'jornada',     label: 'Jornada' },
             { value: 'documentos',  label: 'Documentos' },
           ].map(tab => (
@@ -219,6 +355,10 @@ export default function PerfilCliente() {
               />
             ))}
           </div>
+        </Tabs.Content>
+
+        <Tabs.Content value="notas">
+          <NotasTab clientId={clientId} />
         </Tabs.Content>
 
         <Tabs.Content value="jornada">
