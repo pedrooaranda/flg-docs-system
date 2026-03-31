@@ -21,10 +21,12 @@ from config import settings
 from agents.agent_os import build_agent_os
 from agents.agente_flg import create_flg_agent
 from agents.agente_rotina import run_rotina_sync
+from services.ingestion import run_ingestion_sync
 from prompts.system_prompt import build_system_prompt, TRIGGER_PHRASE
 from tools.client_tools import get_client_profile, get_encontro_base
 from routes.uploads import router as uploads_router
 from routes.metricas import router as metricas_router
+from routes.conexoes import router as conexoes_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -122,8 +124,9 @@ async def lifespan(app: FastAPI):
     await _apply_migration_003()
     # Iniciar scheduler do agente de rotina
     scheduler.add_job(run_rotina_sync, "interval", hours=6, id="rotina_clickup")
+    scheduler.add_job(run_ingestion_sync, "interval", hours=6, id="metricas_ingestion")
     scheduler.start()
-    logger.info("✅ APScheduler iniciado — agente de rotina a cada 6h")
+    logger.info("✅ APScheduler iniciado — rotina 6h + ingestão métricas 6h")
     yield
     scheduler.shutdown()
 
@@ -138,6 +141,7 @@ app.router.lifespan_context = lifespan
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 app.include_router(uploads_router)
 app.include_router(metricas_router)
+app.include_router(conexoes_router)
 
 app.add_middleware(
     CORSMiddleware,
