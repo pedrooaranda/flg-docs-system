@@ -61,6 +61,10 @@ def run_clickup_sync():
             # Remover campo não existente no schema
             data.pop("situacao_clickup", None)
 
+            # Empresa é NOT NULL no Supabase — fallback para nome do cliente
+            if not data.get("empresa"):
+                data["empresa"] = data["nome"]
+
             existing = sb.table("clientes").select("id").eq(
                 "clickup_task_id", data["clickup_task_id"]
             ).execute()

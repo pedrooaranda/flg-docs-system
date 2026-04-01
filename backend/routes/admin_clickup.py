@@ -116,6 +116,11 @@ async def import_clientes(
             if not data.get("nome"):
                 continue
 
+            # Empresa é NOT NULL — fallback para nome
+            if not data.get("empresa"):
+                data["empresa"] = data["nome"]
+            data.pop("situacao_clickup", None)
+
             if body.dry_run:
                 detalhes.append({"acao": "preview", **data})
                 continue
@@ -206,6 +211,9 @@ async def clickup_webhook(request: Request):
         data = task_to_cliente_data(task)
         if not data.get("nome"):
             return {"ok": True, "skipped": "empty name"}
+        if not data.get("empresa"):
+            data["empresa"] = data["nome"]
+        data.pop("situacao_clickup", None)
 
         # Verificar se pertence a uma das nossas Lists
         valid_lists = set(_get_list_ids())
