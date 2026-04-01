@@ -5,77 +5,147 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  /* ─── Dark Theme (default) ─────────────────────────────────────── */
+  :root,
+  [data-theme="dark"] {
     --flg-bg: #080808;
     --flg-bg-secondary: #111111;
     --flg-bg-card: #141414;
+    --flg-bg-raised: #0f0f0f;
+    --flg-bg-input: rgba(255,255,255,0.04);
+    --flg-bg-hover: rgba(255,255,255,0.04);
+    --flg-bg-card-border: rgba(201,168,76,0.15);
+
     --flg-gold: #C9A84C;
     --flg-gold-light: #F5D68A;
     --flg-gold-dark: #8B6914;
+
     --flg-text: #FAFAF8;
-    --flg-text-muted: #888888;
-    --flg-border: rgba(201, 168, 76, 0.2);
-    --flg-border-hover: rgba(201, 168, 76, 0.5);
+    --flg-text-secondary: rgba(255,255,255,0.7);
+    --flg-text-muted: rgba(255,255,255,0.4);
+    --flg-text-faint: rgba(255,255,255,0.2);
+
+    --flg-border: rgba(255,255,255,0.06);
+    --flg-border-gold: rgba(201,168,76,0.2);
+    --flg-border-hover: rgba(201,168,76,0.5);
+
+    --flg-shadow: rgba(0,0,0,0.3);
+    --flg-scrollbar: rgba(201,168,76,0.25);
+    --flg-scrollbar-hover: rgba(201,168,76,0.5);
+
+    --flg-select-bg: #1a1a1a;
+    --flg-tooltip-bg: #1a1a1a;
+
+    --flg-positive: #34D399;
+    --flg-negative: #F87171;
+    --flg-warning: #FBBF24;
+    --flg-info: #60A5FA;
+
+    color-scheme: dark;
   }
+
+  /* ─── Light Theme ──────────────────────────────────────────────── */
+  [data-theme="light"] {
+    --flg-bg: #F5F3EF;
+    --flg-bg-secondary: #EDEAE4;
+    --flg-bg-card: #FFFFFF;
+    --flg-bg-raised: #FAFAF8;
+    --flg-bg-input: rgba(0,0,0,0.03);
+    --flg-bg-hover: rgba(0,0,0,0.04);
+    --flg-bg-card-border: rgba(201,168,76,0.25);
+
+    --flg-gold: #A8862E;
+    --flg-gold-light: #C9A84C;
+    --flg-gold-dark: #6B5518;
+
+    --flg-text: #1A1715;
+    --flg-text-secondary: rgba(0,0,0,0.65);
+    --flg-text-muted: rgba(0,0,0,0.45);
+    --flg-text-faint: rgba(0,0,0,0.2);
+
+    --flg-border: rgba(0,0,0,0.08);
+    --flg-border-gold: rgba(201,168,76,0.3);
+    --flg-border-hover: rgba(201,168,76,0.6);
+
+    --flg-shadow: rgba(0,0,0,0.06);
+    --flg-scrollbar: rgba(201,168,76,0.3);
+    --flg-scrollbar-hover: rgba(201,168,76,0.5);
+
+    --flg-select-bg: #FFFFFF;
+    --flg-tooltip-bg: #FFFFFF;
+
+    --flg-positive: #059669;
+    --flg-negative: #DC2626;
+    --flg-warning: #D97706;
+    --flg-info: #2563EB;
+
+    color-scheme: light;
+  }
+
   * { box-sizing: border-box; }
   html, body {
-    background: #080808;
-    color: #FAFAF8;
+    background: var(--flg-bg);
+    color: var(--flg-text);
     font-family: 'Poppins', sans-serif;
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.25); border-radius: 999px; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(201,168,76,0.5); }
+  ::-webkit-scrollbar-thumb { background: var(--flg-scrollbar); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--flg-scrollbar-hover); }
 }
 
 @layer utilities {
   .gold-text {
-    background: linear-gradient(135deg, #F5D68A 0%, #C9A84C 50%, #8B6914 100%);
+    background: linear-gradient(135deg, var(--flg-gold-light) 0%, var(--flg-gold) 50%, var(--flg-gold-dark) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
   .gold-gradient {
-    background: linear-gradient(135deg, #F5D68A 0%, #C9A84C 50%, #8B6914 100%);
+    background: linear-gradient(135deg, var(--flg-gold-light) 0%, var(--flg-gold) 50%, var(--flg-gold-dark) 100%);
   }
-  .gold-border { border-color: rgba(201, 168, 76, 0.25); }
+  .gold-border { border-color: var(--flg-border-gold); }
+
   .card-flg {
-    background: rgba(255,255,255,0.025);
-    border: 1px solid rgba(201,168,76,0.15);
+    background: var(--flg-bg-card);
+    border: 1px solid var(--flg-bg-card-border);
     border-radius: 8px;
+    box-shadow: 0 1px 3px var(--flg-shadow);
   }
   .card-flg-hover {
-    background: rgba(255,255,255,0.025);
-    border: 1px solid rgba(201,168,76,0.15);
+    background: var(--flg-bg-card);
+    border: 1px solid var(--flg-bg-card-border);
     border-radius: 8px;
+    box-shadow: 0 1px 3px var(--flg-shadow);
     transition: all 0.2s ease;
   }
   .card-flg-hover:hover {
-    background: rgba(255,255,255,0.04);
-    border-color: rgba(201,168,76,0.35);
+    background: var(--flg-bg-hover);
+    border-color: var(--flg-border-hover);
     box-shadow: 0 4px 24px rgba(201,168,76,0.08);
     transform: translateY(-1px);
   }
   .input-flg {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: var(--flg-bg-input);
+    border: 1px solid var(--flg-border);
     border-radius: 6px;
     padding: 10px 14px;
     font-size: 0.875rem;
-    color: #FAFAF8;
+    color: var(--flg-text);
     transition: border-color 0.15s ease;
     width: 100%;
   }
-  .input-flg::placeholder { color: rgba(250,250,248,0.2); }
-  .input-flg:focus { outline: none; border-color: rgba(201,168,76,0.5); box-shadow: 0 0 0 2px rgba(201,168,76,0.08); }
+  .input-flg::placeholder { color: var(--flg-text-faint); }
+  .input-flg:focus { outline: none; border-color: var(--flg-border-hover); box-shadow: 0 0 0 2px rgba(201,168,76,0.08); }
   select.input-flg { cursor: pointer; }
-  select.input-flg option { background: #1a1a1a; color: #FAFAF8; }
+  select.input-flg option { background: var(--flg-select-bg); color: var(--flg-text); }
   textarea.input-flg { cursor: text; }
   .input-flg:disabled { opacity: 0.45; cursor: not-allowed; }
+
   .btn-gold {
-    background: linear-gradient(135deg, #F5D68A 0%, #C9A84C 50%, #8B6914 100%);
+    background: linear-gradient(135deg, var(--flg-gold-light) 0%, var(--flg-gold) 50%, var(--flg-gold-dark) 100%);
     color: #080808;
     font-weight: 600;
     font-size: 0.8125rem;
@@ -88,27 +158,91 @@
   .btn-gold:hover { opacity: 0.9; }
   .btn-gold:active { transform: scale(0.95); }
   .btn-gold:disabled { opacity: 0.4; cursor: not-allowed; }
+
   .btn-ghost {
-    color: rgba(250,250,248,0.5);
+    color: var(--flg-text-muted);
     font-size: 0.8125rem;
     padding: 10px 20px;
     border-radius: 6px;
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid var(--flg-border);
     cursor: pointer;
     transition: all 0.15s ease;
   }
-  .btn-ghost:hover { color: #FAFAF8; border-color: rgba(255,255,255,0.2); }
+  .btn-ghost:hover { color: var(--flg-text); border-color: var(--flg-border-hover); }
   .btn-ghost:active { transform: scale(0.95); }
+
   .btn-outline-gold {
-    color: #C9A84C;
+    color: var(--flg-gold);
     font-size: 0.8125rem;
     font-weight: 500;
     padding: 10px 20px;
     border-radius: 6px;
-    border: 1px solid rgba(201,168,76,0.35);
+    border: 1px solid var(--flg-border-gold);
     cursor: pointer;
     transition: all 0.15s ease;
   }
-  .btn-outline-gold:hover { background: rgba(201,168,76,0.08); border-color: rgba(201,168,76,0.6); }
+  .btn-outline-gold:hover { background: rgba(201,168,76,0.08); border-color: var(--flg-border-hover); }
   .btn-outline-gold:active { transform: scale(0.95); }
+
+  /* ─── Theme-aware overrides for inline-styled components ─────── */
+  /* These target common patterns used in Metricas, Dashboard, etc. */
+  [data-theme="light"] .text-white\/90 { color: var(--flg-text) !important; }
+  [data-theme="light"] .text-white\/85 { color: var(--flg-text) !important; }
+  [data-theme="light"] .text-white\/80 { color: var(--flg-text-secondary) !important; }
+  [data-theme="light"] .text-white\/70 { color: var(--flg-text-secondary) !important; }
+  [data-theme="light"] .text-white\/60 { color: var(--flg-text-muted) !important; }
+  [data-theme="light"] .text-white\/50 { color: var(--flg-text-muted) !important; }
+  [data-theme="light"] .text-white\/45 { color: var(--flg-text-muted) !important; }
+  [data-theme="light"] .text-white\/40 { color: var(--flg-text-muted) !important; }
+  [data-theme="light"] .text-white\/35 { color: var(--flg-text-faint) !important; }
+  [data-theme="light"] .text-white\/30 { color: var(--flg-text-faint) !important; }
+  [data-theme="light"] .text-white\/25 { color: var(--flg-text-faint) !important; }
+  [data-theme="light"] .text-white\/20 { color: var(--flg-text-faint) !important; }
+  [data-theme="light"] .text-white { color: var(--flg-text) !important; }
+
+  [data-theme="light"] .bg-white\/3,
+  [data-theme="light"] .bg-white\/5 { background-color: rgba(0,0,0,0.04) !important; }
+  [data-theme="light"] .bg-\[\#080808\],
+  [data-theme="light"] .bg-\[\#0E0E0E\],
+  [data-theme="light"] .bg-\[\#0a0a0a\] { background-color: var(--flg-bg) !important; }
+  [data-theme="light"] .bg-\[\#0f0f0f\] { background-color: var(--flg-bg-raised) !important; }
+  [data-theme="light"] .bg-\[\#111111\] { background-color: var(--flg-bg-secondary) !important; }
+  [data-theme="light"] .bg-\[\#141414\] { background-color: var(--flg-bg-card) !important; }
+  [data-theme="light"] .bg-\[\#1A1A1A\],
+  [data-theme="light"] .bg-\[\#1a1a1a\] { background-color: var(--flg-bg-card) !important; }
+
+  [data-theme="light"] .border-white\/5,
+  [data-theme="light"] .border-white\/8,
+  [data-theme="light"] .border-white\/10,
+  [data-theme="light"] .border-white\/15 { border-color: var(--flg-border) !important; }
+
+  /* Sidebar & layout */
+  [data-theme="light"] .border-b.border-white\/5 { border-color: var(--flg-border) !important; }
+
+  /* Hover states for light */
+  [data-theme="light"] .hover\:bg-white\/\[0\.02\]:hover { background-color: rgba(0,0,0,0.03) !important; }
+  [data-theme="light"] .hover\:text-white:hover { color: var(--flg-text) !important; }
+  [data-theme="light"] .hover\:text-white\/70:hover { color: var(--flg-text-secondary) !important; }
+  [data-theme="light"] .hover\:border-white\/20:hover { border-color: var(--flg-border) !important; }
+
+  /* Active/selected tab states */
+  [data-theme="light"] .data-\[state\=active\]\:bg-\[\#1A1A1A\][data-state="active"] {
+    background-color: var(--flg-bg-card) !important;
+    border-color: var(--flg-border) !important;
+  }
+  [data-theme="light"] .data-\[state\=active\]\:text-white[data-state="active"] {
+    color: var(--flg-text) !important;
+  }
+
+  /* Gold text in light mode needs darker gold */
+  [data-theme="light"] .text-gold-mid { color: var(--flg-gold) !important; }
+
+  /* Animate-pulse-gold */
+  .animate-pulse-gold {
+    animation: pulse-gold 2s infinite;
+  }
+  @keyframes pulse-gold {
+    0%, 100% { border-color: rgba(201,168,76,0.5); }
+    50% { border-color: rgba(201,168,76,0.15); }
+  }
 }

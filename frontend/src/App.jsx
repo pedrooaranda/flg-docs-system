@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { ToastProvider } from './lib/toast'
 import { AppProvider } from './contexts/AppContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import Layout from './components/layout/Layout'
 import Login from './components/Login'
 import { PageSpinner } from './components/ui/Spinner'
@@ -44,6 +45,7 @@ export default function App() {
   if (session === undefined) return <PageSpinner />
 
   return (
+    <ThemeProvider>
     <AppProvider session={session}>
     <ToastProvider>
       <BrowserRouter>
@@ -131,5 +133,6 @@ export default function App() {
       </BrowserRouter>
     </ToastProvider>
     </AppProvider>
+    </ThemeProvider>
   )
 }

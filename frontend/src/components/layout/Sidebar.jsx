@@ -124,12 +124,12 @@ export default function Sidebar({ user, isAdmin }) {
       animate={{ width: collapsed ? 64 : 220 }}
       transition={{ duration: 0.2, ease: 'easeInOut' }}
       className="relative flex flex-col h-screen flex-shrink-0 overflow-hidden"
-      style={{ background: '#0a0a0a', borderRight: '1px solid rgba(201, 168, 76, 0.12)' }}
+      style={{ background: 'var(--flg-bg-secondary)', borderRight: '1px solid var(--flg-bg-card-border)', transition: 'background-color 0.3s ease' }}
     >
       {/* Logo */}
       <div
         className={cn('flex items-center h-16 px-4 flex-shrink-0', collapsed ? 'justify-center' : 'gap-3')}
-        style={{ borderBottom: '1px solid rgba(201, 168, 76, 0.12)' }}
+        style={{ borderBottom: '1px solid var(--flg-bg-card-border)' }}
       >
         <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 gold-gradient font-display font-bold text-xs text-[#080808]">
           FLG
@@ -197,7 +197,7 @@ export default function Sidebar({ user, isAdmin }) {
       {/* Footer */}
       <div
         className={cn('p-3 flex-shrink-0', collapsed && 'items-center')}
-        style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+        style={{ borderTop: '1px solid var(--flg-border)' }}
       >
         <div className={cn('flex items-center gap-2 mb-2', collapsed && 'justify-center')}>
           <Avatar name={userName} size="sm" />
@@ -259,17 +259,17 @@ export default function Sidebar({ user, isAdmin }) {
         title={collapsed ? 'Expandir menu' : 'Recolher menu'}
         className="w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-all"
         style={{
-          background: '#141414',
-          border: '1px solid rgba(201,168,76,0.25)',
-          color: '#C9A84C',
+          background: 'var(--flg-bg-card)',
+          border: '1px solid var(--flg-border-gold)',
+          color: 'var(--flg-gold)',
         }}
         onMouseEnter={e => {
           e.currentTarget.style.background = 'rgba(201,168,76,0.12)'
-          e.currentTarget.style.borderColor = '#C9A84C'
+          e.currentTarget.style.borderColor = 'var(--flg-gold)'
         }}
         onMouseLeave={e => {
-          e.currentTarget.style.background = '#141414'
-          e.currentTarget.style.borderColor = 'rgba(201,168,76,0.25)'
+          e.currentTarget.style.background = 'var(--flg-bg-card)'
+          e.currentTarget.style.borderColor = 'var(--flg-border-gold)'
         }}
       >
         {collapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}

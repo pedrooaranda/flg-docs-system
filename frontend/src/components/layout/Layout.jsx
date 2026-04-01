@@ -7,7 +7,7 @@ export default function Layout({ session, children, title, subtitle }) {
   const isAdmin = checkAdmin(user)
 
   return (
-    <div className="flex h-screen bg-[#080808] overflow-hidden">
+    <div className="flex h-screen overflow-hidden transition-colors" style={{ background: 'var(--flg-bg)' }}>
       <Sidebar user={user} isAdmin={isAdmin} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar user={user} isAdmin={isAdmin} title={title} subtitle={subtitle} />
