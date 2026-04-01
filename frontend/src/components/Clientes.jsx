@@ -76,7 +76,7 @@ function ClientCard({ cliente, onPreparar, onMateriais, delay = 0 }) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             className="absolute inset-0 flex items-end p-4 gap-2"
-            style={{ background: 'linear-gradient(to top, rgba(10,10,10,0.95) 55%, transparent)' }}
+            style={{ background: 'linear-gradient(to top, var(--flg-bg) 55%, transparent)' }}
             onClick={e => e.stopPropagation()}
           >
             <button onClick={onPreparar} className="flex-1 btn-gold text-xs py-2 px-3">Preparar</button>
@@ -220,11 +220,11 @@ function ClientTable({ data, isAdmin, onPreparar, onMateriais }) {
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--flg-border)' }}>
         <table className="w-full border-collapse">
           <thead>
             {table.getHeaderGroups().map(hg => (
-              <tr key={hg.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: '#0e0e0e' }}>
+              <tr key={hg.id} style={{ borderBottom: '1px solid var(--flg-border)', background: 'var(--flg-bg-raised)' }}>
                 {hg.headers.map(header => (
                   <th
                     key={header.id}
@@ -245,7 +245,7 @@ function ClientTable({ data, isAdmin, onPreparar, onMateriais }) {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.15, delay: i * 0.015 }}
                 className="group cursor-pointer transition-colors"
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}
+                style={{ borderBottom: '1px solid var(--flg-border)' }}
                 onClick={() => navigate(`/clientes/${row.original.id}`)}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
                 onMouseLeave={e => e.currentTarget.style.background = ''}
@@ -283,7 +283,7 @@ function ClientTable({ data, isAdmin, onPreparar, onMateriais }) {
                 onClick={action}
                 disabled={disabled}
                 className="w-7 h-7 rounded flex items-center justify-center transition-colors disabled:opacity-20 cursor-pointer disabled:cursor-default"
-                style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}
+                style={{ border: '1px solid var(--flg-border)', background: 'var(--flg-bg-hover)' }}
                 onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
               >
@@ -348,7 +348,7 @@ export default function Clientes({ session }) {
         </div>
         <div className="flex items-center gap-2">
           {/* Toggle modo */}
-          <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--flg-border)' }}>
             {[
               { mode: 'cards', icon: LayoutGrid },
               { mode: 'table', icon: List },

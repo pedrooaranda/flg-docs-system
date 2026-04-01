@@ -229,7 +229,7 @@ function KpiCard({ icon: Icon, label, value, decimals = 0, suffix = '', delta, p
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
       className="rounded-xl p-4 flex flex-col gap-2"
-      style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.06)' }}
+      style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}
     >
       <div className="flex items-center justify-between">
         <span className="text-xs text-white/40 font-medium">{label}</span>
@@ -254,7 +254,7 @@ function SectionTitle({ children }) {
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-lg px-3 py-2 text-xs" style={{ background: '#1a1a1a', border: '1px solid rgba(201,168,76,0.25)' }}>
+    <div className="rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--flg-bg-card)', border: '1px solid rgba(201,168,76,0.25)' }}>
       <p className="text-white/50 mb-1">{label}</p>
       {payload.map((p, i) => (
         <p key={i} style={{ color: p.color || GOLD }}>
@@ -286,7 +286,7 @@ function EngagementHeatmap({ data, accentColor = GOLD }) {
             <div className="text-[10px] text-white/30 flex items-center pr-2">{faixa}</div>
             {dias.map((_, di) => {
               const cell = data.find(d => d.faixa_idx === fi && d.dia_idx === di)
-              if (!cell) return <div key={di} className="rounded h-8" style={{ background: '#1a1a1a' }} />
+              if (!cell) return <div key={di} className="rounded h-8" style={{ background: 'var(--flg-bg-card)' }} />
               const alpha = 0.1 + ((cell.engajamento - minEng) / range) * 0.85
               return (
                 <motion.div
@@ -321,7 +321,7 @@ function PostCard({ post, rank, platform }) {
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       transition={{ delay: rank * 0.04 }}
       className="rounded-lg p-3 flex flex-col gap-2"
-      style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.06)' }}
+      style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}
     >
       <div className="flex items-center justify-between">
         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
@@ -343,10 +343,10 @@ function PostCard({ post, rank, platform }) {
 function RankingTable({ data, platform }) {
   if (!data?.length) return <p className="text-white/30 text-sm">Sem dados de ranking.</p>
   return (
-    <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+    <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--flg-border)' }}>
       <table className="w-full text-xs">
         <thead>
-          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: '#0f0f0f' }}>
+          <tr style={{ borderBottom: '1px solid var(--flg-border)', background: 'var(--flg-bg-raised)' }}>
             {['#', 'Cliente', 'Audiência', 'Eng. %', 'Posts/mês'].map(h => (
               <th key={h} className="px-3 py-2.5 text-left text-white/30 font-semibold uppercase tracking-wide text-[9px]">{h}</th>
             ))}
@@ -354,7 +354,7 @@ function RankingTable({ data, platform }) {
         </thead>
         <tbody>
           {data.map((row, i) => (
-            <tr key={row.cliente_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}
+            <tr key={row.cliente_id} style={{ borderBottom: '1px solid var(--flg-border)' }}
               className="hover:bg-white/[0.02] transition-colors">
               <td className="px-3 py-2 text-white/30 font-bold">{i + 1}</td>
               <td className="px-3 py-2">
@@ -459,8 +459,8 @@ function ConnectionPanel({ clienteId, platform, conexoes, onRefresh }) {
     pendente: { label: 'Pendente', color: '#FBBF24', bg: 'rgba(251,191,36,0.1)' },
     expirado: { label: 'Token expirado', color: '#F87171', bg: 'rgba(248,113,113,0.1)' },
     erro: { label: 'Erro', color: '#F87171', bg: 'rgba(248,113,113,0.1)' },
-    desconectado: { label: 'Desconectado', color: 'rgba(255,255,255,0.3)', bg: 'rgba(255,255,255,0.03)' },
-    nao_conectado: { label: 'Não conectado', color: 'rgba(255,255,255,0.3)', bg: 'rgba(255,255,255,0.03)' },
+    desconectado: { label: 'Desconectado', color: 'var(--flg-text-muted)', bg: 'rgba(255,255,255,0.03)' },
+    nao_conectado: { label: 'Não conectado', color: 'var(--flg-text-muted)', bg: 'rgba(255,255,255,0.03)' },
   }
   const st = statusLabels[status] || statusLabels.nao_conectado
 
@@ -498,7 +498,7 @@ function ConnectionPanel({ clienteId, platform, conexoes, onRefresh }) {
     <motion.div
       initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
       className="rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
-      style={{ background: '#0a0a0a', border: `1px solid ${platCfg.color}15` }}
+      style={{ background: 'var(--flg-bg-secondary)', border: `1px solid ${platCfg.color}15` }}
     >
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: st.bg, color: st.color }}>
@@ -631,7 +631,7 @@ export default function Metricas({ session }) {
     <div className="p-6 max-w-[1400px] mx-auto space-y-8">
 
       {/* ── Platform Selector ── */}
-      <div className="flex items-center gap-1.5 rounded-xl p-1.5" style={{ background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="flex items-center gap-1.5 rounded-xl p-1.5" style={{ background: 'var(--flg-bg-secondary)', border: '1px solid var(--flg-border)' }}>
         {Object.entries(PLATFORMS).map(([key, cfg]) => {
           const active = platform === key
           return (
@@ -641,7 +641,7 @@ export default function Metricas({ session }) {
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer relative"
               style={active
                 ? { background: `${cfg.color}15`, color: cfg.color, border: `1px solid ${cfg.color}40` }
-                : { color: 'rgba(255,255,255,0.3)', border: '1px solid transparent' }
+                : { color: 'var(--flg-text-muted)', border: '1px solid transparent' }
               }
             >
               <PlatformIcon platform={key} size={16} />
@@ -664,7 +664,7 @@ export default function Metricas({ session }) {
         <div className="flex items-center gap-3">
           <select value={clienteId} onChange={e => setClienteId(e.target.value)}
             className="text-sm font-medium rounded-lg px-3 py-2 outline-none cursor-pointer"
-            style={{ background: '#0f0f0f', border: `1px solid ${platConfig.color}40`, color: '#fff' }}>
+            style={{ background: 'var(--flg-bg-raised)', border: `1px solid ${platConfig.color}40`, color: 'var(--flg-text)' }}>
             {clientes.map(c => <option key={c.id} value={c.id}>{c.nome} — {c.empresa}</option>)}
           </select>
 
@@ -672,20 +672,20 @@ export default function Metricas({ session }) {
             <div className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-full"
               style={conectado
                 ? { background: 'rgba(52,211,153,0.12)', color: '#34D399', border: '1px solid rgba(52,211,153,0.25)' }
-                : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.3)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                : { background: 'var(--flg-bg-hover)', color: 'var(--flg-text-muted)', border: '1px solid var(--flg-border)' }}>
               {conectado ? <Wifi size={11} /> : <WifiOff size={11} />}
               {conectado ? `${platConfig.label} conectado` : 'Dados mock'}
             </div>
           )}
         </div>
 
-        <div className="flex gap-1 rounded-lg p-1" style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="flex gap-1 rounded-lg p-1" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
           {[30, 90, 180].map(d => (
             <button key={d} onClick={() => setPeriodo(d)}
               className="px-3 py-1.5 rounded text-xs font-semibold transition-all cursor-pointer"
               style={periodo === d
                 ? { background: `${platConfig.color}18`, color: platConfig.color, border: `1px solid ${platConfig.color}40` }
-                : { color: 'rgba(255,255,255,0.3)', border: '1px solid transparent' }}>
+                : { color: 'var(--flg-text-muted)', border: '1px solid transparent' }}>
               {d}d
             </button>
           ))}
@@ -697,7 +697,7 @@ export default function Metricas({ session }) {
         <div className="flex items-center gap-3">
           <button onClick={() => setShowConnPanel(v => !v)}
             className="text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5"
-            style={{ background: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            style={{ background: 'var(--flg-bg-hover)', color: 'var(--flg-text-muted)', border: '1px solid var(--flg-border)' }}>
             <Wifi size={11} />
             {showConnPanel ? 'Ocultar conexões' : 'Gerenciar conexões'}
           </button>
@@ -747,7 +747,7 @@ export default function Metricas({ session }) {
           {/* ── Charts Row ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Primary area chart */}
-            <div className="lg:col-span-2 rounded-xl p-4" style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="lg:col-span-2 rounded-xl p-4" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
               <SectionTitle>Crescimento de {primaryChart.label}</SectionTitle>
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={historico} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
@@ -757,9 +757,9 @@ export default function Metricas({ session }) {
                       <stop offset="95%" stopColor={platConfig.color} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="data" tickFormatter={fmtDate} tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }} tickLine={false} axisLine={false} width={45} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--flg-bg-hover)" />
+                  <XAxis dataKey="data" tickFormatter={fmtDate} tick={{ fill: 'var(--flg-text-faint)', fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: 'var(--flg-text-faint)', fontSize: 10 }} tickLine={false} axisLine={false} width={45} />
                   <Tooltip content={<ChartTooltip />} />
                   <Area type="monotone" dataKey={primaryChart.key} name={primaryChart.label}
                     stroke={platConfig.color} strokeWidth={2} fill="url(#primaryGrad)" dot={false} />
@@ -768,7 +768,7 @@ export default function Metricas({ session }) {
             </div>
 
             {/* Content mix donut */}
-            <div className="rounded-xl p-4" style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="rounded-xl p-4" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
               <SectionTitle>Mix de Conteúdo</SectionTitle>
               {donutData.length > 0 ? (
                 <>
@@ -798,19 +798,19 @@ export default function Metricas({ session }) {
 
           {/* ── Secondary Line Chart ── */}
           {chartLines.length > 0 && (
-            <div className="rounded-xl p-4" style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="rounded-xl p-4" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
               <SectionTitle>{chartLines.map(l => l.label).join(' & ')}</SectionTitle>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={historico} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="data" tickFormatter={fmtDate} tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }} tickLine={false} axisLine={false} />
-                  <YAxis yAxisId="left" orientation="left" tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }} tickLine={false} axisLine={false} width={35}
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--flg-bg-hover)" />
+                  <XAxis dataKey="data" tickFormatter={fmtDate} tick={{ fill: 'var(--flg-text-faint)', fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis yAxisId="left" orientation="left" tick={{ fill: 'var(--flg-text-faint)', fontSize: 10 }} tickLine={false} axisLine={false} width={35}
                     unit={chartLines[0]?.unit || ''} />
                   {chartLines.length > 1 && (
-                    <YAxis yAxisId="right" orientation="right" tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 10 }} tickLine={false} axisLine={false} width={50} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fill: 'var(--flg-text-faint)', fontSize: 10 }} tickLine={false} axisLine={false} width={50} />
                   )}
                   <Tooltip content={<ChartTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }} />
+                  <Legend wrapperStyle={{ fontSize: 11, color: 'var(--flg-text-muted)' }} />
                   {chartLines.map((line, i) => (
                     <Line key={line.key} yAxisId={line.yAxis} type="monotone" dataKey={line.key}
                       name={line.label} stroke={line.color} strokeWidth={i === 0 ? 2 : 1.5} dot={false}
@@ -822,7 +822,7 @@ export default function Metricas({ session }) {
           )}
 
           {/* ── Heatmap ── */}
-          <div className="rounded-xl p-4" style={{ background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="rounded-xl p-4" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
             <SectionTitle>Melhores Horários — {platConfig.label}</SectionTitle>
             <EngagementHeatmap data={horarios} accentColor={platConfig.color} />
           </div>

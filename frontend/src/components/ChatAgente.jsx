@@ -43,9 +43,9 @@ function Message({ msg, isLast, streaming }) {
         style={isUser ? {
           background: 'rgba(201, 168, 76, 0.15)',
           border: '1px solid rgba(201, 168, 76, 0.25)',
-          color: '#FAFAF8',
+          color: 'var(--flg-text)',
         } : {
-          background: '#1a1a1a',
+          background: 'var(--flg-bg-card)',
           border: '1px solid rgba(255,255,255,0.06)',
           color: '#e8e8e6',
         }}
@@ -152,11 +152,11 @@ export default function ChatAgente({
   }
 
   return (
-    <div className="flex flex-col h-full" style={{ background: '#141414' }}>
+    <div className="flex flex-col h-full" style={{ background: 'var(--flg-bg-card)' }}>
       {/* Messages */}
       <div
         className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
-        style={{ background: '#141414' }}
+        style={{ background: 'var(--flg-bg-card)' }}
       >
         <AnimatePresence initial={false}>
           {messages.map((msg, i) => (
@@ -174,7 +174,7 @@ export default function ChatAgente({
       {/* Input area */}
       <div
         className="p-4 flex-shrink-0"
-        style={{ background: '#111111', borderTop: '1px solid rgba(201, 168, 76, 0.15)' }}
+        style={{ background: 'var(--flg-bg-secondary)', borderTop: '1px solid rgba(201, 168, 76, 0.15)' }}
       >
         <div className="flex items-end gap-2">
           <textarea
@@ -187,9 +187,9 @@ export default function ChatAgente({
             placeholder="Escreva para o assistente… (Enter envia, Shift+Enter nova linha)"
             className="flex-1 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none transition-all disabled:opacity-40"
             style={{
-              background: '#1a1a1a',
+              background: 'var(--flg-bg-card)',
               border: '1px solid rgba(201, 168, 76, 0.2)',
-              color: '#FAFAF8',
+              color: 'var(--flg-text)',
               caretColor: '#C9A84C',
             }}
             onFocus={e => {

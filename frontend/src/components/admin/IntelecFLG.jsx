@@ -199,7 +199,7 @@ function ConteudoTab({ enc, onSaved }) {
       <AnimatePresence>
         {showHistorico && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="border rounded-lg overflow-hidden" style={{ background: '#1a1a1a', borderColor: 'rgba(255,255,255,0.06)' }}>
+            <div className="border rounded-lg overflow-hidden" style={{ background: 'var(--flg-bg-card)', borderColor: 'var(--flg-border)' }}>
               <div className="px-4 py-2.5 border-b border-white/5 flex items-center justify-between">
                 <p className="text-xs text-white/50 font-medium">Versões anteriores</p>
                 <button onClick={() => setShowHistorico(false)} className="text-white/25 hover:text-white transition-colors cursor-pointer"><X size={13} /></button>
@@ -275,7 +275,7 @@ function ImagensTab({ enc, onSaved }) {
           </div>
         ) : (
           <div className="w-full max-w-sm h-36 rounded-lg flex items-center justify-center"
-            style={{ background: '#1a1a1a', border: '2px dashed rgba(201,168,76,0.2)' }}>
+            style={{ background: 'var(--flg-bg-card)', border: '2px dashed rgba(201,168,76,0.2)' }}>
             <p className="text-xs text-white/25">Sem imagem principal</p>
           </div>
         )}
@@ -336,7 +336,7 @@ export default function IntelecFLG() {
     <div className="flex h-full overflow-hidden">
       {/* Lista lateral */}
       <div className="flex-shrink-0 overflow-y-auto"
-        style={{ width: 240, borderRight: '1px solid rgba(255,255,255,0.05)', background: '#0e0e0e' }}>
+        style={{ width: 240, borderRight: '1px solid var(--flg-border)', background: 'var(--flg-bg-raised)' }}>
         <div className="px-4 py-3 border-b border-white/5">
           <p className="text-xs tracking-widest uppercase text-white/25 font-semibold">15 Encontros</p>
         </div>
@@ -355,7 +355,7 @@ export default function IntelecFLG() {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Tabs */}
           <div className="flex items-center gap-1 px-4 py-2 flex-shrink-0"
-            style={{ background: '#111111', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            style={{ background: 'var(--flg-bg-secondary)', borderBottom: '1px solid var(--flg-border)' }}>
             {TABS.map(tab => (
               <button
                 key={tab.id}

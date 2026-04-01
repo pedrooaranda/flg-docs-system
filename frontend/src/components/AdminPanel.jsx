@@ -164,7 +164,7 @@ function ClickUpImportSection({ onImported }) {
         <div className="flex items-center gap-2">
           <button onClick={handlePreview} disabled={status === 'previewing' || status === 'importing'}
             className="text-xs font-semibold px-4 py-2 rounded-lg transition-all cursor-pointer disabled:opacity-40 flex items-center gap-2"
-            style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            style={{ background: 'var(--flg-bg-hover)', color: 'var(--flg-text-secondary)', border: '1px solid var(--flg-border)' }}>
             {status === 'previewing' ? <Spinner size="sm" /> : <RefreshCw size={12} />}
             Preview (dry-run)
           </button>
@@ -177,10 +177,10 @@ function ClickUpImportSection({ onImported }) {
 
         {/* Preview table */}
         {preview && preview.preview?.length > 0 && (
-          <div className="overflow-x-auto rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="overflow-x-auto rounded-lg" style={{ border: '1px solid var(--flg-border)' }}>
             <table className="w-full text-xs">
               <thead>
-                <tr style={{ background: '#0a0a0a', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <tr style={{ background: 'var(--flg-bg-secondary)', borderBottom: '1px solid var(--flg-border)' }}>
                   {['Nome', 'Empresa', 'Consultor', 'Etapa', 'Situação', 'Lista'].map(h => (
                     <th key={h} className="px-3 py-2 text-left text-[9px] uppercase tracking-wide text-white/30">{h}</th>
                   ))}
@@ -188,7 +188,7 @@ function ClickUpImportSection({ onImported }) {
               </thead>
               <tbody>
                 {preview.preview.map((p, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                  <tr key={i} style={{ borderBottom: '1px solid var(--flg-border)' }}>
                     <td className="px-3 py-2 text-white/70 font-medium">{p.nome}</td>
                     <td className="px-3 py-2 text-white/40">{p.empresa || '—'}</td>
                     <td className="px-3 py-2 text-white/40">{p.consultor_responsavel || '—'}</td>
@@ -199,7 +199,7 @@ function ClickUpImportSection({ onImported }) {
                 ))}
               </tbody>
             </table>
-            <div className="px-3 py-2 text-[10px] text-white/25" style={{ background: '#0a0a0a' }}>
+            <div className="px-3 py-2 text-[10px] text-white/25" style={{ background: 'var(--flg-bg-secondary)' }}>
               {preview.total_tasks} tasks encontradas na List
             </div>
           </div>

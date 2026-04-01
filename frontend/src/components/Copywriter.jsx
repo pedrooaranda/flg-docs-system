@@ -134,10 +134,10 @@ function CopyChat({ clienteId, cliente, tipoMaterial, onBack, onSave }) {
   }
 
   return (
-    <div className="flex flex-col h-full" style={{ background: '#141414' }}>
+    <div className="flex flex-col h-full" style={{ background: 'var(--flg-bg-card)' }}>
       {/* Chat header */}
       <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
-        style={{ background: '#111111', borderBottom: '1px solid rgba(201,168,76,0.15)' }}>
+        style={{ background: 'var(--flg-bg-secondary)', borderBottom: '1px solid rgba(201,168,76,0.15)' }}>
         <button onClick={onBack}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white transition-colors cursor-pointer border border-white/8 hover:border-white/20">
           <ArrowLeft size={13} />
@@ -170,7 +170,7 @@ function CopyChat({ clienteId, cliente, tipoMaterial, onBack, onSave }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ background: '#141414' }}>
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ background: 'var(--flg-bg-card)' }}>
         {messages.map((msg, i) => {
           const isUser = msg.role === 'user'
           return (
@@ -186,9 +186,9 @@ function CopyChat({ clienteId, cliente, tipoMaterial, onBack, onSave }) {
                 style={isUser ? {
                   background: 'rgba(201, 168, 76, 0.15)',
                   border: '1px solid rgba(201, 168, 76, 0.25)',
-                  color: '#FAFAF8',
+                  color: 'var(--flg-text)',
                 } : {
-                  background: '#1a1a1a',
+                  background: 'var(--flg-bg-card)',
                   border: '1px solid rgba(255,255,255,0.06)',
                   color: '#e8e8e6',
                 }}
@@ -209,7 +209,7 @@ function CopyChat({ clienteId, cliente, tipoMaterial, onBack, onSave }) {
 
       {/* Input */}
       <div className="p-4 flex-shrink-0"
-        style={{ background: '#111111', borderTop: '1px solid rgba(201, 168, 76, 0.15)' }}>
+        style={{ background: 'var(--flg-bg-secondary)', borderTop: '1px solid rgba(201, 168, 76, 0.15)' }}>
         <div className="flex items-end gap-2">
           <textarea
             value={input}
@@ -219,7 +219,7 @@ function CopyChat({ clienteId, cliente, tipoMaterial, onBack, onSave }) {
             rows={2}
             placeholder="Descreva o que precisa… (Enter envia)"
             className="flex-1 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none transition-all disabled:opacity-40"
-            style={{ background: '#1a1a1a', border: '1px solid rgba(201,168,76,0.2)', color: '#FAFAF8', caretColor: '#C9A84C' }}
+            style={{ background: 'var(--flg-bg-card)', border: '1px solid rgba(201,168,76,0.2)', color: 'var(--flg-text)', caretColor: '#C9A84C' }}
             onFocus={e => { e.target.style.borderColor = '#C9A84C'; e.target.style.boxShadow = '0 0 0 2px rgba(201,168,76,0.1)' }}
             onBlur={e => { e.target.style.borderColor = 'rgba(201,168,76,0.2)'; e.target.style.boxShadow = 'none' }}
           />
@@ -248,8 +248,8 @@ function HistoricoCopies({ clienteId, cliente }) {
   if (!clienteId) return null
 
   return (
-    <div className="flex flex-col h-full border-l border-white/5" style={{ background: '#0e0e0e', width: '35%' }}>
-      <div className="px-4 py-3 border-b border-white/5 flex-shrink-0" style={{ background: '#111111' }}>
+    <div className="flex flex-col h-full border-l border-white/5" style={{ background: 'var(--flg-bg-raised)', width: '35%' }}>
+      <div className="px-4 py-3 border-b border-white/5 flex-shrink-0" style={{ background: 'var(--flg-bg-secondary)' }}>
         <p className="text-xs text-white/40">
           Histórico de <span className="text-gold-mid">{cliente?.nome}</span>
         </p>
@@ -266,7 +266,7 @@ function HistoricoCopies({ clienteId, cliente }) {
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {copies.map(c => (
             <div key={c.id} className="p-3 rounded-lg cursor-pointer transition-all"
-              style={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.05)' }}>
+              style={{ background: 'var(--flg-bg-card)', border: '1px solid var(--flg-border)' }}>
               <p className="text-xs font-medium text-white/70 mb-1">{c.titulo || c.tipo_material}</p>
               <p className="text-[11px] text-white/35 line-clamp-2 leading-relaxed">{c.conteudo}</p>
               <p className="text-[10px] text-white/20 mt-2">{formatDate(c.created_at)}</p>

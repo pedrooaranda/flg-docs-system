@@ -50,8 +50,8 @@ function RecentClientRow({ cliente, delay = 0 }) {
       style={{ border: '1px solid transparent' }}
       onClick={() => navigate(`/clientes/${cliente.id}`)}
       onMouseEnter={e => {
-        e.currentTarget.style.background = 'rgba(255,255,255,0.025)'
-        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'
+        e.currentTarget.style.background = 'var(--flg-bg-hover)'
+        e.currentTarget.style.borderColor = 'var(--flg-border)'
       }}
       onMouseLeave={e => {
         e.currentTarget.style.background = ''

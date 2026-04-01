@@ -24,7 +24,7 @@ function ClienteSelector({ clientes, selectedId, onSelect }) {
         onClick={() => setOpen(o => !o)}
         className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-all cursor-pointer"
         style={{
-          background: '#1a1a1a',
+          background: 'var(--flg-bg-card)',
           border: '1px solid rgba(201,168,76,0.2)',
           color: selected ? '#FAFAF8' : 'rgba(250,250,248,0.35)',
           minWidth: 220,
@@ -44,9 +44,9 @@ function ClienteSelector({ clientes, selectedId, onSelect }) {
       {open && (
         <div
           className="absolute top-full mt-1 left-0 z-50 w-72 rounded-lg overflow-hidden shadow-2xl"
-          style={{ background: '#1a1a1a', border: '1px solid rgba(201,168,76,0.2)' }}
+          style={{ background: 'var(--flg-bg-card)', border: '1px solid rgba(201,168,76,0.2)' }}
         >
-          <div className="p-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="p-2 border-b" style={{ borderColor: 'var(--flg-border)' }}>
             <div className="relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
               <input
@@ -147,7 +147,7 @@ function BibliotecaTab({ clienteId, activeTab, setActiveTab }) {
             }}
           >
             {t.label}
-            <span className="px-1 rounded text-[9px]" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <span className="px-1 rounded text-[9px]" style={{ background: 'var(--flg-bg-hover)' }}>
               {t.count}
             </span>
           </button>
@@ -167,7 +167,7 @@ function BibliotecaTab({ clienteId, activeTab, setActiveTab }) {
               </div>
             ) : slides.map(s => (
               <div key={s.id} className="flex items-center gap-3 p-3 rounded-lg"
-                style={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.06)' }}>
+                style={{ background: 'var(--flg-bg-card)', border: '1px solid var(--flg-border)' }}>
                 <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0"
                   style={{ background: 'rgba(201,168,76,0.1)' }}>
                   <FileText size={14} style={{ color: '#C9A84C' }} />
@@ -201,7 +201,7 @@ function BibliotecaTab({ clienteId, activeTab, setActiveTab }) {
               </div>
             ) : copies.map(c => (
               <div key={c.id} className="p-3 rounded-lg"
-                style={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.06)' }}>
+                style={{ background: 'var(--flg-bg-card)', border: '1px solid var(--flg-border)' }}>
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <p className="text-sm text-white/80 font-medium truncate">
                     {c.titulo || c.tipo_material}
@@ -262,7 +262,7 @@ export default function Materiais() {
           {selectedId ? (
             <>
               <div className="px-4 py-2.5 border-b border-white/5 flex-shrink-0"
-                style={{ background: '#111111' }}>
+                style={{ background: 'var(--flg-bg-secondary)' }}>
                 <p className="text-xs text-white/30">
                   Agente de Materiais
                   {cliente && <span className="text-gold-mid ml-1">— {cliente.nome}</span>}
@@ -281,7 +281,7 @@ export default function Materiais() {
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center p-8"
-              style={{ background: '#141414' }}>
+              style={{ background: 'var(--flg-bg-card)' }}>
               <div className="text-center">
                 <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
                   style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.15)' }}>
@@ -295,9 +295,9 @@ export default function Materiais() {
         </div>
 
         {/* Biblioteca */}
-        <div className="flex flex-col" style={{ flex: 1, background: '#0e0e0e' }}>
+        <div className="flex flex-col" style={{ flex: 1, background: 'var(--flg-bg-raised)' }}>
           <div className="px-4 py-2.5 border-b border-white/5 flex-shrink-0"
-            style={{ background: '#111111' }}>
+            style={{ background: 'var(--flg-bg-secondary)' }}>
             <p className="text-xs text-white/30">Biblioteca de Materiais</p>
           </div>
           <BibliotecaTab
