@@ -52,11 +52,11 @@
     --flg-bg-raised: #FAFAF8;
     --flg-bg-input: rgba(0,0,0,0.03);
     --flg-bg-hover: rgba(0,0,0,0.04);
-    --flg-bg-card-border: rgba(201,168,76,0.25);
+    --flg-bg-card-border: rgba(160,130,50,0.2);
 
-    --flg-gold: #A8862E;
-    --flg-gold-light: #C9A84C;
-    --flg-gold-dark: #6B5518;
+    --flg-gold: #8B6914;
+    --flg-gold-light: #B8942A;
+    --flg-gold-dark: #5A4410;
 
     --flg-text: #1A1715;
     --flg-text-secondary: rgba(0,0,0,0.65);
@@ -234,8 +234,61 @@
     color: var(--flg-text) !important;
   }
 
-  /* Gold text in light mode needs darker gold */
-  [data-theme="light"] .text-gold-mid { color: var(--flg-gold) !important; }
+  /* Gold accents in light mode — richer, deeper gold for contrast */
+  [data-theme="light"] .text-gold-mid { color: #8B6914 !important; }
+  [data-theme="light"] .gold-text {
+    background: linear-gradient(135deg, #B8942A 0%, #8B6914 50%, #5A4410 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+  }
+  [data-theme="light"] .gold-gradient {
+    background: linear-gradient(135deg, #C9A84C 0%, #A07D1E 50%, #7A5F15 100%) !important;
+  }
+  [data-theme="light"] .btn-gold {
+    background: linear-gradient(135deg, #C9A84C 0%, #A07D1E 50%, #7A5F15 100%) !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 2px 8px rgba(122,95,21,0.25) !important;
+  }
+  [data-theme="light"] .btn-ghost {
+    color: var(--flg-text-muted) !important;
+    border-color: var(--flg-border) !important;
+  }
+  [data-theme="light"] .btn-ghost:hover {
+    color: var(--flg-text) !important;
+    border-color: var(--flg-border-gold) !important;
+  }
+  [data-theme="light"] .btn-outline-gold {
+    color: #8B6914 !important;
+    border-color: rgba(139,105,20,0.3) !important;
+  }
+  [data-theme="light"] .btn-outline-gold:hover {
+    background: rgba(139,105,20,0.08) !important;
+    border-color: rgba(139,105,20,0.5) !important;
+  }
+  /* Card borders more visible in light */
+  [data-theme="light"] .card-flg,
+  [data-theme="light"] .card-flg-hover {
+    border-color: rgba(0,0,0,0.08) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
+  }
+  [data-theme="light"] .card-flg-hover:hover {
+    border-color: rgba(139,105,20,0.3) !important;
+    box-shadow: 0 4px 16px rgba(139,105,20,0.1) !important;
+  }
+  /* Input focus ring darker gold */
+  [data-theme="light"] .input-flg:focus {
+    border-color: rgba(139,105,20,0.5) !important;
+    box-shadow: 0 0 0 2px rgba(139,105,20,0.1) !important;
+  }
+  /* Gold border accents */
+  [data-theme="light"] .gold-border { border-color: rgba(139,105,20,0.2) !important; }
+  /* Progress bar gradient richer */
+  [data-theme="light"] .border-gold-mid\/20 { border-color: rgba(139,105,20,0.15) !important; }
+  [data-theme="light"] .bg-gold-mid\/5 { background-color: rgba(139,105,20,0.05) !important; }
+  /* Scrollbar */
+  [data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(139,105,20,0.2); }
+  [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(139,105,20,0.4); }
 
   /* Animate-pulse-gold */
   .animate-pulse-gold {
