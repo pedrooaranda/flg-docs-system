@@ -30,11 +30,16 @@ router = APIRouter(prefix="/admin/clickup", tags=["admin-clickup"])
 _supabase = supabase_client
 
 
-def _get_list_id() -> str:
-    list_id = os.getenv("CLICKUP_LIST_ID", "")
-    if not list_id:
-        raise HTTPException(400, "CLICKUP_LIST_ID não configurado no .env")
-    return list_id
+# IDs reais do workspace FLG
+LIST_CLIENTES_BS = "901315392942"   # Clientes | BS (Business Strategist)
+LIST_CLIENTES_AC = "901313739777"   # Clientes | AC (Alta Cúpula)
+
+def _get_list_ids() -> list:
+    """Retorna as List IDs configuradas. Default: BS + AC."""
+    env_id = os.getenv("CLICKUP_LIST_ID", "")
+    if env_id:
+        return [lid.strip() for lid in env_id.split(",")]
+    return [LIST_CLIENTES_BS, LIST_CLIENTES_AC]
 
 
 # ─── Preview (dry-run) ───────────────────────────────────────────────────────
@@ -43,22 +48,25 @@ def _get_list_id() -> str:
 async def preview_import(user=Depends(get_current_user)):
     """
     Mostra o que seria importado sem gravar nada.
-    Útil para validar o mapeamento de campos.
+    Busca de ambas as lists (BS + AC).
     """
-    list_id = _get_list_id()
-    tasks = list_all_tasks(list_id)
+    list_ids = _get_list_ids()
+    all_tasks = []
+    for lid in list_ids:
+        all_tasks.extend(list_all_tasks(lid))
 
     preview = []
-    for task in tasks:
+    for task in all_tasks:
         data = task_to_cliente_data(task)
         data["_clickup_status_raw"] = task.get("status", {}).get("status", "")
         data["_clickup_url"] = task.get("url", "")
+        data["_list"] = task.get("list", {}).get("name", "")
         preview.append(data)
 
     return {
-        "total_tasks": len(tasks),
+        "total_tasks": len(all_tasks),
         "preview": preview,
-        "list_id": list_id,
+        "lists": list_ids,
     }
 
 
@@ -66,10 +74,13 @@ async def preview_import(user=Depends(get_current_user)):
 
 @router.get("/fields")
 async def list_custom_fields(user=Depends(get_current_user)):
-    """Retorna os custom fields da List para o mapeador de campos."""
-    list_id = _get_list_id()
-    fields = get_list_fields(list_id)
-    return {"fields": fields, "list_id": list_id}
+    """Retorna os custom fields das Lists de clientes."""
+    list_ids = _get_list_ids()
+    all_fields = {}
+    for lid in list_ids:
+        for f in get_list_fields(lid):
+            all_fields[f["id"]] = f
+    return {"fields": list(all_fields.values()), "lists": list_ids}
 
 
 # ─── Import bulk ──────────────────────────────────────────────────────────────
@@ -88,8 +99,10 @@ async def import_clientes(
     Importa todos os clientes da List do ClickUp para o Supabase.
     Faz upsert por clickup_task_id — atualiza existentes e cria novos.
     """
-    list_id = _get_list_id()
-    tasks = list_all_tasks(list_id)
+    list_ids = _get_list_ids()
+    tasks = []
+    for lid in list_ids:
+        tasks.extend(list_all_tasks(lid))
 
     if not tasks:
         return {"importados": 0, "atualizados": 0, "erros": 0, "mensagem": "Nenhuma task encontrada na List"}
@@ -195,10 +208,10 @@ async def clickup_webhook(request: Request):
         if not data.get("nome"):
             return {"ok": True, "skipped": "empty name"}
 
-        # Verificar se pertence à nossa List
-        list_id = os.getenv("CLICKUP_LIST_ID", "")
+        # Verificar se pertence a uma das nossas Lists
+        valid_lists = set(_get_list_ids())
         task_list_id = task.get("list", {}).get("id", "")
-        if list_id and task_list_id != list_id:
+        if valid_lists and task_list_id not in valid_lists:
             return {"ok": True, "skipped": "different list"}
 
         # Upsert

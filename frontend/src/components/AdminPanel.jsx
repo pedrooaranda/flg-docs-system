@@ -181,7 +181,7 @@ function ClickUpImportSection({ onImported }) {
             <table className="w-full text-xs">
               <thead>
                 <tr style={{ background: '#0a0a0a', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                  {['Nome', 'Empresa', 'Consultor', 'Etapa', 'Status'].map(h => (
+                  {['Nome', 'Empresa', 'Consultor', 'Etapa', 'Situação', 'Lista'].map(h => (
                     <th key={h} className="px-3 py-2 text-left text-[9px] uppercase tracking-wide text-white/30">{h}</th>
                   ))}
                 </tr>
@@ -193,7 +193,8 @@ function ClickUpImportSection({ onImported }) {
                     <td className="px-3 py-2 text-white/40">{p.empresa || '—'}</td>
                     <td className="px-3 py-2 text-white/40">{p.consultor_responsavel || '—'}</td>
                     <td className="px-3 py-2 text-white/40">E{p.encontro_atual || '?'}</td>
-                    <td className="px-3 py-2 text-white/40">{p.status}</td>
+                    <td className="px-3 py-2 text-white/40">{p.situacao_clickup || p.status || '—'}</td>
+                    <td className="px-3 py-2 text-white/30 text-[9px]">{p._list || '—'}</td>
                   </tr>
                 ))}
               </tbody>

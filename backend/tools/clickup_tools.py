@@ -147,59 +147,107 @@ def get_custom_field_value(task: dict, field_name: str) -> str:
     return ""
 
 
+def _get_users_field_name(task: dict, field_name: str) -> str:
+    """Extrai o username de um campo do tipo 'users'."""
+    for f in task.get("custom_fields", []):
+        if f.get("name", "").lower().strip() == field_name.lower().strip():
+            if f.get("type") == "users":
+                vals = f.get("value") or []
+                if isinstance(vals, list) and vals:
+                    return vals[0].get("username") or vals[0].get("email", "")
+            return get_custom_field_value(task, field_name)
+    return ""
+
+
 def task_to_cliente_data(task: dict, field_map: dict = None) -> dict:
     """
-    Converte uma task do ClickUp em dados para upsert na tabela clientes.
+    Converte uma task do ClickUp (List Clientes | BS / AC) em dados
+    para upsert na tabela clientes do Supabase.
 
-    field_map: mapeamento custom_field_name → coluna_supabase.
-    Default: { "Empresa": "empresa", "Consultor": "consultor_responsavel",
-               "Etapa": "encontro_atual" }
+    Mapeamento baseado nos custom fields reais do workspace FLG:
+      - "Nome da Empresa" → empresa
+      - "Consultor" (users) → consultor_responsavel
+      - "Estrategista" (users) → estrategista
+      - "ENCONTRO ATUAL" (dropdown: "ENCONTRO 2"..."ENCONTRO 30") → encontro_atual
+      - "SITUAÇÃO" (dropdown) → status
+      - "E-mail" → email no extra_data
+      - "@ do instagram" → seguidores_instagram ref
+      - "Plano" (dropdown) → plano no extra_data
+      - "Momento Atual" (text) → situacao_atual
+      - "Breve Contexto do Cliente" (text) → contexto
     """
-    if field_map is None:
-        field_map = {
-            "empresa": "empresa",
-            "consultor": "consultor_responsavel",
-            "consultor responsável": "consultor_responsavel",
-            "etapa": "encontro_atual",
-            "encontro": "encontro_atual",
-            "encontro atual": "encontro_atual",
-        }
-
-    # Status mapping ClickUp → Supabase
-    status_raw = task.get("status", {}).get("status", "").lower()
-    status_map = {
-        "ativo": "ativo", "active": "ativo", "em andamento": "ativo",
-        "to do": "ativo", "open": "ativo",
-        "pausado": "pausado", "paused": "pausado", "on hold": "pausado",
-        "concluído": "concluido", "complete": "concluido", "done": "concluido",
-        "closed": "concluido",
-    }
-    status = status_map.get(status_raw, "ativo")
+    import re
 
     data = {
         "nome": task.get("name", "").strip(),
         "clickup_task_id": task.get("id", ""),
-        "status": status,
     }
 
-    # Mapear custom fields
-    for cf_name, col_name in field_map.items():
-        val = get_custom_field_value(task, cf_name)
-        if val:
-            if col_name == "encontro_atual":
-                # Extrair número do valor (ex: "Encontro 7" → 7, ou "7" → 7)
-                import re
-                nums = re.findall(r"\d+", val)
-                if nums:
-                    data[col_name] = int(nums[0])
-            else:
-                data[col_name] = val
+    # Empresa
+    empresa = get_custom_field_value(task, "Nome da Empresa")
+    if empresa:
+        data["empresa"] = empresa
 
-    # Assignees → consultor_responsavel (fallback se não veio do custom field)
+    # Consultor (campo users)
+    consultor = _get_users_field_name(task, "Consultor")
+    if consultor:
+        data["consultor_responsavel"] = consultor
+
+    # Estrategista (campo users)
+    estrategista = _get_users_field_name(task, "Estrategista")
+    if estrategista:
+        data["estrategista"] = estrategista
+
+    # Encontro atual (dropdown "ENCONTRO 2"..."ENCONTRO 30", "ONBOARDING", etc.)
+    encontro_raw = get_custom_field_value(task, "ENCONTRO ATUAL")
+    if encontro_raw:
+        nums = re.findall(r"\d+", encontro_raw)
+        if nums:
+            data["encontro_atual"] = int(nums[0])
+        elif "ONBOARDING" in encontro_raw.upper():
+            data["encontro_atual"] = 1
+        elif "AGUARDANDO" in encontro_raw.upper():
+            data["encontro_atual"] = 0
+
+    # Situação → status
+    situacao_raw = get_custom_field_value(task, "SITUAÇÃO")
+    if situacao_raw:
+        sit_lower = situacao_raw.lower()
+        if any(w in sit_lower for w in ["excelente", "indo bem", "normal", "campanha"]):
+            data["status"] = "ativo"
+        elif any(w in sit_lower for w in ["pausado"]):
+            data["status"] = "pausado"
+        elif any(w in sit_lower for w in ["encerrado", "encerramento"]):
+            data["status"] = "concluido"
+        elif any(w in sit_lower for w in ["atenção", "alerta", "procrastinação", "resolução"]):
+            data["status"] = "ativo"  # ainda ativo, mas com alerta
+        else:
+            data["status"] = "ativo"
+        # Guardar a situação original para contexto
+        data["situacao_clickup"] = situacao_raw
+
+    # Momento Atual → situacao_atual
+    momento = get_custom_field_value(task, "Momento Atual")
+    if momento:
+        data["situacao_atual"] = momento
+
+    # Fallback: assignees → consultor
     if "consultor_responsavel" not in data or not data["consultor_responsavel"]:
         assignees = task.get("assignees", [])
         if assignees:
             data["consultor_responsavel"] = assignees[0].get("username") or assignees[0].get("email", "")
+
+    # Fallback status from ClickUp task status
+    if "status" not in data:
+        status_raw = task.get("status", {}).get("status", "").lower()
+        status_map = {
+            "ativo": "ativo", "active": "ativo", "em andamento": "ativo",
+            "to do": "ativo", "open": "ativo",
+            "pausado": "pausado", "paused": "pausado",
+            "concluído": "concluido", "complete": "concluido",
+            "done": "concluido", "closed": "concluido",
+        }
+        data["status"] = status_map.get(status_raw, "ativo")
 
     return data
 
