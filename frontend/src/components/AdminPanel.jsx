@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { BookOpen, Users, Layers, Pencil, Check, X } from 'lucide-react'
+import { BookOpen, Users, Layers, Pencil, Check, X, Download, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { progressPercent } from '../lib/utils'
 import { Avatar } from './ui/Avatar'
@@ -113,6 +113,114 @@ function EncontroCard({ enc, delay }) {
   )
 }
 
+function ClickUpImportSection({ onImported }) {
+  const toast = useToast()
+  const [status, setStatus] = useState('idle') // idle, previewing, importing, done, error
+  const [preview, setPreview] = useState(null)
+  const [result, setResult] = useState(null)
+
+  async function handlePreview() {
+    setStatus('previewing')
+    setResult(null)
+    try {
+      const data = await api('/admin/clickup/preview')
+      setPreview(data)
+      setStatus('idle')
+    } catch (e) {
+      toast?.({ title: 'Erro ao buscar preview', description: e.message, variant: 'error' })
+      setStatus('error')
+    }
+  }
+
+  async function handleImport() {
+    setStatus('importing')
+    try {
+      const data = await api('/admin/clickup/import', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      })
+      setResult(data)
+      setStatus('done')
+      setPreview(null)
+      toast?.({ title: 'Importação concluída', description: `${data.importados} novos, ${data.atualizados} atualizados`, variant: 'success' })
+      onImported?.()
+    } catch (e) {
+      toast?.({ title: 'Erro na importação', description: e.message, variant: 'error' })
+      setStatus('error')
+    }
+  }
+
+  return (
+    <section className="mb-10">
+      <div className="flex items-center gap-2 mb-4">
+        <Download size={16} className="text-gold-mid/70" />
+        <h2 className="font-display text-lg font-semibold text-white">Importar do ClickUp</h2>
+      </div>
+      <div className="card-flg p-5 space-y-4">
+        <p className="text-xs text-white/40">
+          Importa clientes da sua List no ClickUp para o sistema. Tasks existentes (por clickup_task_id) são atualizadas.
+        </p>
+
+        <div className="flex items-center gap-2">
+          <button onClick={handlePreview} disabled={status === 'previewing' || status === 'importing'}
+            className="text-xs font-semibold px-4 py-2 rounded-lg transition-all cursor-pointer disabled:opacity-40 flex items-center gap-2"
+            style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            {status === 'previewing' ? <Spinner size="sm" /> : <RefreshCw size={12} />}
+            Preview (dry-run)
+          </button>
+          <button onClick={handleImport} disabled={status === 'importing'}
+            className="btn-gold text-xs flex items-center gap-2 disabled:opacity-40">
+            {status === 'importing' ? <Spinner size="sm" /> : <Download size={12} />}
+            Importar agora
+          </button>
+        </div>
+
+        {/* Preview table */}
+        {preview && preview.preview?.length > 0 && (
+          <div className="overflow-x-auto rounded-lg" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+            <table className="w-full text-xs">
+              <thead>
+                <tr style={{ background: '#0a0a0a', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  {['Nome', 'Empresa', 'Consultor', 'Etapa', 'Status'].map(h => (
+                    <th key={h} className="px-3 py-2 text-left text-[9px] uppercase tracking-wide text-white/30">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.preview.map((p, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                    <td className="px-3 py-2 text-white/70 font-medium">{p.nome}</td>
+                    <td className="px-3 py-2 text-white/40">{p.empresa || '—'}</td>
+                    <td className="px-3 py-2 text-white/40">{p.consultor_responsavel || '—'}</td>
+                    <td className="px-3 py-2 text-white/40">E{p.encontro_atual || '?'}</td>
+                    <td className="px-3 py-2 text-white/40">{p.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="px-3 py-2 text-[10px] text-white/25" style={{ background: '#0a0a0a' }}>
+              {preview.total_tasks} tasks encontradas na List
+            </div>
+          </div>
+        )}
+
+        {/* Result */}
+        {result && (
+          <div className="flex items-center gap-3 text-xs p-3 rounded-lg" style={{
+            background: result.erros > 0 ? 'rgba(248,113,113,0.06)' : 'rgba(52,211,153,0.06)',
+            border: `1px solid ${result.erros > 0 ? 'rgba(248,113,113,0.15)' : 'rgba(52,211,153,0.15)'}`,
+          }}>
+            {result.erros > 0 ? <AlertCircle size={14} className="text-red-400/60" /> : <CheckCircle2 size={14} className="text-emerald-400/60" />}
+            <span className="text-white/60">
+              <strong className="text-white/80">{result.importados}</strong> novos · <strong className="text-white/80">{result.atualizados}</strong> atualizados · <strong className={result.erros > 0 ? 'text-red-400' : 'text-white/80'}>{result.erros}</strong> erros
+            </span>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export default function AdminPanel() {
   const navigate = useNavigate()
   const [encontros, setEncontros] = useState([])
@@ -153,6 +261,9 @@ export default function AdminPanel() {
           Base de Conhecimento
         </button>
       </div>
+
+      {/* ClickUp Import */}
+      <ClickUpImportSection onImported={() => api('/clientes').then(setClientes).catch(() => {})} />
 
       {/* Clientes */}
       <section className="mb-10">

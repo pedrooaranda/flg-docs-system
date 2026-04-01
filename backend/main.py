@@ -28,6 +28,7 @@ from routes.uploads import router as uploads_router
 from routes.metricas import router as metricas_router
 from routes.conexoes import router as conexoes_router
 from routes.notas import router as notas_router
+from routes.admin_clickup import router as admin_clickup_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -144,6 +145,7 @@ app.include_router(uploads_router)
 app.include_router(metricas_router)
 app.include_router(conexoes_router)
 app.include_router(notas_router)
+app.include_router(admin_clickup_router)
 
 app.add_middleware(
     CORSMiddleware,

@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     # ClickUp
     clickup_api_token: str = ""
+    clickup_list_id: str = ""
+    clickup_team_id: str = ""
 
     # Runtime
     assets_path: str = "/app/assets"
