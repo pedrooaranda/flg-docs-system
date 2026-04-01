@@ -30,16 +30,15 @@ router = APIRouter(prefix="/admin/clickup", tags=["admin-clickup"])
 _supabase = supabase_client
 
 
-# IDs reais do workspace FLG
+# ID real do workspace FLG
 LIST_CLIENTES_BS = "901315392942"   # Clientes | BS (Business Strategist)
-LIST_CLIENTES_AC = "901313739777"   # Clientes | AC (Alta Cúpula)
 
 def _get_list_ids() -> list:
-    """Retorna as List IDs configuradas. Default: BS + AC."""
+    """Retorna as List IDs configuradas. Default: BS."""
     env_id = os.getenv("CLICKUP_LIST_ID", "")
     if env_id:
         return [lid.strip() for lid in env_id.split(",")]
-    return [LIST_CLIENTES_BS, LIST_CLIENTES_AC]
+    return [LIST_CLIENTES_BS]
 
 
 # ─── Preview (dry-run) ───────────────────────────────────────────────────────
