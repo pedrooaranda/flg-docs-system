@@ -58,10 +58,10 @@
     --flg-gold-light: #B8942A;
     --flg-gold-dark: #5A4410;
 
-    --flg-text: #1A1715;
-    --flg-text-secondary: rgba(0,0,0,0.65);
-    --flg-text-muted: rgba(0,0,0,0.45);
-    --flg-text-faint: rgba(0,0,0,0.2);
+    --flg-text: #0A0A0A;
+    --flg-text-secondary: #1A1A1A;
+    --flg-text-muted: #3D3D3D;
+    --flg-text-faint: #6B6B6B;
 
     --flg-border: rgba(0,0,0,0.08);
     --flg-border-gold: rgba(201,168,76,0.3);
