@@ -25,6 +25,13 @@ LIST_CLIENTES_BS = "901315392942"
 
 CLICKUP_API_BASE = "https://api.clickup.com/api/v2"
 
+# Tasks do ClickUp que não devem ser importadas (removidas pelo admin)
+CLICKUP_BLOCKLIST = {
+    "GABRIELCHIARELLO", "IZABELLABENTO", "CATHARINETURMINA",
+    "MAISARASHE", "MARLAGOMES", "MAILOR | Revisar Landing Page",
+    "VERONICALEÃO", "JOAOJUNHORODRIGUES",
+}
+
 
 def run_clickup_sync():
     """
@@ -56,6 +63,8 @@ def run_clickup_sync():
         try:
             data = task_to_cliente_data(task)
             if not data.get("nome"):
+                continue
+            if data["nome"] in CLICKUP_BLOCKLIST:
                 continue
 
             # Remover campo não existente no schema
