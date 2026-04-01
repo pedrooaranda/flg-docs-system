@@ -22,6 +22,7 @@ from agents.agent_os import build_agent_os
 from agents.agente_flg import create_flg_agent
 from agents.agente_rotina import run_rotina_sync
 from services.ingestion import run_ingestion_sync
+from services.clickup_sync import run_clickup_sync, register_webhook
 from prompts.system_prompt import build_system_prompt, TRIGGER_PHRASE
 from tools.client_tools import get_client_profile, get_encontro_base
 from routes.uploads import router as uploads_router
@@ -124,11 +125,22 @@ async def _apply_migration_003():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await _apply_migration_003()
-    # Iniciar scheduler do agente de rotina
+    # ClickUp sync no startup — importa/atualiza todos os clientes imediatamente
+    try:
+        run_clickup_sync()
+    except Exception as e:
+        logger.warning(f"⚠️ ClickUp sync inicial falhou: {e}")
+    # Registrar webhook ClickUp para sync em tempo real
+    try:
+        register_webhook()
+    except Exception as e:
+        logger.warning(f"⚠️ ClickUp webhook registro falhou: {e}")
+    # Iniciar scheduler
     scheduler.add_job(run_rotina_sync, "interval", hours=6, id="rotina_clickup")
     scheduler.add_job(run_ingestion_sync, "interval", hours=6, id="metricas_ingestion")
+    scheduler.add_job(run_clickup_sync, "interval", hours=6, id="clickup_sync")
     scheduler.start()
-    logger.info("✅ APScheduler iniciado — rotina 6h + ingestão métricas 6h")
+    logger.info("✅ APScheduler iniciado — rotina 6h + ingestão 6h + ClickUp sync 6h")
     yield
     scheduler.shutdown()
 
