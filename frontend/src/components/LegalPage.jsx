@@ -246,7 +246,7 @@ continuado da Plataforma após mudanças constitui aceitação.
 ## 10. Lei aplicável e foro
 
 Estes Termos são regidos pela legislação brasileira. Fica eleito o foro
-da Comarca de Belo Horizonte/MG para dirimir eventuais controvérsias,
+da Comarca de São Paulo/SP para dirimir eventuais controvérsias,
 com renúncia expressa a qualquer outro, por mais privilegiado que seja.
 
 ---
