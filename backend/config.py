@@ -17,6 +17,15 @@ class Settings(BaseSettings):
     clickup_list_id: str = ""
     clickup_team_id: str = ""
 
+    # Meta (Instagram Business API)
+    meta_app_id: str = ""
+    meta_app_secret: str = ""
+    meta_redirect_uri: str = "https://docs.foundersledgrowth.online/api/instagram/oauth/callback"
+    meta_webhook_verify_token: str = ""
+
+    # App
+    app_base_url: str = "https://docs.foundersledgrowth.online"
+
     # Runtime
     assets_path: str = "/app/assets"
 

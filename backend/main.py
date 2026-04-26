@@ -23,6 +23,7 @@ from agents.agente_flg import create_flg_agent
 from agents.agente_rotina import run_rotina_sync
 from services.ingestion import run_ingestion_sync
 from services.clickup_sync import run_clickup_sync, register_webhook
+from services.instagram_token_refresh import run_token_refresh_sync
 from prompts.system_prompt import build_system_prompt, TRIGGER_PHRASE
 from tools.client_tools import get_client_profile, get_encontro_base
 from routes.uploads import router as uploads_router
@@ -30,6 +31,7 @@ from routes.metricas import router as metricas_router
 from routes.conexoes import router as conexoes_router
 from routes.notas import router as notas_router
 from routes.admin_clickup import router as admin_clickup_router
+from routes.instagram_oauth import router as instagram_oauth_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -139,8 +141,20 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(run_rotina_sync, "interval", hours=6, id="rotina_clickup")
     scheduler.add_job(run_ingestion_sync, "interval", hours=6, id="metricas_ingestion")
     scheduler.add_job(run_clickup_sync, "interval", hours=6, id="clickup_sync")
+    # Instagram token refresh diário às 03h00 (token expira em 60d, refresh aos 50d)
+    scheduler.add_job(
+        run_token_refresh_sync,
+        "cron",
+        hour=3,
+        minute=0,
+        id="instagram_token_refresh",
+        max_instances=1,
+        replace_existing=True,
+    )
     scheduler.start()
-    logger.info("✅ APScheduler iniciado — rotina 6h + ingestão 6h + ClickUp sync 6h")
+    logger.info(
+        "✅ APScheduler iniciado — rotina 6h + ingestão 6h + ClickUp 6h + IG token refresh diário"
+    )
     yield
     scheduler.shutdown()
 
@@ -158,6 +172,7 @@ app.include_router(metricas_router)
 app.include_router(conexoes_router)
 app.include_router(notas_router)
 app.include_router(admin_clickup_router)
+app.include_router(instagram_oauth_router)
 
 app.add_middleware(
     CORSMiddleware,
