@@ -129,7 +129,7 @@ de antecedência.
 
 ## 10. Contato
 
-**Founders Led Growth (Grupo Guglielmi)**
+**Founders Led Growth**
 E-mail: presidencia@grupoguglielmi.com
 Site: https://foundersledgrowth.com.br
 Plataforma: https://docs.foundersledgrowth.online
@@ -253,7 +253,7 @@ com renúncia expressa a qualquer outro, por mais privilegiado que seja.
 
 ## 11. Contato
 
-**Founders Led Growth (Grupo Guglielmi)**
+**Founders Led Growth**
 E-mail: presidencia@grupoguglielmi.com
 Site: https://foundersledgrowth.com.br
 Plataforma: https://docs.foundersledgrowth.online
@@ -350,7 +350,7 @@ Veja a [Política de Privacidade](/legal/privacy) completa para mais detalhes.
 
 ## 6. Contato
 
-**Founders Led Growth (Grupo Guglielmi)**
+**Founders Led Growth**
 E-mail (DPO): presidencia@grupoguglielmi.com
 Site: https://foundersledgrowth.com.br
 `
@@ -443,7 +443,7 @@ export default function LegalPage() {
 
         {/* Footer */}
         <div className="mt-8 flex items-center justify-between text-xs text-white/30">
-          <p>Founders Led Growth — Grupo Guglielmi</p>
+          <p>Founders Led Growth</p>
           <div className="flex gap-4">
             <Link to="/legal/privacy" className="hover:text-gold-mid">Privacidade</Link>
             <Link to="/legal/terms" className="hover:text-gold-mid">Termos</Link>
