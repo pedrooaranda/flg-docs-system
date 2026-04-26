@@ -21,6 +21,7 @@ const Copywriter       = lazy(() => import('./components/Copywriter'))
 const IntelecFLG       = lazy(() => import('./components/admin/IntelecFLG'))
 const AgentesConfig    = lazy(() => import('./components/admin/AgentesConfig'))
 const Metricas         = lazy(() => import('./components/Metricas'))
+const LegalPage        = lazy(() => import('./components/LegalPage'))
 
 function AuthGuard({ session, children, title, subtitle }) {
   if (!session) return <Navigate to="/login" replace />
@@ -51,6 +52,13 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
+
+          {/* Páginas legais públicas (sem auth) — exigidas pela Meta para Instagram OAuth */}
+          <Route path="/legal/:page" element={
+            <Suspense fallback={<PageSpinner />}>
+              <LegalPage />
+            </Suspense>
+          } />
 
           <Route path="/" element={
             <AuthGuard session={session} title="Dashboard">
