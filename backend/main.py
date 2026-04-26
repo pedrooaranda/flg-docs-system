@@ -127,20 +127,24 @@ async def _apply_migration_003():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await _apply_migration_003()
-    # ClickUp sync no startup — importa/atualiza todos os clientes imediatamente
-    try:
-        run_clickup_sync()
-    except Exception as e:
-        logger.warning(f"⚠️ ClickUp sync inicial falhou: {e}")
-    # Registrar webhook ClickUp para sync em tempo real
-    try:
-        register_webhook()
-    except Exception as e:
-        logger.warning(f"⚠️ ClickUp webhook registro falhou: {e}")
-    # Iniciar scheduler
+    # Iniciar scheduler PRIMEIRO (não bloqueia healthcheck)
     scheduler.add_job(run_rotina_sync, "interval", hours=6, id="rotina_clickup")
     scheduler.add_job(run_ingestion_sync, "interval", hours=6, id="metricas_ingestion")
     scheduler.add_job(run_clickup_sync, "interval", hours=6, id="clickup_sync")
+    # ClickUp sync inicial agendado para 30s após startup (não bloqueia healthcheck)
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+    scheduler.add_job(
+        run_clickup_sync,
+        "date",
+        run_date=_dt.now(_tz.utc) + _td(seconds=30),
+        id="clickup_initial_sync",
+    )
+    scheduler.add_job(
+        register_webhook,
+        "date",
+        run_date=_dt.now(_tz.utc) + _td(seconds=45),
+        id="clickup_webhook_registration",
+    )
     # Instagram token refresh diário às 03h00 (token expira em 60d, refresh aos 50d)
     scheduler.add_job(
         run_token_refresh_sync,
