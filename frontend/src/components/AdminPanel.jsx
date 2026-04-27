@@ -245,7 +245,7 @@ function InstagramConnectionsSection({ clientes }) {
 
   async function handleConnect(clienteId) {
     try {
-      const data = await api(`/instagram/oauth/connect/${clienteId}`, { method: 'POST' })
+      const data = await api(`/instagram/oauth/connect/${clienteId}`)
       if (data.auth_url) window.location.href = data.auth_url
     } catch (err) {
       toast?.({ title: 'Erro', description: err.message, variant: 'error' })
