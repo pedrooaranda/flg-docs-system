@@ -264,3 +264,20 @@ async def list_all_connections(user=Depends(get_current_user)):
         })
 
     return {"conexoes": enriched, "total": len(enriched)}
+
+
+# ─── Sync manual ──────────────────────────────────────────────────────────────
+
+@router.post("/sync/{cliente_id}")
+async def sync_cliente_manual(cliente_id: str, user=Depends(get_current_user)):
+    """
+    Trigger manual de sync para um cliente conectado.
+    Usado pelo botão "Atualizar agora" na página Métricas.
+    """
+    from services.instagram_sync import sync_cliente
+    try:
+        result = await sync_cliente(cliente_id)
+        return {"ok": True, **result}
+    except Exception as e:
+        logger.error(f"Sync manual falhou cliente={cliente_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

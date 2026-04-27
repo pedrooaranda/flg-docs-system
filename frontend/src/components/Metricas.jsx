@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { Users, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Wifi, WifiOff, Play, Share2, Target, Clock } from 'lucide-react'
+import { Users, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Wifi, WifiOff, Play, Share2, Target, Clock, RefreshCw } from 'lucide-react'
 import { api } from '../lib/api'
 import { isAdmin as checkAdmin } from '../lib/utils'
 import { useApp } from '../contexts/AppContext'
@@ -654,6 +654,64 @@ function ClienteCombobox({ clientes, value, onChange, accent = GOLD }) {
   )
 }
 
+// ─── Sync button + última sincronização ──────────────────────────────────────
+function SyncButton({ clienteId, onSynced, accent = GOLD }) {
+  const [syncing, setSyncing] = useState(false)
+  const [lastSync, setLastSync] = useState(null)
+
+  useEffect(() => {
+    if (!clienteId) return
+    api(`/instagram/oauth/status/${clienteId}`)
+      .then(d => setLastSync(d?.last_sync_at || null))
+      .catch(() => {})
+  }, [clienteId])
+
+  async function handleSync() {
+    if (syncing) return
+    setSyncing(true)
+    try {
+      const r = await api(`/instagram/sync/${clienteId}`, { method: 'POST' })
+      setLastSync(new Date().toISOString())
+      if (onSynced) onSynced(r)
+    } catch (err) {
+      console.error('Sync error', err)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleSync}
+      disabled={syncing}
+      className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-full transition-all"
+      style={{
+        background: 'var(--flg-bg-hover)',
+        color: syncing ? 'var(--flg-text-muted)' : accent,
+        border: `1px solid ${accent}30`,
+        cursor: syncing ? 'wait' : 'pointer',
+      }}
+      title={lastSync ? `Última sync: ${formatRelative(lastSync)}` : 'Nunca sincronizado'}
+    >
+      <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} />
+      {syncing ? 'Sincronizando…' : (lastSync ? `Sync ${formatRelative(lastSync)}` : 'Atualizar agora')}
+    </button>
+  )
+}
+
+function formatRelative(iso) {
+  const dt = new Date(iso)
+  const diff = Date.now() - dt.getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return 'agora'
+  if (min < 60) return `há ${min}min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `há ${h}h`
+  const d = Math.floor(h / 24)
+  if (d < 7) return `há ${d}d`
+  return dt.toLocaleDateString('pt-BR')
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MAIN COMPONENT
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -752,6 +810,10 @@ export default function Metricas({ session }) {
               {conectado ? <Wifi size={11} /> : <WifiOff size={11} />}
               {conectado ? `${platConfig.label} conectado` : 'Dados mock'}
             </div>
+          )}
+
+          {conectado && platform === 'instagram' && (
+            <SyncButton clienteId={clienteId} onSynced={() => setLoading(true)} accent={platConfig.color} />
           )}
         </div>
 

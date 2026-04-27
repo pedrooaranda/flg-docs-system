@@ -24,6 +24,7 @@ from agents.agente_rotina import run_rotina_sync
 from services.ingestion import run_ingestion_sync
 from services.clickup_sync import run_clickup_sync, register_webhook
 from services.instagram_token_refresh import run_token_refresh_sync
+from services.instagram_sync import run_daily_sync_sync
 from prompts.system_prompt import build_system_prompt, TRIGGER_PHRASE
 from tools.client_tools import get_client_profile, get_encontro_base
 from routes.uploads import router as uploads_router
@@ -155,9 +156,20 @@ async def lifespan(app: FastAPI):
         max_instances=1,
         replace_existing=True,
     )
+    # Instagram sync diário às 04h00 (após token refresh, puxa posts/insights/followers)
+    scheduler.add_job(
+        run_daily_sync_sync,
+        "cron",
+        hour=4,
+        minute=0,
+        id="instagram_daily_sync",
+        max_instances=1,
+        replace_existing=True,
+    )
     scheduler.start()
     logger.info(
-        "✅ APScheduler iniciado — rotina 6h + ingestão 6h + ClickUp 6h + IG token refresh diário"
+        "✅ APScheduler iniciado — rotina 6h + ingestão 6h + ClickUp 6h + "
+        "IG token refresh 03h + IG sync 04h"
     )
     yield
     scheduler.shutdown()
