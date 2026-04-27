@@ -307,4 +307,22 @@
     0%, 100% { box-shadow: 0 0 0 1px rgba(201,168,76,0.06), 0 0 14px rgba(201,168,76,0.04); }
     50%      { box-shadow: 0 0 0 1px rgba(201,168,76,0.20), 0 0 22px rgba(201,168,76,0.18); }
   }
+
+  /* Coroa do KPI campeão — brilho dourado pulsante */
+  .crown-pulse {
+    animation: crown-pulse 2.6s ease-in-out infinite;
+  }
+  @keyframes crown-pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(245,214,138,0.35), 0 0 0 0 rgba(245,214,138,0.5); transform: scale(1); }
+    50%      { box-shadow: 0 0 14px rgba(245,214,138,0.7),  0 0 0 4px rgba(245,214,138,0); transform: scale(1.08); }
+  }
+
+  /* Heatmap melhor janela — pulse na cor da plataforma */
+  .heatmap-best {
+    animation: heatmap-best-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes heatmap-best-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 currentColor, 0 0 0 1px rgba(255,255,255,0.04); }
+    50%      { box-shadow: 0 0 14px rgba(255,255,255,0.10), 0 0 0 1px rgba(255,255,255,0.10); }
+  }
 }

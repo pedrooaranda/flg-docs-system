@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { Users, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Wifi, WifiOff, Play, Share2, Target, Clock, RefreshCw } from 'lucide-react'
+import { Users, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Wifi, WifiOff, Play, Share2, Target, Clock, RefreshCw, Crown } from 'lucide-react'
 import { api } from '../lib/api'
 import { isAdmin as checkAdmin } from '../lib/utils'
 import { useApp } from '../contexts/AppContext'
@@ -271,12 +271,18 @@ function KpiCard({ icon: Icon, label, value, decimals = 0, suffix = '', delta, p
       }}
     >
       {highlight && (
-        <span
-          className="absolute top-2 right-2 text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded"
-          style={{ background: `${color}20`, color }}
+        <div
+          className="absolute top-2 right-2 flex items-center justify-center rounded-full crown-pulse"
+          style={{
+            width: 22,
+            height: 22,
+            background: `linear-gradient(135deg, #F5D68A, #C9A84C 50%, #8B6914)`,
+            boxShadow: '0 0 10px rgba(245,214,138,0.45)',
+          }}
+          title="KPI com maior alta vs. mês anterior"
         >
-          ↑ Top
-        </span>
+          <Crown size={11} strokeWidth={2.2} color="#1a1300" />
+        </div>
       )}
       <div className="flex items-center justify-between">
         <span className="text-xs text-white/40 font-medium">{label}</span>
@@ -319,7 +325,7 @@ function ChartTooltip({ active, payload, label }) {
   )
 }
 
-// ─── Engagement Heatmap (SVG, minimal) ────────────────────────────────────────
+// ─── Engagement Heatmap (CSS Grid, resolução nativa, sem distorção) ──────────
 function EngagementHeatmap({ data, accentColor = GOLD }) {
   const [hover, setHover] = useState(null)
   if (!data?.length) return null
@@ -331,101 +337,69 @@ function EngagementHeatmap({ data, accentColor = GOLD }) {
   const range = maxEng - minEng || 1
   const best = data.reduce((a, b) => (b.engajamento > a.engajamento ? b : a), data[0])
 
-  const labelW = 48
-  const cellGap = 3
-  const axisH = 16
-  const cellH = 24
-  const totalH = axisH + faixas.length * (cellH + cellGap)
-
-  function intensity(eng) {
-    return 0.05 + ((eng - minEng) / range) * 0.85
-  }
+  const intensity = (eng) => 0.05 + ((eng - minEng) / range) * 0.85
+  const gridCols = '52px repeat(7, 1fr)'
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 relative">
       <div className="overflow-x-auto">
-        <div className="min-w-[480px] relative">
-          <svg width="100%" height={totalH} style={{ display: 'block' }} preserveAspectRatio="none" viewBox={`0 0 700 ${totalH}`}>
-            <defs>
-              <filter id="hm-glow" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                <feMerge>
-                  <feMergeNode in="coloredBlur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            {dias.map((d, di) => {
-              const x = labelW + di * ((700 - labelW) / 7) + ((700 - labelW) / 7) / 2
-              return (
-                <text key={d} x={x} y={11} textAnchor="middle" fontSize="9" fill="rgba(255,255,255,0.3)" fontWeight="400" letterSpacing="0.5">
-                  {d}
-                </text>
-              )
-            })}
-            {faixas.map((faixa, fi) => {
-              const y = axisH + fi * (cellH + cellGap) + cellH / 2 + 3
-              return (
-                <text key={faixa} x={labelW - 8} y={y} textAnchor="end" fontSize="9" fill="rgba(255,255,255,0.3)">
-                  {faixa}
-                </text>
-              )
-            })}
-            {data.map((cell) => {
-              const cellW = (700 - labelW) / 7 - cellGap
-              const x = labelW + cell.dia_idx * ((700 - labelW) / 7) + cellGap / 2
-              const y = axisH + cell.faixa_idx * (cellH + cellGap)
-              const alpha = intensity(cell.engajamento)
-              const isBest = best && cell.dia_idx === best.dia_idx && cell.faixa_idx === best.faixa_idx
-              const fill = `${accentColor}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`
-              return (
-                <g key={`${cell.dia_idx}-${cell.faixa_idx}`}
-                  onMouseEnter={() => setHover(cell)}
-                  onMouseLeave={() => setHover(null)}
-                  style={{ cursor: 'default' }}
-                >
-                  <rect
-                    x={x} y={y} width={cellW} height={cellH} rx={4}
-                    fill={fill}
-                    stroke={isBest ? accentColor : 'rgba(255,255,255,0.03)'}
-                    strokeWidth={isBest ? 1 : 0.5}
-                    filter={isBest ? 'url(#hm-glow)' : undefined}
+        <div className="min-w-[440px]">
+          {/* axis: dias */}
+          <div className="grid mb-1.5" style={{ gridTemplateColumns: gridCols, gap: '4px' }}>
+            <div />
+            {dias.map(d => (
+              <div key={d} className="text-[10px] text-white/30 text-center font-normal tracking-wider">{d}</div>
+            ))}
+          </div>
+          {/* rows */}
+          {faixas.map((faixa, fi) => (
+            <div key={faixa} className="grid mb-1" style={{ gridTemplateColumns: gridCols, gap: '4px' }}>
+              <div className="text-[10px] text-white/30 flex items-center justify-end pr-1">{faixa}</div>
+              {dias.map((_, di) => {
+                const cell = data.find(d => d.faixa_idx === fi && d.dia_idx === di)
+                if (!cell) return <div key={di} className="rounded-md" style={{ height: 26, background: 'rgba(255,255,255,0.02)' }} />
+                const alpha = intensity(cell.engajamento)
+                const isBest = best && cell.dia_idx === best.dia_idx && cell.faixa_idx === best.faixa_idx
+                return (
+                  <div
+                    key={di}
+                    onMouseEnter={() => setHover(cell)}
+                    onMouseLeave={() => setHover(null)}
+                    className={`rounded-md flex items-center justify-center transition-transform hover:scale-105 ${isBest ? 'heatmap-best' : ''}`}
+                    style={{
+                      height: 26,
+                      background: `${accentColor}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`,
+                      border: isBest ? `1px solid ${accentColor}` : '1px solid rgba(255,255,255,0.03)',
+                      cursor: 'default',
+                    }}
                   >
-                    {isBest && (
-                      <animate
-                        attributeName="opacity"
-                        values="0.7;1;0.7"
-                        dur="2.4s"
-                        repeatCount="indefinite"
-                      />
-                    )}
-                  </rect>
-                  <text
-                    x={x + cellW / 2} y={y + cellH / 2 + 3}
-                    textAnchor="middle" fontSize="9" fontWeight="500"
-                    fill={alpha > 0.55 ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.45)'}
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {cell.engajamento.toFixed(1)}
-                  </text>
-                </g>
-              )
-            })}
-          </svg>
-          {hover && (
-            <div className="absolute pointer-events-none z-10 rounded-md px-2.5 py-1.5 text-[11px]"
-              style={{
-                background: 'var(--flg-bg-card)',
-                border: `1px solid ${accentColor}30`,
-                left: '50%', top: -48, transform: 'translateX(-50%)',
-                boxShadow: '0 6px 18px rgba(0,0,0,0.35)'
-              }}>
-              <span className="text-white/40">{hover.dia} · {hover.faixa} · </span>
-              <span style={{ color: accentColor }} className="font-semibold">{hover.engajamento.toFixed(2)}%</span>
+                    <span
+                      className="text-[10px] font-medium"
+                      style={{
+                        color: alpha > 0.55 ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.45)',
+                      }}
+                    >
+                      {cell.engajamento.toFixed(1)}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
-          )}
+          ))}
         </div>
       </div>
+      {hover && (
+        <div className="absolute pointer-events-none z-10 rounded-md px-2.5 py-1.5 text-[11px] -translate-x-1/2"
+          style={{
+            background: 'var(--flg-bg-card)',
+            border: `1px solid ${accentColor}30`,
+            left: '50%', top: -8,
+            boxShadow: '0 6px 18px rgba(0,0,0,0.35)'
+          }}>
+          <span className="text-white/40">{hover.dia} · {hover.faixa} · </span>
+          <span style={{ color: accentColor }} className="font-semibold">{hover.engajamento.toFixed(2)}%</span>
+        </div>
+      )}
       <div className="flex items-center justify-between text-[10px] text-white/40">
         {best && (
           <div>
