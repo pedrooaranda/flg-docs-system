@@ -446,112 +446,6 @@ function AiRecommendations({ overview, historico, horarios, posts, platform }) {
   )
 }
 
-// ─── Connection Panel ─────────────────────────────────────────────────────────
-function ConnectionPanel({ clienteId, platform, conexoes, onRefresh }) {
-  const conn = conexoes.find(c => c.plataforma === platform)
-  const status = conn?.status || 'nao_conectado'
-  const oauthOk = conn?.oauth_configurado
-  const platCfg = PLATFORMS[platform]
-  const [syncing, setSyncing] = useState(false)
-
-  const statusLabels = {
-    ativo: { label: 'Conectado', color: '#34D399', bg: 'rgba(52,211,153,0.1)' },
-    pendente: { label: 'Pendente', color: '#FBBF24', bg: 'rgba(251,191,36,0.1)' },
-    expirado: { label: 'Token expirado', color: '#F87171', bg: 'rgba(248,113,113,0.1)' },
-    erro: { label: 'Erro', color: '#F87171', bg: 'rgba(248,113,113,0.1)' },
-    desconectado: { label: 'Desconectado', color: 'var(--flg-text-muted)', bg: 'rgba(255,255,255,0.03)' },
-    nao_conectado: { label: 'Não conectado', color: 'var(--flg-text-muted)', bg: 'rgba(255,255,255,0.03)' },
-  }
-  const st = statusLabels[status] || statusLabels.nao_conectado
-
-  async function handleConnect() {
-    try {
-      const res = await api(`/conexoes/${clienteId}/${platform}/connect`, { method: 'POST' })
-      if (res.auth_url) window.location.href = res.auth_url
-    } catch (e) {
-      console.error('Erro ao conectar:', e)
-    }
-  }
-
-  async function handleDisconnect() {
-    try {
-      await api(`/conexoes/${clienteId}/${platform}`, { method: 'DELETE' })
-      onRefresh()
-    } catch (e) {
-      console.error('Erro ao desconectar:', e)
-    }
-  }
-
-  async function handleSync() {
-    setSyncing(true)
-    try {
-      await api(`/conexoes/${clienteId}/${platform}/sync`, { method: 'POST' })
-      onRefresh()
-    } catch (e) {
-      console.error('Erro ao sincronizar:', e)
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-      className="rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between"
-      style={{ background: 'var(--flg-bg-secondary)', border: `1px solid ${platCfg.color}15` }}
-    >
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: st.bg, color: st.color }}>
-          <PlatformIcon platform={platform} size={16} />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-white/70">{platCfg.label}</span>
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: st.bg, color: st.color }}>
-              {st.label}
-            </span>
-          </div>
-          {conn?.platform_username && (
-            <p className="text-[10px] text-white/30">@{conn.platform_username}</p>
-          )}
-          {conn?.ultima_sincronizacao && (
-            <p className="text-[10px] text-white/20">
-              Sync: {new Date(conn.ultima_sincronizacao).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-            </p>
-          )}
-          {conn?.ultimo_erro && (
-            <p className="text-[10px] text-red-400/60 max-w-xs truncate">{conn.ultimo_erro}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {status === 'ativo' && (
-          <>
-            <button onClick={handleSync} disabled={syncing}
-              className="text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-40"
-              style={{ background: `${platCfg.color}15`, color: platCfg.color, border: `1px solid ${platCfg.color}30` }}>
-              {syncing ? 'Sincronizando...' : 'Sincronizar agora'}
-            </button>
-            <button onClick={handleDisconnect}
-              className="text-[10px] font-semibold px-3 py-1.5 rounded-lg text-red-400/60 transition-all cursor-pointer"
-              style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.15)' }}>
-              Desconectar
-            </button>
-          </>
-        )}
-        {(status === 'nao_conectado' || status === 'desconectado' || status === 'expirado') && (
-          <button onClick={handleConnect} disabled={!oauthOk}
-            className="text-[10px] font-semibold px-4 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-            style={{ background: `${platCfg.color}20`, color: platCfg.color, border: `1px solid ${platCfg.color}40` }}>
-            {oauthOk ? `Conectar ${platCfg.label}` : 'OAuth não configurado'}
-          </button>
-        )}
-      </div>
-    </motion.div>
-  )
-}
-
 // ─── Cliente Combobox (busca inteligente) ────────────────────────────────────
 function ClienteCombobox({ clientes, value, onChange, accent = GOLD }) {
   const [open, setOpen] = useState(false)
@@ -733,19 +627,10 @@ export default function Metricas({ session }) {
   const [posts, setPosts] = useState([])
   const [horarios, setHorarios] = useState([])
   const [ranking, setRanking] = useState([])
-  const [conexoes, setConexoes] = useState([])
-  const [showConnPanel, setShowConnPanel] = useState(false)
 
   useEffect(() => {
     if (clientes.length > 0 && !clienteId) setClienteId(clientes[0].id)
   }, [clientes])
-
-  // Carregar conexões do cliente
-  const loadConexoes = () => {
-    if (!clienteId) return
-    api(`/conexoes/${clienteId}`).then(d => setConexoes(d.conexoes || [])).catch(() => {})
-  }
-  useEffect(() => { loadConexoes() }, [clienteId])
 
   useEffect(() => {
     if (admin) {
@@ -830,30 +715,7 @@ export default function Metricas({ session }) {
         </div>
       </div>
 
-      {/* ── Connection Panel Toggle ── */}
-      {clienteId && (
-        <div className="flex items-center gap-3">
-          <button onClick={() => setShowConnPanel(v => !v)}
-            className="text-[10px] font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5"
-            style={{ background: 'var(--flg-bg-hover)', color: 'var(--flg-text-muted)', border: '1px solid var(--flg-border)' }}>
-            <Wifi size={11} />
-            {showConnPanel ? 'Ocultar conexões' : 'Gerenciar conexões'}
-          </button>
-          {conexoes.filter(c => c.status === 'ativo').length > 0 && (
-            <span className="text-[9px] text-emerald-400/60">
-              {conexoes.filter(c => c.status === 'ativo').length} plataforma(s) conectada(s)
-            </span>
-          )}
-        </div>
-      )}
-
-      {showConnPanel && clienteId && (
-        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-          {Object.keys(PLATFORMS).map(p => (
-            <ConnectionPanel key={p} clienteId={clienteId} platform={p} conexoes={conexoes} onRefresh={loadConexoes} />
-          ))}
-        </motion.div>
-      )}
+      {/* Conexões gerenciadas no Admin → Configurações. Status de Instagram aparece no badge ao lado do seletor. */}
 
       {loading && <div className="flex justify-center py-12"><PageSpinner /></div>}
 
