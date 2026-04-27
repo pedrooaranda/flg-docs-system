@@ -213,8 +213,8 @@ async def get_historico(
     plataforma: str = "instagram",
     user=Depends(get_current_user),
 ):
-    if dias not in (30, 90, 180):
-        raise HTTPException(400, "dias deve ser 30, 90 ou 180")
+    if dias < 1 or dias > 365:
+        raise HTTPException(400, "dias deve estar entre 1 e 365")
     repo = _get_repo(plataforma, cliente_id)
     return {"cliente_id": cliente_id, "dias": dias, "plataforma": plataforma,
             "dados": repo.get_historico(cliente_id, dias)}

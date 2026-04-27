@@ -9,7 +9,11 @@ import { Users, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Wifi
 import { api } from '../lib/api'
 import { isAdmin as checkAdmin } from '../lib/utils'
 import { useApp } from '../contexts/AppContext'
-import { PageSpinner } from './ui/Spinner'
+import {
+  DateRangePicker,
+  KpiGridSkeleton, ChartSkeleton, HeatmapSkeleton, PostsGridSkeleton,
+  PostsTable, ViewToggle,
+} from './MetricasParts'
 
 const GOLD = '#C9A84C'
 const GOLD_DIM = 'rgba(201,168,76,0.5)'
@@ -740,6 +744,7 @@ export default function Metricas({ session }) {
   const [posts, setPosts] = useState([])
   const [horarios, setHorarios] = useState([])
   const [ranking, setRanking] = useState([])
+  const [postsView, setPostsView] = useState('cards') // 'cards' | 'table'
 
   useEffect(() => {
     if (clientes.length > 0 && !clienteId) setClienteId(clientes[0].id)
@@ -815,22 +820,35 @@ export default function Metricas({ session }) {
           )}
         </div>
 
-        <div className="flex gap-1 rounded-lg p-1" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
-          {[30, 90, 180].map(d => (
-            <button key={d} onClick={() => setPeriodo(d)}
-              className="px-3 py-1.5 rounded text-xs font-semibold transition-all cursor-pointer"
-              style={periodo === d
-                ? { background: `${platConfig.color}18`, color: platConfig.color, border: `1px solid ${platConfig.color}40` }
-                : { color: 'var(--flg-text-muted)', border: '1px solid transparent' }}>
-              {d}d
-            </button>
-          ))}
-        </div>
+        <DateRangePicker
+          periodo={periodo}
+          onChange={(dias) => setPeriodo(dias)}
+          accent={platConfig.color}
+        />
       </div>
 
       {/* Conexões gerenciadas no Admin → Configurações. Status de Instagram aparece no badge ao lado do seletor. */}
 
-      {loading && <div className="flex justify-center py-12"><PageSpinner /></div>}
+      {loading && (
+        <div className="space-y-8">
+          <section>
+            <SectionTitle>Visão Geral — {platConfig.label}</SectionTitle>
+            <KpiGridSkeleton />
+          </section>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2"><ChartSkeleton h={260} /></div>
+            <ChartSkeleton h={260} />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ChartSkeleton h={200} />
+            <HeatmapSkeleton />
+          </div>
+          <section>
+            <SectionTitle>Melhores Posts — {platConfig.label}</SectionTitle>
+            <PostsGridSkeleton />
+          </section>
+        </div>
+      )}
 
       {!loading && overview && (
         <>
@@ -956,10 +974,17 @@ export default function Metricas({ session }) {
 
           {/* ── Best posts ── */}
           <section>
-            <SectionTitle>Melhores Posts — {platConfig.label}</SectionTitle>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-              {posts.slice(0, 9).map((post, i) => <PostCard key={post.id} post={post} rank={i} platform={platform} />)}
+            <div className="flex items-center justify-between mb-3">
+              <SectionTitle>Melhores Posts — {platConfig.label}</SectionTitle>
+              <ViewToggle value={postsView} onChange={setPostsView} accent={platConfig.color} />
             </div>
+            {postsView === 'cards' ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                {posts.slice(0, 9).map((post, i) => <PostCard key={post.id} post={post} rank={i} platform={platform} />)}
+              </div>
+            ) : (
+              <PostsTable posts={posts} accent={platConfig.color} />
+            )}
           </section>
 
           {/* ── AI Recommendations ── */}

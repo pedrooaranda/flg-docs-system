@@ -326,3 +326,47 @@
     50%      { box-shadow: 0 0 14px rgba(255,255,255,0.10), 0 0 0 1px rgba(255,255,255,0.10); }
   }
 }
+
+/* ── react-day-picker dark theme (FLG) ── */
+.flg-daypicker .rdp {
+  --rdp-cell-size: 32px;
+  --rdp-accent-color: #C9A84C;
+  --rdp-background-color: rgba(201,168,76,0.18);
+  margin: 0;
+  font-family: inherit;
+}
+.flg-daypicker .rdp-months { gap: 16px; }
+.flg-daypicker .rdp-caption_label,
+.flg-daypicker .rdp-head_cell {
+  color: rgba(255,255,255,0.5);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+.flg-daypicker .rdp-head_cell { letter-spacing: 0.05em; }
+.flg-daypicker .rdp-day {
+  color: rgba(255,255,255,0.7);
+  font-size: 11px;
+  border-radius: 6px;
+}
+.flg-daypicker .rdp-day:hover:not(.rdp-day_disabled):not(.rdp-day_selected) {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+.flg-daypicker .rdp-day_selected,
+.flg-daypicker .rdp-day_selected:hover {
+  background: #C9A84C !important;
+  color: #1a1300 !important;
+}
+.flg-daypicker .rdp-day_range_middle {
+  background: rgba(201,168,76,0.18) !important;
+  color: rgba(255,255,255,0.85) !important;
+}
+.flg-daypicker .rdp-day_today {
+  font-weight: 700;
+  color: #F5D68A;
+}
+.flg-daypicker .rdp-nav_button {
+  color: rgba(255,255,255,0.6);
+}
+.flg-daypicker .rdp-nav_button:hover { background: rgba(255,255,255,0.06); }
