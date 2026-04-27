@@ -857,11 +857,23 @@ export default function Metricas({ session }) {
             <SectionTitle>Visão Geral — {platConfig.label} — últimos 30 dias</SectionTitle>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {(() => {
+                // Peso por KPI: métricas que importam mais valem 2x na disputa pela coroa.
+                // Engajamento e Alcance > Volume de interações > Vaidade (curtidas).
+                const KPI_WEIGHT = {
+                  taxa_engajamento: 2.0,
+                  alcance_medio: 2.0,
+                  impressoes_medias: 1.5,
+                  seguidores: 1.2,
+                  salvamentos_total: 1.2,
+                  comentarios_total: 1.0,
+                  curtidas_total: 0.8,
+                }
                 const winner = kpiDefs.reduce((best, d) => {
                   if (d.noDelta) return best
                   const dl = kpis[d.key]?.delta_pct
                   if (dl == null || dl <= 0) return best
-                  if (!best || dl > best.delta) return { key: d.key, delta: dl }
+                  const score = dl * (KPI_WEIGHT[d.key] || 1)
+                  if (!best || score > best.score) return { key: d.key, delta: dl, score }
                   return best
                 }, null)
                 return kpiDefs.map((def) => {
