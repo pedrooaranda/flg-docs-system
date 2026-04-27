@@ -76,14 +76,14 @@ function PlatformIcon({ platform, size = 18 }) {
 // ─── KPI definitions per platform ─────────────────────────────────────────────
 const PLATFORM_KPIS = {
   instagram: [
-    { key: 'seguidores', label: 'Seguidores', icon: Users },
-    { key: 'taxa_engajamento', label: 'Engajamento', icon: TrendingUp, decimals: 2, suffix: '%' },
-    { key: 'alcance_medio', label: 'Alcance médio', icon: Eye },
-    { key: 'impressoes_medias', label: 'Impressões', icon: Eye },
-    { key: 'curtidas_total', label: 'Curtidas', icon: Heart },
-    { key: 'comentarios_total', label: 'Comentários', icon: MessageCircle },
-    { key: 'salvamentos_total', label: 'Salvamentos', icon: Bookmark },
-    { key: 'posts_publicados', label: 'Posts publicados', icon: BarChart2, noDelta: true },
+    { key: 'seguidores', label: 'Seguidores', icon: Users, histKey: 'seguidores' },
+    { key: 'taxa_engajamento', label: 'Engajamento', icon: TrendingUp, decimals: 2, suffix: '%', histKey: 'taxa_engajamento' },
+    { key: 'alcance_medio', label: 'Alcance médio', icon: Eye, histKey: 'alcance_total' },
+    { key: 'impressoes_medias', label: 'Impressões', icon: Eye, histKey: 'impressoes_total' },
+    { key: 'curtidas_total', label: 'Curtidas', icon: Heart, histKey: 'curtidas_total' },
+    { key: 'comentarios_total', label: 'Comentários', icon: MessageCircle, histKey: 'comentarios_total' },
+    { key: 'salvamentos_total', label: 'Salvamentos', icon: Bookmark, histKey: 'salvamentos_total' },
+    { key: 'posts_publicados', label: 'Posts publicados', icon: BarChart2, noDelta: true, histKey: 'posts_publicados' },
   ],
   linkedin: [
     { key: 'seguidores', label: 'Seguidores', icon: Users },
@@ -220,23 +220,65 @@ function AnimatedNumber({ value, decimals = 0, prefix = '', suffix = '' }) {
   return <span ref={ref}>{prefix}{(0).toFixed(decimals)}{suffix}</span>
 }
 
+// ─── Sparkline (mini SVG inline) ──────────────────────────────────────────────
+function Sparkline({ data, color = GOLD, width = 100, height = 28 }) {
+  if (!data || data.length < 2) return null
+  const min = Math.min(...data)
+  const max = Math.max(...data)
+  const range = max - min || 1
+  const stepX = width / (data.length - 1)
+  const points = data.map((v, i) => {
+    const x = i * stepX
+    const y = height - ((v - min) / range) * (height - 4) - 2
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  const lastX = (data.length - 1) * stepX
+  const lastY = height - ((data[data.length - 1] - min) / range) * (height - 4) - 2
+  const gradId = `spark-${color.replace(/[^a-zA-Z0-9]/g, '')}`
+
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <defs>
+        <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polyline
+        points={`0,${height} ${points} ${lastX},${height}`}
+        fill={`url(#${gradId})`}
+      />
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="2.5" fill={color} />
+      <circle cx={lastX} cy={lastY} r="4.5" fill={color} fillOpacity="0.25" />
+    </svg>
+  )
+}
+
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
-function KpiCard({ icon: Icon, label, value, decimals = 0, suffix = '', delta, prefix = '', color = GOLD }) {
+function KpiCard({ icon: Icon, label, value, decimals = 0, suffix = '', delta, prefix = '', color = GOLD, history }) {
   const positive = delta >= 0
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="rounded-xl p-4 flex flex-col gap-2"
+      className="rounded-xl p-4 flex flex-col gap-2 relative overflow-hidden group"
       style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}
     >
       <div className="flex items-center justify-between">
         <span className="text-xs text-white/40 font-medium">{label}</span>
         <Icon size={14} style={{ color }} className="opacity-60" />
       </div>
-      <div className="text-2xl font-bold text-white" style={{ fontFamily: 'Playfair Display, serif' }}>
-        <AnimatedNumber value={value} decimals={decimals} prefix={prefix} suffix={suffix} />
+      <div className="flex items-end justify-between gap-2">
+        <div className="text-2xl font-bold text-white leading-tight" style={{ fontFamily: 'Playfair Display, serif' }}>
+          <AnimatedNumber value={value} decimals={decimals} prefix={prefix} suffix={suffix} />
+        </div>
+        {history && history.length > 1 && (
+          <div className="opacity-70 group-hover:opacity-100 transition-opacity">
+            <Sparkline data={history} color={color} width={70} height={24} />
+          </div>
+        )}
       </div>
       {delta !== undefined && (
         <div className={`text-[11px] font-semibold ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -265,44 +307,122 @@ function ChartTooltip({ active, payload, label }) {
   )
 }
 
-// ─── CSS Heatmap ──────────────────────────────────────────────────────────────
+// ─── Engagement Heatmap (SVG, escala de cor suave) ────────────────────────────
 function EngagementHeatmap({ data, accentColor = GOLD }) {
+  const [hover, setHover] = useState(null)
   if (!data?.length) return null
+
   const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
   const faixas = ['06-09h', '09-12h', '12-15h', '15-18h', '18-21h']
   const maxEng = Math.max(...data.map(d => d.engajamento))
   const minEng = Math.min(...data.map(d => d.engajamento))
   const range = maxEng - minEng || 1
+  const best = data.reduce((a, b) => (b.engajamento > a.engajamento ? b : a), data[0])
+
+  const labelW = 56
+  const cellGap = 4
+  const axisH = 18
+  const cellH = 36
+  const totalH = axisH + faixas.length * (cellH + cellGap)
+
+  function intensity(eng) {
+    return 0.08 + ((eng - minEng) / range) * 0.92
+  }
 
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[520px]">
-        <div className="grid mb-1" style={{ gridTemplateColumns: '64px repeat(7, 1fr)' }}>
-          <div />
-          {dias.map(d => <div key={d} className="text-[10px] text-white/30 text-center font-medium">{d}</div>)}
-        </div>
-        {faixas.map((faixa, fi) => (
-          <div key={faixa} className="grid mb-1" style={{ gridTemplateColumns: '64px repeat(7, 1fr)', gap: '3px' }}>
-            <div className="text-[10px] text-white/30 flex items-center pr-2">{faixa}</div>
-            {dias.map((_, di) => {
-              const cell = data.find(d => d.faixa_idx === fi && d.dia_idx === di)
-              if (!cell) return <div key={di} className="rounded h-8" style={{ background: 'var(--flg-bg-card)' }} />
-              const alpha = 0.1 + ((cell.engajamento - minEng) / range) * 0.85
+    <div className="space-y-3">
+      <div className="overflow-x-auto">
+        <div className="min-w-[560px] relative">
+          <svg width="100%" height={totalH} style={{ display: 'block' }} preserveAspectRatio="none" viewBox={`0 0 700 ${totalH}`}>
+            <defs>
+              <filter id="hm-glow">
+                <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+                <feMerge>
+                  <feMergeNode in="coloredBlur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            {dias.map((d, di) => {
+              const x = labelW + di * ((700 - labelW) / 7) + ((700 - labelW) / 7) / 2
               return (
-                <motion.div
-                  key={di}
-                  initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: (fi * 7 + di) * 0.008 }}
-                  className="rounded h-8 flex items-center justify-center cursor-default"
-                  style={{ background: `${accentColor}${Math.round(alpha * 255).toString(16).padStart(2, '0')}` }}
-                  title={`${cell.dia} ${cell.faixa}: ${cell.engajamento}%`}
-                >
-                  <span className="text-[9px] font-bold text-white/70">{cell.engajamento.toFixed(1)}</span>
-                </motion.div>
+                <text key={d} x={x} y={12} textAnchor="middle" fontSize="10" fill="rgba(255,255,255,0.35)" fontWeight="500">
+                  {d}
+                </text>
               )
             })}
+            {faixas.map((faixa, fi) => {
+              const y = axisH + fi * (cellH + cellGap) + cellH / 2 + 3
+              return (
+                <text key={faixa} x={labelW - 8} y={y} textAnchor="end" fontSize="10" fill="rgba(255,255,255,0.35)">
+                  {faixa}
+                </text>
+              )
+            })}
+            {data.map((cell) => {
+              const cellW = (700 - labelW) / 7 - cellGap
+              const x = labelW + cell.dia_idx * ((700 - labelW) / 7) + cellGap / 2
+              const y = axisH + cell.faixa_idx * (cellH + cellGap)
+              const alpha = intensity(cell.engajamento)
+              const isBest = best && cell.dia_idx === best.dia_idx && cell.faixa_idx === best.faixa_idx
+              const fill = `${accentColor}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`
+              return (
+                <g key={`${cell.dia_idx}-${cell.faixa_idx}`}
+                  onMouseEnter={() => setHover(cell)}
+                  onMouseLeave={() => setHover(null)}
+                  style={{ cursor: 'default' }}
+                >
+                  <rect
+                    x={x} y={y} width={cellW} height={cellH} rx={6}
+                    fill={fill}
+                    stroke={isBest ? accentColor : 'rgba(255,255,255,0.04)'}
+                    strokeWidth={isBest ? 1.5 : 1}
+                    filter={isBest ? 'url(#hm-glow)' : undefined}
+                  />
+                  <text
+                    x={x + cellW / 2} y={y + cellH / 2 + 4}
+                    textAnchor="middle" fontSize="10" fontWeight="600"
+                    fill={alpha > 0.5 ? '#fff' : 'rgba(255,255,255,0.55)'}
+                  >
+                    {cell.engajamento.toFixed(1)}
+                  </text>
+                </g>
+              )
+            })}
+          </svg>
+          {hover && (
+            <div className="absolute pointer-events-none z-10 rounded-lg px-3 py-2 text-xs"
+              style={{
+                background: 'var(--flg-bg-card)',
+                border: `1px solid ${accentColor}40`,
+                left: '50%', top: -56, transform: 'translateX(-50%)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+              }}>
+              <div className="text-white/50 mb-0.5">{hover.dia} · {hover.faixa}</div>
+              <div className="text-white font-bold">
+                <span style={{ color: accentColor }}>{hover.engajamento.toFixed(2)}%</span>
+                <span className="text-white/40 font-normal text-[10px] ml-1.5">engajamento</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center justify-between text-[10px]">
+        {best && (
+          <div className="text-white/50">
+            <span className="text-white/30">Melhor janela:</span>{' '}
+            <span style={{ color: accentColor }} className="font-semibold">
+              {best.dia} · {best.faixa} · {best.engajamento.toFixed(2)}%
+            </span>
           </div>
-        ))}
+        )}
+        <div className="flex items-center gap-1.5">
+          <span className="text-white/30">Menos</span>
+          <div className="h-2 w-32 rounded-full" style={{
+            background: `linear-gradient(to right, ${accentColor}14, ${accentColor})`
+          }} />
+          <span className="text-white/30">Mais</span>
+        </div>
       </div>
     </div>
   )
@@ -728,6 +848,9 @@ export default function Metricas({ session }) {
               {kpiDefs.map((def) => {
                 const kpi = kpis[def.key]
                 if (!kpi) return null
+                const series = def.histKey
+                  ? historico.map(h => Number(h[def.histKey]) || 0)
+                  : null
                 return (
                   <KpiCard
                     key={def.key}
@@ -738,6 +861,7 @@ export default function Metricas({ session }) {
                     suffix={def.suffix || ''}
                     delta={def.noDelta ? undefined : kpi.delta_pct}
                     color={platConfig.color}
+                    history={series}
                   />
                 )
               })}
