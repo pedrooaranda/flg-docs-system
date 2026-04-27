@@ -58,18 +58,22 @@ def _get_redirect_uri() -> str:
     )
 
 
-def build_authorization_url(cliente_id: str, consultor_email: str) -> str:
+def build_authorization_url(cliente_id: str, consultor_email: str, onboard_token: str = "") -> str:
     """
     Gera URL para iniciar OAuth Facebook Login.
     state encoda cliente_id + hash para validar no callback.
+    Se onboard_token != "", marca o state como self-onboard pro callback redirecionar
+    pra página pública em vez do /admin.
     """
     app_id, app_secret = _get_app_credentials()
 
-    # State: cliente_id:hash (validado no callback)
+    # State: cliente_id:hash[:onboard:<token>] — flag pra distinguir fluxo público
     state_hash = hashlib.sha256(
         f"{cliente_id}:{consultor_email}:{app_secret[:8]}".encode()
     ).hexdigest()[:32]
     state = f"{cliente_id}:{state_hash}"
+    if onboard_token:
+        state = f"{state}:onboard:{onboard_token}"
 
     params = {
         "client_id": app_id,

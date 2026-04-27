@@ -2,16 +2,24 @@
 Rotas OAuth Instagram (Facebook Login) — FLG Jornada System.
 
 Endpoints:
-  GET  /instagram/oauth/connect/{cliente_id}     — inicia OAuth (retorna auth URL)
-  GET  /instagram/oauth/callback                 — callback do Facebook
-  GET  /instagram/oauth/status/{cliente_id}      — status da conexão
-  POST /instagram/oauth/disconnect/{cliente_id}  — desconecta
-  GET  /instagram/oauth/all                      — lista todas conexões (admin)
+  GET  /instagram/oauth/connect/{cliente_id}        — inicia OAuth (autenticado)
+  GET  /instagram/oauth/callback                    — callback do Facebook
+  GET  /instagram/oauth/status/{cliente_id}         — status da conexão
+  POST /instagram/oauth/disconnect/{cliente_id}     — desconecta
+  GET  /instagram/oauth/all                         — lista todas conexões (admin)
+
+  GET  /instagram/oauth/onboard-token/{cliente_id}  — gera link público (admin)
+  GET  /instagram/oauth/onboard-info?token=...      — info pública do cliente
+  GET  /instagram/oauth/onboard-start?token=...     — redirect direto pro Meta
 """
 
+import base64
+import hashlib
+import hmac
+import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
@@ -72,20 +80,33 @@ async def oauth_callback(
     """
     base_url = os.getenv("APP_BASE_URL", "https://docs.foundersledgrowth.online")
 
+    # Detecta self-onboard pelo state: "cliente_id:hash:onboard:<token>"
+    onboard_token_in_state = ""
+    if state and ":onboard:" in state:
+        # split em até 4 partes: cliente_id, hash, "onboard", token
+        sparts = state.split(":", 3)
+        if len(sparts) == 4 and sparts[2] == "onboard":
+            onboard_token_in_state = sparts[3]
+            state = f"{sparts[0]}:{sparts[1]}"  # remove sufixo pra validação
+
+    def _redirect_target(query: str) -> str:
+        if onboard_token_in_state:
+            cid = state.split(":", 1)[0] if ":" in state else ""
+            return f"{base_url}/conectar-instagram/{cid}?t={onboard_token_in_state}&{query}"
+        return f"{base_url}/admin?{query}"
+
     if error:
         logger.warning(f"OAuth error: {error} — {error_description}")
-        return RedirectResponse(
-            f"{base_url}/admin?ig_error={error}"
-        )
+        return RedirectResponse(_redirect_target(f"ig_error={error}"))
 
     if not code or not state:
-        return RedirectResponse(f"{base_url}/admin?ig_error=missing_params")
+        return RedirectResponse(_redirect_target("ig_error=missing_params"))
 
     # Validar state — precisamos do email do consultor que iniciou
     # No callback, não temos o JWT. Vamos validar pelo state hash apenas.
     parts = state.split(":", 1)
     if len(parts) != 2:
-        return RedirectResponse(f"{base_url}/admin?ig_error=invalid_state")
+        return RedirectResponse(_redirect_target("ig_error=invalid_state"))
     cliente_id = parts[0]
 
     # Buscar último consultor que iniciou OAuth para este cliente
@@ -147,16 +168,15 @@ async def oauth_callback(
             f"@{ig_profile.get('username')} (ig_id={ig_profile['ig_user_id']})"
         )
 
-        return RedirectResponse(
-            f"{base_url}/admin?ig_connected={cliente_id}"
-            f"&ig_username={ig_profile.get('username', '')}"
-        )
+        return RedirectResponse(_redirect_target(
+            f"ig_connected={cliente_id}&ig_username={ig_profile.get('username', '')}"
+        ))
 
     except Exception as e:
         logger.error(f"OAuth callback erro: {e}", exc_info=True)
-        return RedirectResponse(
-            f"{base_url}/admin?ig_error=callback_failed&detail={str(e)[:200]}"
-        )
+        return RedirectResponse(_redirect_target(
+            f"ig_error=callback_failed&detail={str(e)[:200]}"
+        ))
 
 
 # ─── Status da conexão ────────────────────────────────────────────────────────
@@ -281,3 +301,114 @@ async def sync_cliente_manual(cliente_id: str, user=Depends(get_current_user)):
     except Exception as e:
         logger.error(f"Sync manual falhou cliente={cliente_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── Public Onboard Link (token assinado) ─────────────────────────────────────
+#
+# Fluxo:
+#   1. Admin chama GET /onboard-token/{cliente_id} → recebe token + URL completa
+#   2. Admin envia URL pro cliente (ou pessoa que vai conectar)
+#   3. Pessoa abre URL no navegador → frontend route /conectar-instagram/:cid?t=...
+#   4. Frontend bate em GET /onboard-info?token=... → mostra nome do cliente
+#   5. Pessoa clica "Conectar Instagram" → frontend redireciona pra
+#      GET /onboard-start?token=... que redireciona pro Meta OAuth
+#   6. Callback (já existente) salva conexão e volta pra /admin?ig_connected=...
+
+ONBOARD_TOKEN_TTL_DAYS = 30
+
+
+def _onboard_secret() -> bytes:
+    secret = os.getenv("META_APP_SECRET", "") + os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not secret:
+        secret = "flg-fallback-secret-not-for-production"
+    return secret.encode()
+
+
+def _make_onboard_token(cliente_id: str, ttl_days: int = ONBOARD_TOKEN_TTL_DAYS) -> str:
+    expires_at = int((datetime.now(timezone.utc) + timedelta(days=ttl_days)).timestamp())
+    payload = json.dumps({"cid": cliente_id, "exp": expires_at}, separators=(",", ":")).encode()
+    payload_b64 = base64.urlsafe_b64encode(payload).rstrip(b"=").decode()
+    sig = hmac.new(_onboard_secret(), payload_b64.encode(), hashlib.sha256).hexdigest()[:24]
+    return f"{payload_b64}.{sig}"
+
+
+def _verify_onboard_token(token: str) -> str:
+    """Valida token e retorna cliente_id. Raises HTTPException se inválido."""
+    try:
+        payload_b64, sig = token.rsplit(".", 1)
+    except ValueError:
+        raise HTTPException(400, "Token mal formatado")
+
+    expected_sig = hmac.new(_onboard_secret(), payload_b64.encode(), hashlib.sha256).hexdigest()[:24]
+    if not hmac.compare_digest(sig, expected_sig):
+        raise HTTPException(401, "Token inválido")
+
+    try:
+        padded = payload_b64 + "=" * (-len(payload_b64) % 4)
+        data = json.loads(base64.urlsafe_b64decode(padded))
+    except Exception:
+        raise HTTPException(400, "Token corrompido")
+
+    if data.get("exp", 0) < int(datetime.now(timezone.utc).timestamp()):
+        raise HTTPException(401, "Token expirado — gere um novo link")
+
+    return data["cid"]
+
+
+@router.get("/onboard-token/{cliente_id}")
+async def generate_onboard_token(cliente_id: str, user=Depends(get_current_user)):
+    """Gera link público de onboarding pra mandar pro cliente. Requer auth admin."""
+    cliente = _supabase.table("clientes").select("id, nome").eq("id", cliente_id).execute()
+    if not cliente.data:
+        raise HTTPException(404, "Cliente não encontrado")
+    token = _make_onboard_token(cliente_id)
+    base = os.getenv("APP_BASE_URL", "https://docs.foundersledgrowth.online")
+    return {
+        "token": token,
+        "url": f"{base}/conectar-instagram/{cliente_id}?t={token}",
+        "expires_in_days": ONBOARD_TOKEN_TTL_DAYS,
+        "cliente_nome": cliente.data[0]["nome"],
+    }
+
+
+@router.get("/onboard-info")
+async def onboard_info(token: str = Query(...)):
+    """Endpoint público — frontend usa pra mostrar nome do cliente na landing."""
+    cliente_id = _verify_onboard_token(token)
+    cliente = _supabase.table("clientes").select("id, nome, empresa").eq(
+        "id", cliente_id
+    ).execute()
+    if not cliente.data:
+        raise HTTPException(404, "Cliente não encontrado")
+    c = cliente.data[0]
+
+    # Já está conectado?
+    conn = _supabase.table("instagram_conexoes").select("username, status").eq(
+        "cliente_id", cliente_id
+    ).eq("status", "ativo").execute()
+    ja_conectado = bool(conn.data)
+    username_conectado = conn.data[0]["username"] if conn.data else None
+
+    return {
+        "cliente_id": cliente_id,
+        "cliente_nome": c["nome"],
+        "cliente_empresa": c.get("empresa"),
+        "ja_conectado": ja_conectado,
+        "username_conectado": username_conectado,
+    }
+
+
+@router.get("/onboard-start")
+async def onboard_start(token: str = Query(...)):
+    """Endpoint público — gera URL OAuth e redireciona direto pro Meta."""
+    cliente_id = _verify_onboard_token(token)
+    cliente = _supabase.table("clientes").select("id").eq("id", cliente_id).execute()
+    if not cliente.data:
+        raise HTTPException(404, "Cliente não encontrado")
+    try:
+        # Passa o onboard_token pro build pra que o callback redirecione
+        # de volta pra rota pública /conectar-instagram em vez de /admin
+        auth_url = build_authorization_url(cliente_id, "self-onboard@flg", onboard_token=token)
+    except RuntimeError as e:
+        raise HTTPException(400, str(e))
+    return RedirectResponse(auth_url)

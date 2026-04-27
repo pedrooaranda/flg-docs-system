@@ -22,6 +22,7 @@ const IntelecFLG       = lazy(() => import('./components/admin/IntelecFLG'))
 const AgentesConfig    = lazy(() => import('./components/admin/AgentesConfig'))
 const Metricas         = lazy(() => import('./components/Metricas'))
 const LegalPage        = lazy(() => import('./components/LegalPage'))
+const ConectarInstagram = lazy(() => import('./components/ConectarInstagram'))
 
 function AuthGuard({ session, children, title, subtitle }) {
   if (!session) return <Navigate to="/login" replace />
@@ -57,6 +58,13 @@ export default function App() {
           <Route path="/legal/:page" element={
             <Suspense fallback={<PageSpinner />}>
               <LegalPage />
+            </Suspense>
+          } />
+
+          {/* Onboarding público — cliente conecta Instagram via link assinado, sem login Jornada */}
+          <Route path="/conectar-instagram/:clienteId" element={
+            <Suspense fallback={<PageSpinner />}>
+              <ConectarInstagram />
             </Suspense>
           } />
 

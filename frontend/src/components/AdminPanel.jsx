@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { BookOpen, Users, Layers, Pencil, Check, X, Download, RefreshCw, AlertCircle, CheckCircle2, ExternalLink, Link2, Unlink, Search, ArrowUpDown } from 'lucide-react'
+import { BookOpen, Users, Layers, Pencil, Check, X, Download, RefreshCw, AlertCircle, CheckCircle2, ExternalLink, Link2, Unlink, Search, ArrowUpDown, Share2 } from 'lucide-react'
 import { api } from '../lib/api'
 import { progressPercent } from '../lib/utils'
 import { Avatar } from './ui/Avatar'
@@ -284,6 +284,20 @@ function InstagramConnectionsSection({ clientes }) {
     }
   }
 
+  async function handleCopyLink(clienteId, nome) {
+    try {
+      const data = await api(`/instagram/oauth/onboard-token/${clienteId}`)
+      await navigator.clipboard.writeText(data.url)
+      toast?.({
+        title: 'Link copiado!',
+        description: `Envie pra ${nome}. Válido por ${data.expires_in_days} dias.`,
+        variant: 'success',
+      })
+    } catch (err) {
+      toast?.({ title: 'Erro ao gerar link', description: err.message, variant: 'error' })
+    }
+  }
+
   async function handleDisconnect(clienteId, nome) {
     if (!confirm(`Desconectar Instagram de ${nome}? O histórico é preservado, mas o sync para.`)) return
     try {
@@ -415,18 +429,33 @@ function InstagramConnectionsSection({ clientes }) {
                           Desconectar
                         </button>
                       ) : (
-                        <button
-                          onClick={() => handleConnect(c.id)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-semibold transition-colors"
-                          style={{
-                            background: 'rgba(201,168,76,0.10)',
-                            border: '1px solid rgba(201,168,76,0.25)',
-                            color: '#C9A84C',
-                          }}
-                        >
-                          <Link2 size={10} />
-                          Conectar Instagram
-                        </button>
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleConnect(c.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-semibold transition-colors"
+                            style={{
+                              background: 'rgba(201,168,76,0.10)',
+                              border: '1px solid rgba(201,168,76,0.25)',
+                              color: '#C9A84C',
+                            }}
+                            title="Conectar agora (você precisa ser admin da BM do cliente)"
+                          >
+                            <Link2 size={10} />
+                            Conectar
+                          </button>
+                          <button
+                            onClick={() => handleCopyLink(c.id, c.nome)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold text-white/50 hover:text-white/80 transition-colors"
+                            style={{
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '1px solid rgba(255,255,255,0.08)',
+                            }}
+                            title="Copiar link público pro cliente conectar sozinho"
+                          >
+                            <Share2 size={10} />
+                            Link
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
