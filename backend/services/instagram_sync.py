@@ -81,11 +81,15 @@ async def _run_daily_sync():
 # ORQUESTRADOR POR CLIENTE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-async def sync_cliente(cliente_id: str) -> dict:
+async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict:
     """
     Sincroniza um cliente específico.
     Retorna dict com contadores e duração.
     Usado tanto pelo cron quanto pelo endpoint manual.
+
+    sync_demographics: se True, também puxa follower_demographics e
+        engaged_audience_demographics. Por padrão só roda no sync semanal
+        (segunda-feira) ou quando explicitamente pedido.
     """
     from deps import supabase_client as sb
 
@@ -105,7 +109,7 @@ async def sync_cliente(cliente_id: str) -> dict:
 
     logger.info(f"📊 Sync @{username} (cliente={cliente_id})...")
 
-    counters = {"followers": 0, "posts": 0, "metricas_diarias": 0, "horarios": 0}
+    counters = {"followers": 0, "posts": 0, "metricas_diarias": 0, "horarios": 0, "demografia": 0}
 
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
         # 1. Snapshot followers + perfil
@@ -127,6 +131,10 @@ async def sync_cliente(cliente_id: str) -> dict:
 
         # 5. Recalcular heatmap horários
         counters["horarios"] = _aggregate_horarios(sb, cliente_id)
+
+        # 6. Demografia (semanal por padrão — endpoint caro)
+        if sync_demographics or _is_weekly_sync_day():
+            counters["demografia"] = await _sync_demographics(sb, client, cliente_id, ig_user_id, access_token)
 
     duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
 
@@ -522,6 +530,122 @@ def _aggregate_horarios(sb, cliente_id: str) -> int:
             rows, on_conflict="cliente_id,media_product_type,dia_semana,faixa_horaria"
         ).execute()
     return len(rows)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 6. DEMOGRAFIA (follower_demographics + engaged_audience_demographics)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DEMO_BREAKDOWNS = ["age", "gender", "country", "city"]
+
+
+def _is_weekly_sync_day() -> bool:
+    """Roda demografia toda segunda-feira (UTC)."""
+    return datetime.now(timezone.utc).weekday() == 0
+
+
+async def _sync_demographics(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id: str, token: str) -> int:
+    """
+    Puxa follower_demographics e engaged_audience_demographics.
+    Cada combinação metric+breakdown é uma chamada.
+    Salva em instagram_demografia (1 linha por tipo).
+    """
+    today = date.today().isoformat()
+    saved = 0
+
+    for tipo in ("follower_demographics", "engaged_audience_demographics"):
+        agg = {"genero_idade": {}, "paises": [], "cidades": [], "locales": [], "total_count": 0}
+        api_message = None
+
+        for breakdown in DEMO_BREAKDOWNS:
+            try:
+                resp = await client.get(
+                    f"{GRAPH}/{ig_user_id}/insights",
+                    params={
+                        "metric": tipo,
+                        "period": "lifetime",
+                        "metric_type": "total_value",
+                        "breakdown": breakdown,
+                        "access_token": token,
+                    },
+                )
+                await asyncio.sleep(INTER_CALL_DELAY)
+
+                if resp.status_code != 200:
+                    api_message = f"{breakdown}: HTTP {resp.status_code} {resp.text[:160]}"
+                    logger.debug(f"Demografia {tipo}/{breakdown} falhou: {api_message}")
+                    continue
+
+                data = resp.json().get("data", [])
+                if not data:
+                    continue
+
+                total_value = data[0].get("total_value", {})
+                breakdowns_arr = total_value.get("breakdowns", [])
+                if not breakdowns_arr:
+                    continue
+
+                results = breakdowns_arr[0].get("results", [])
+                _merge_breakdown(agg, breakdown, results)
+            except Exception as e:
+                logger.warning(f"Demografia erro {tipo}/{breakdown}: {e}")
+                api_message = str(e)[:300]
+
+        # Sortear top N
+        agg["paises"] = _top_n(agg["paises"], 20)
+        agg["cidades"] = _top_n(agg["cidades"], 30)
+        agg["locales"] = _top_n(agg["locales"], 10)
+
+        tipo_curto = "follower" if tipo == "follower_demographics" else "engaged_audience"
+        sb.table("instagram_demografia").upsert({
+            "cliente_id": cliente_id,
+            "data_referencia": today,
+            "tipo": tipo_curto,
+            "genero_idade": agg["genero_idade"],
+            "paises": agg["paises"],
+            "cidades": agg["cidades"],
+            "locales": agg["locales"],
+            "total_count": agg["total_count"],
+            "api_message": api_message,
+        }, on_conflict="cliente_id,data_referencia,tipo").execute()
+        saved += 1
+
+    return saved
+
+
+def _merge_breakdown(agg: dict, breakdown: str, results: list):
+    """Distribui resultado da API no shape do nosso DB."""
+    if breakdown == "age":
+        # results: [{ "dimension_values": ["18-24"], "value": 1234 }]
+        # Idade sozinha vira keys "*.18-24"; depois age+gender preenche genero
+        for r in results:
+            age = r.get("dimension_values", [""])[0]
+            val = int(r.get("value") or 0)
+            key = f"U.{age}"
+            agg["genero_idade"][key] = agg["genero_idade"].get(key, 0) + val
+    elif breakdown == "gender":
+        for r in results:
+            g = r.get("dimension_values", [""])[0]  # F | M | U
+            val = int(r.get("value") or 0)
+            agg["total_count"] += val
+            # Atualiza prefixo "F.*" → "F.18-24" (se já tiver age) — simplificação:
+            # se houver dados age separados, vamos manter ambos como agregados independentes.
+            agg["genero_idade"][g] = agg["genero_idade"].get(g, 0) + val
+    elif breakdown == "country":
+        for r in results:
+            country = r.get("dimension_values", [""])[0]
+            val = int(r.get("value") or 0)
+            agg["paises"].append({"key": country, "value": val})
+    elif breakdown == "city":
+        for r in results:
+            city = r.get("dimension_values", [""])[0]
+            val = int(r.get("value") or 0)
+            agg["cidades"].append({"key": city, "value": val})
+
+
+def _top_n(items: list, n: int) -> list:
+    """Ordena por value desc e pega top N."""
+    return sorted(items, key=lambda x: x.get("value", 0), reverse=True)[:n]
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

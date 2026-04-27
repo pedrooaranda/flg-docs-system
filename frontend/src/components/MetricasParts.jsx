@@ -9,7 +9,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { DayPicker } from 'react-day-picker'
 import 'react-day-picker/dist/style.css'
-import { format, subDays, startOfMonth, endOfMonth, subMonths, differenceInCalendarDays } from 'date-fns'
+import { format, startOfMonth, endOfMonth, subMonths, differenceInCalendarDays } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   Calendar, ChevronDown, Check, Search,
@@ -19,6 +19,7 @@ import {
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
   flexRender,
 } from '@tanstack/react-table'
+import { api } from '../lib/api'
 
 // ─── DateRangePicker ──────────────────────────────────────────────────────────
 
@@ -494,6 +495,224 @@ export function PostsTable({ posts, accent = '#E4405F' }) {
       <div className="text-[10px] text-white/30 text-right">
         {table.getFilteredRowModel().rows.length} {table.getFilteredRowModel().rows.length === 1 ? 'post' : 'posts'}
       </div>
+    </div>
+  )
+}
+
+// ─── Demografia ───────────────────────────────────────────────────────────────
+
+const COUNTRY_NAMES = {
+  BR: 'Brasil', PT: 'Portugal', US: 'Estados Unidos', AR: 'Argentina', ES: 'Espanha',
+  FR: 'França', IT: 'Itália', CA: 'Canadá', AO: 'Angola', MZ: 'Moçambique',
+  MX: 'México', CO: 'Colômbia', CL: 'Chile', UK: 'Reino Unido', DE: 'Alemanha',
+  JP: 'Japão', AU: 'Austrália', PE: 'Peru', UY: 'Uruguai', PY: 'Paraguai',
+}
+
+const FLAG_EMOJI = (cc) => {
+  if (!cc || cc.length !== 2) return ''
+  const codes = cc.toUpperCase().split('').map(c => 0x1f1e6 + c.charCodeAt(0) - 65)
+  return String.fromCodePoint(...codes)
+}
+
+function formatNum(n) {
+  if (n == null) return '—'
+  return Number(n).toLocaleString('pt-BR')
+}
+
+export function DemographicsSection({ clienteId, accent = '#E4405F' }) {
+  const [tipo, setTipo] = useState('follower')
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!clienteId) return
+    setLoading(true)
+    api(`/metricas/${clienteId}/demografia?tipo=${tipo}`)
+      .then(d => setData(d.demografia))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false))
+  }, [clienteId, tipo])
+
+  if (!data && !loading) return null
+
+  const generoIdade = data?.genero_idade || {}
+  const paises = data?.paises || []
+  const cidades = data?.cidades || []
+  const total = data?.total_count || 0
+  const fonte = data?.fonte
+  const apiMessage = data?.api_message
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-white/60 uppercase tracking-widest">
+          Demografia da Audiência
+          {fonte === 'mock' && <span className="ml-2 text-[9px] font-normal text-white/30">(mock)</span>}
+        </h2>
+        <div className="flex gap-1 rounded-lg p-1" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
+          {[
+            { key: 'follower', label: 'Seguidores' },
+            { key: 'engaged_audience', label: 'Engajados' },
+          ].map(opt => (
+            <button
+              key={opt.key}
+              onClick={() => setTipo(opt.key)}
+              className="px-3 py-1 rounded text-[10px] font-semibold tracking-wider"
+              style={tipo === opt.key
+                ? { background: `${accent}18`, color: accent, border: `1px solid ${accent}40` }
+                : { color: 'var(--flg-text-muted)', border: '1px solid transparent' }
+              }
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {apiMessage && fonte === 'live' && total === 0 && (
+        <div className="mb-3 rounded-lg p-3 text-xs" style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.2)', color: 'rgba(234,179,8,0.85)' }}>
+          ⚠ {apiMessage}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <GenderAgeChart data={generoIdade} accent={accent} loading={loading} />
+        <CountryBars data={paises} total={total} accent={accent} loading={loading} />
+        <CityBars data={cidades} total={total} accent={accent} loading={loading} />
+      </div>
+    </section>
+  )
+}
+
+function GenderAgeChart({ data, accent, loading }) {
+  const ages = ['13-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65+']
+  const female = ages.map(a => -(data[`F.${a}`] || 0))
+  const male = ages.map(a => +(data[`M.${a}`] || 0))
+  const totalF = data['F'] || female.reduce((a, b) => a + Math.abs(b), 0)
+  const totalM = data['M'] || male.reduce((a, b) => a + b, 0)
+  const grandTotal = totalF + totalM
+  const pctF = grandTotal ? Math.round((totalF / grandTotal) * 100) : 0
+  const pctM = grandTotal ? Math.round((totalM / grandTotal) * 100) : 0
+  const maxAbs = Math.max(...male, ...female.map(Math.abs), 1)
+
+  return (
+    <div className="rounded-xl p-4" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs text-white/40 font-medium">Gênero × Idade</span>
+        {grandTotal > 0 && (
+          <div className="text-[10px] flex items-center gap-3">
+            <span><span style={{ color: '#F472B6' }}>● </span>F {pctF}%</span>
+            <span><span style={{ color: '#60A5FA' }}>● </span>M {pctM}%</span>
+          </div>
+        )}
+      </div>
+      {loading || !grandTotal ? (
+        <div className="space-y-2">
+          {ages.map((a, i) => <Skel key={i} h={16} />)}
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {ages.map((age, i) => {
+            const f = Math.abs(female[i])
+            const m = male[i]
+            const fW = (f / maxAbs) * 100
+            const mW = (m / maxAbs) * 100
+            return (
+              <div key={age} className="flex items-center text-[10px] gap-2">
+                <span className="w-10 text-right text-white/30">{age}</span>
+                <div className="flex-1 flex items-center gap-0.5">
+                  <div className="flex-1 flex justify-end">
+                    <div className="rounded-l h-3.5 transition-all" style={{ width: `${fW}%`, background: 'linear-gradient(90deg, #F472B610, #F472B6)' }} title={`F ${age}: ${formatNum(f)}`} />
+                  </div>
+                  <div className="w-px h-4 bg-white/10" />
+                  <div className="flex-1">
+                    <div className="rounded-r h-3.5 transition-all" style={{ width: `${mW}%`, background: 'linear-gradient(270deg, #60A5FA10, #60A5FA)' }} title={`M ${age}: ${formatNum(m)}`} />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CountryBars({ data, total, accent, loading }) {
+  const top = (data || []).slice(0, 6)
+  return (
+    <div className="rounded-xl p-4" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs text-white/40 font-medium">Top Países</span>
+        <span className="text-[9px] text-white/25">{top.length} de {data?.length || 0}</span>
+      </div>
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 6 }).map((_, i) => <Skel key={i} h={20} />)}
+        </div>
+      ) : top.length === 0 ? (
+        <div className="text-[11px] text-white/30 py-6 text-center">Sem dados</div>
+      ) : (
+        <div className="space-y-2">
+          {top.map(item => {
+            const pct = total ? (item.value / total) * 100 : 0
+            return (
+              <div key={item.key} className="text-[11px]">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-white/70 flex items-center gap-1.5">
+                    <span className="text-base leading-none">{FLAG_EMOJI(item.key)}</span>
+                    {COUNTRY_NAMES[item.key] || item.key}
+                  </span>
+                  <span className="text-white/40">
+                    <span style={{ color: accent }} className="font-semibold">{pct.toFixed(1)}%</span>
+                    <span className="ml-1.5 text-white/30">{formatNum(item.value)}</span>
+                  </span>
+                </div>
+                <div className="h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <div
+                    className="h-1 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, pct * 1.2)}%`, background: `linear-gradient(90deg, ${accent}50, ${accent})` }}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CityBars({ data, total, accent, loading }) {
+  const top = (data || []).slice(0, 8)
+  return (
+    <div className="rounded-xl p-4" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs text-white/40 font-medium">Top Cidades</span>
+        <span className="text-[9px] text-white/25">{top.length} de {data?.length || 0}</span>
+      </div>
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 8 }).map((_, i) => <Skel key={i} h={18} />)}
+        </div>
+      ) : top.length === 0 ? (
+        <div className="text-[11px] text-white/30 py-6 text-center">Sem dados</div>
+      ) : (
+        <div className="space-y-1.5">
+          {top.map(item => {
+            const pct = total ? (item.value / total) * 100 : 0
+            return (
+              <div key={item.key} className="flex items-center justify-between text-[11px]">
+                <span className="text-white/70 truncate flex-1">{item.key}</span>
+                <span className="ml-2 text-white/30 shrink-0">
+                  <span style={{ color: accent }} className="font-semibold">{pct.toFixed(1)}%</span>
+                  <span className="ml-1.5">· {formatNum(item.value)}</span>
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

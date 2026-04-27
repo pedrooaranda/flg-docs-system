@@ -36,6 +36,17 @@ class InstagramRepository(ABC):
     @abstractmethod
     def get_horarios(self, cliente_id: str) -> list: ...
 
+    def get_demografia(self, cliente_id: str, tipo: str = "follower") -> dict:
+        """
+        Retorna { tipo, data_referencia, total_count, genero_idade, paises, cidades, locales, fonte }.
+        Default vazio — subclasses sobrescrevem.
+        """
+        return {
+            "tipo": tipo, "data_referencia": None, "total_count": 0,
+            "genero_idade": {}, "paises": [], "cidades": [], "locales": [],
+            "fonte": "unavailable",
+        }
+
 
 # ─── Repositório Mock ─────────────────────────────────────────────────────────
 
@@ -133,6 +144,64 @@ class MockInstagramRepository(InstagramRepository):
             })
 
         return sorted(posts, key=lambda x: x["taxa_engajamento"], reverse=True)
+
+    def get_demografia(self, cliente_id: str, tipo: str = "follower") -> dict:
+        """Mock: distribuição realista de gênero × idade + países + cidades."""
+        rng = self._rng(cliente_id)
+        total = rng.randint(800, 8000) if tipo == "follower" else rng.randint(200, 2000)
+
+        # Gênero × idade — distribuição que soma ~total
+        gender_split = {"F": rng.uniform(0.45, 0.65), "M": 0, "U": 0}
+        gender_split["M"] = 1 - gender_split["F"] - 0.02
+        gender_split["U"] = 0.02
+        ages = ["13-17", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"]
+        age_weights = [0.05, 0.30, 0.34, 0.15, 0.10, 0.04, 0.02]
+        genero_idade = {}
+        for g, gw in gender_split.items():
+            for age, aw in zip(ages, age_weights):
+                v = int(total * gw * aw * rng.uniform(0.85, 1.15))
+                if v > 0:
+                    genero_idade[f"{g}.{age}"] = v
+                    genero_idade[g] = genero_idade.get(g, 0) + v
+        for age, aw in zip(ages, age_weights):
+            genero_idade[f"U.{age}"] = int(total * aw)
+
+        paises_pool = [("BR", 0.78), ("PT", 0.06), ("US", 0.05), ("AR", 0.03), ("ES", 0.02), ("AO", 0.02), ("MZ", 0.01), ("FR", 0.01), ("IT", 0.01), ("CA", 0.01)]
+        paises = sorted(
+            [{"key": k, "value": int(total * w * rng.uniform(0.85, 1.15))} for k, w in paises_pool],
+            key=lambda x: x["value"], reverse=True
+        )
+
+        cidades_pool = [
+            ("São Paulo, BR", 0.18), ("Rio de Janeiro, BR", 0.10), ("Belo Horizonte, BR", 0.06),
+            ("Brasília, BR", 0.05), ("Curitiba, BR", 0.04), ("Porto Alegre, BR", 0.04),
+            ("Salvador, BR", 0.03), ("Recife, BR", 0.03), ("Fortaleza, BR", 0.03),
+            ("Campinas, BR", 0.02), ("Lisboa, PT", 0.02), ("Buenos Aires, AR", 0.02),
+            ("Goiânia, BR", 0.02), ("Manaus, BR", 0.015), ("Florianópolis, BR", 0.015),
+        ]
+        cidades = sorted(
+            [{"key": k, "value": int(total * w * rng.uniform(0.85, 1.15))} for k, w in cidades_pool],
+            key=lambda x: x["value"], reverse=True
+        )
+
+        locales = [
+            {"key": "pt_BR", "value": int(total * 0.85)},
+            {"key": "pt_PT", "value": int(total * 0.05)},
+            {"key": "en_US", "value": int(total * 0.05)},
+            {"key": "es_ES", "value": int(total * 0.03)},
+            {"key": "es_LA", "value": int(total * 0.02)},
+        ]
+
+        return {
+            "tipo": tipo,
+            "data_referencia": str(date.today()),
+            "total_count": total,
+            "genero_idade": genero_idade,
+            "paises": paises,
+            "cidades": cidades,
+            "locales": locales,
+            "fonte": "mock",
+        }
 
     def get_horarios(self, cliente_id: str) -> list:
         """Matriz de engajamento médio por faixa horária × dia da semana."""
@@ -286,6 +355,29 @@ class LiveInstagramRepository(InstagramRepository):
                 "fonte": "live",
             })
         return out
+
+    def get_demografia(self, cliente_id: str, tipo: str = "follower") -> dict:
+        result = self.sb.table("instagram_demografia").select("*").eq(
+            "cliente_id", cliente_id
+        ).eq("tipo", tipo).order("data_referencia", desc=True).limit(1).execute()
+        row = (result.data or [None])[0]
+        if not row:
+            return {
+                "tipo": tipo, "data_referencia": None, "total_count": 0,
+                "genero_idade": {}, "paises": [], "cidades": [], "locales": [],
+                "fonte": "live", "api_message": "Nenhum snapshot disponível ainda. Aguarde sync semanal.",
+            }
+        return {
+            "tipo": tipo,
+            "data_referencia": row.get("data_referencia"),
+            "total_count": row.get("total_count") or 0,
+            "genero_idade": row.get("genero_idade") or {},
+            "paises": row.get("paises") or [],
+            "cidades": row.get("cidades") or [],
+            "locales": row.get("locales") or [],
+            "fonte": "live",
+            "api_message": row.get("api_message"),
+        }
 
     def get_horarios(self, cliente_id: str) -> list:
         rows = self.sb.table("instagram_horarios_engagement").select("*").eq(

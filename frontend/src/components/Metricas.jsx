@@ -12,7 +12,7 @@ import { useApp } from '../contexts/AppContext'
 import {
   DateRangePicker,
   KpiGridSkeleton, ChartSkeleton, HeatmapSkeleton, PostsGridSkeleton,
-  PostsTable, ViewToggle,
+  PostsTable, ViewToggle, DemographicsSection,
 } from './MetricasParts'
 
 const GOLD = '#C9A84C'
@@ -998,6 +998,11 @@ export default function Metricas({ session }) {
               <PostsTable posts={posts} accent={platConfig.color} />
             )}
           </section>
+
+          {/* ── Demografia (Instagram) ── */}
+          {platform === 'instagram' && (
+            <DemographicsSection clienteId={clienteId} accent={platConfig.color} />
+          )}
 
           {/* ── AI Recommendations ── */}
           <AiRecommendations overview={overview} historico={historico} horarios={horarios} posts={posts} platform={platform} />

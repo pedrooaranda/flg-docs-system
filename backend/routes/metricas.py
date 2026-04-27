@@ -249,6 +249,29 @@ async def get_horarios(
             "horarios": repo.get_horarios(cliente_id)}
 
 
+# ─── Demografia (Instagram apenas — gênero/idade/região) ──────────────────────
+
+@router.get("/{cliente_id}/demografia")
+async def get_demografia(
+    cliente_id: str,
+    tipo: str = "follower",
+    plataforma: str = "instagram",
+    user=Depends(get_current_user),
+):
+    if tipo not in ("follower", "engaged_audience"):
+        raise HTTPException(400, "tipo deve ser 'follower' ou 'engaged_audience'")
+    if plataforma != "instagram":
+        raise HTTPException(400, "Demografia disponível apenas para Instagram")
+    repo = _get_repo(plataforma, cliente_id)
+    if not hasattr(repo, "get_demografia"):
+        raise HTTPException(501, "Demografia não implementada para esta plataforma")
+    return {
+        "cliente_id": cliente_id,
+        "plataforma": plataforma,
+        "demografia": repo.get_demografia(cliente_id, tipo),
+    }
+
+
 # ─── Entrada Manual ───────────────────────────────────────────────────────────
 
 class MetricaManualInput(BaseModel):
