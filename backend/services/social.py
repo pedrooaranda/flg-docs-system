@@ -463,8 +463,31 @@ _REPOS = {
 
 
 def get_platform_repository(plataforma: str = "instagram", cliente_id: str = None) -> SocialRepository:
-    """Retorna o repositório mock para a plataforma especificada."""
+    """
+    Retorna repositório real (lê das tabelas sincronizadas) quando o cliente tem
+    conexão OAuth ativa para a plataforma. Caso contrário, retorna mock.
+    Override forçado: USE_INSTAGRAM_MOCK=true sempre retorna mock.
+    """
+    import os
+
     cls = _REPOS.get(plataforma)
     if not cls:
         raise ValueError(f"Plataforma inválida: {plataforma}. Use: {', '.join(PLATAFORMAS_VALIDAS)}")
+
+    if os.getenv("USE_INSTAGRAM_MOCK", "false").lower() == "true":
+        return cls()
+
+    # Para Instagram, checa se há conexão ativa e retorna LiveInstagramRepository
+    if plataforma == "instagram" and cliente_id:
+        try:
+            from deps import supabase_client as sb
+            r = sb.table("instagram_conexoes").select("id").eq(
+                "cliente_id", cliente_id
+            ).eq("status", "ativo").maybe_single().execute()
+            if r and r.data:
+                from services.instagram import LiveInstagramRepository
+                return LiveInstagramRepository(sb)
+        except Exception:
+            pass
+
     return cls()
