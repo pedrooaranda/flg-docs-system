@@ -77,14 +77,43 @@ jobs:
       # ── 4. Deploy via SSH ───────────────────────────────────────────────────
       - name: Deploy na VPS
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          IG_APP_ID: ${{ secrets.IG_APP_ID }}
+          IG_APP_SECRET: ${{ secrets.IG_APP_SECRET }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_SSH_PASS }}
+          envs: IG_APP_ID,IG_APP_SECRET
           command_timeout: 10m
           script: |
             set -e
             cd /opt/flg-jornada
+
+            # ── Sincronizar envvars do GitHub Secrets pro .env (sempre roda) ──
+            # Compara hash antes/depois pra decidir restart do backend.
+            ENV_HASH_BEFORE=$(md5sum .env 2>/dev/null | awk '{print $1}' || echo "none")
+
+            sync_env_var() {
+              local key="$1" val="$2"
+              [ -z "$val" ] && return
+              if grep -q "^${key}=" .env 2>/dev/null; then
+                # sed precisa escapar caracteres especiais — usa | como delimitador
+                sed -i "s|^${key}=.*|${key}=${val}|" .env
+              else
+                echo "${key}=${val}" >> .env
+              fi
+            }
+
+            sync_env_var "IG_APP_ID" "$IG_APP_ID"
+            sync_env_var "IG_APP_SECRET" "$IG_APP_SECRET"
+
+            ENV_HASH_AFTER=$(md5sum .env | awk '{print $1}')
+            ENV_CHANGED="false"
+            if [ "$ENV_HASH_BEFORE" != "$ENV_HASH_AFTER" ]; then
+              ENV_CHANGED="true"
+              echo "📝 .env atualizado (hash mudou)"
+            fi
 
             echo "📥 Verificando atualizações..."
             git fetch --quiet
@@ -94,6 +123,11 @@ jobs:
 
             if [ "$LOCAL" = "$REMOTE" ] && [ "${{ inputs.force_rebuild }}" != "true" ]; then
               echo "✅ VPS já está atualizada (SHA: $LOCAL)"
+              # Se .env mudou nesse run, restart pra carregar
+              if [ "$ENV_CHANGED" = "true" ]; then
+                docker compose restart backend
+                echo "🔄 Backend reiniciado pra carregar .env atualizado"
+              fi
               exit 0
             fi
 
@@ -141,6 +175,12 @@ jobs:
               echo "🔄 Reiniciando frontend..."
               docker compose up -d --no-deps frontend
               echo "✅ Frontend atualizado"
+            fi
+
+            # ── Restart backend se .env mudou e backend não foi rebuildado ──
+            if [ "$ENV_CHANGED" = "true" ] && [ "${{ steps.changes.outputs.backend }}" != "true" ]; then
+              echo "🔄 .env mudou — reiniciando backend pra carregar"
+              docker compose restart backend
             fi
 
             echo ""
