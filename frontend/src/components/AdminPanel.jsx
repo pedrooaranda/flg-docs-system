@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { BookOpen, Users, Layers, Pencil, Check, X, Download, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { BookOpen, Users, Layers, Pencil, Check, X, Download, RefreshCw, AlertCircle, CheckCircle2, ExternalLink, Link2, Unlink } from 'lucide-react'
 import { api } from '../lib/api'
 import { progressPercent } from '../lib/utils'
 import { Avatar } from './ui/Avatar'
@@ -222,6 +222,157 @@ function ClickUpImportSection({ onImported }) {
   )
 }
 
+function InstagramConnectionsSection({ clientes }) {
+  const toast = useToast()
+  const [connections, setConnections] = useState({})
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!clientes.length) { setLoading(false); return }
+    Promise.all(
+      clientes.map(c =>
+        api(`/instagram/oauth/status/${c.id}`)
+          .then(d => ({ id: c.id, status: d }))
+          .catch(() => ({ id: c.id, status: { conectado: false } }))
+      )
+    ).then(results => {
+      const map = {}
+      results.forEach(r => { map[r.id] = r.status })
+      setConnections(map)
+      setLoading(false)
+    })
+  }, [clientes])
+
+  async function handleConnect(clienteId) {
+    try {
+      const data = await api(`/instagram/oauth/connect/${clienteId}`, { method: 'POST' })
+      if (data.auth_url) window.location.href = data.auth_url
+    } catch (err) {
+      toast?.({ title: 'Erro', description: err.message, variant: 'error' })
+    }
+  }
+
+  async function handleDisconnect(clienteId, nome) {
+    if (!confirm(`Desconectar Instagram de ${nome}? O histórico é preservado, mas o sync para.`)) return
+    try {
+      await api(`/instagram/oauth/disconnect/${clienteId}`, { method: 'POST' })
+      setConnections(prev => ({ ...prev, [clienteId]: { conectado: false } }))
+      toast?.({ title: 'Desconectado', variant: 'success' })
+    } catch (err) {
+      toast?.({ title: 'Erro', description: err.message, variant: 'error' })
+    }
+  }
+
+  const conectados = Object.values(connections).filter(c => c?.conectado).length
+
+  return (
+    <section className="mb-10">
+      <div className="flex items-center gap-2 mb-4">
+        <Link2 size={16} className="text-gold-mid/70" />
+        <h2 className="font-display text-lg font-semibold text-white">
+          Conexões Instagram
+          <span className="ml-2 text-sm font-normal text-white/30">({conectados}/{clientes.length})</span>
+        </h2>
+      </div>
+      <div className="card-flg overflow-hidden">
+        {loading ? (
+          <div className="p-8 flex justify-center"><Spinner /></div>
+        ) : clientes.length === 0 ? (
+          <p className="p-6 text-sm text-white/30 text-center">Nenhum cliente cadastrado.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-white/5">
+                {['Cliente', '@username', 'Followers', 'Status', 'Ações'].map(col => (
+                  <th key={col} className="text-left px-4 py-3 text-[10px] tracking-widest uppercase text-white/30 font-normal">
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {clientes.map(c => {
+                const conn = connections[c.id] || {}
+                const ok = conn.conectado
+                return (
+                  <tr key={c.id} className="border-b border-white/5 last:border-0">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar name={c.nome} size="sm" />
+                        <span className="text-white/80 font-medium">{c.nome}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      {ok ? (
+                        <a
+                          href={conn.instagram_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-gold-mid hover:underline"
+                        >
+                          @{conn.username}
+                          <ExternalLink size={10} />
+                        </a>
+                      ) : (
+                        <span className="text-white/25">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-white/60">
+                      {ok && conn.followers_count != null ? conn.followers_count.toLocaleString('pt-BR') : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {ok ? (
+                        conn.dias_para_expirar != null && conn.dias_para_expirar < 10 ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-400/80">
+                            <AlertCircle size={11} /> Expira em {conn.dias_para_expirar}d
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-400/80">
+                            <CheckCircle2 size={11} /> Conectado
+                          </span>
+                        )
+                      ) : conn.app_configurado === false ? (
+                        <span className="text-xs text-white/30">App não configurado</span>
+                      ) : (
+                        <span className="text-xs text-white/30">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {ok ? (
+                        <button
+                          onClick={() => handleDisconnect(c.id, c.nome)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-semibold text-red-400/70 hover:text-red-400 transition-colors"
+                          style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.15)' }}
+                        >
+                          <Unlink size={10} />
+                          Desconectar
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleConnect(c.id)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-semibold transition-colors"
+                          style={{
+                            background: 'rgba(201,168,76,0.10)',
+                            border: '1px solid rgba(201,168,76,0.25)',
+                            color: '#C9A84C',
+                          }}
+                        >
+                          <Link2 size={10} />
+                          Conectar Instagram
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export default function AdminPanel() {
   const navigate = useNavigate()
   const [encontros, setEncontros] = useState([])
@@ -265,6 +416,9 @@ export default function AdminPanel() {
 
       {/* ClickUp Import */}
       <ClickUpImportSection onImported={() => api('/clientes').then(setClientes).catch(() => {})} />
+
+      {/* Instagram Connections */}
+      <InstagramConnectionsSection clientes={clientes} />
 
       {/* Clientes */}
       <section className="mb-10">
