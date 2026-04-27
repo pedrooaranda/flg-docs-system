@@ -147,6 +147,75 @@ class MockInstagramRepository(BaseMockRepository):
     def get_horarios(self, cliente_id: str) -> list:
         return self._base_horarios(cliente_id)
 
+    def get_demografia(self, cliente_id: str, tipo: str = "follower") -> dict:
+        """Mock realista de demografia (follower ou engaged_audience)."""
+        rng = self._rng(cliente_id)
+        total = rng.randint(800, 8000) if tipo == "follower" else rng.randint(200, 2000)
+
+        # Engaged tende a ser ligeiramente mais feminino e mais jovem
+        f_pct = rng.uniform(0.50, 0.62) if tipo == "follower" else rng.uniform(0.55, 0.68)
+        m_pct = 1 - f_pct - 0.02
+        u_pct = 0.02
+        ages = ["13-17", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"]
+        age_weights = ([0.06, 0.32, 0.34, 0.14, 0.08, 0.04, 0.02]
+                       if tipo == "engaged_audience"
+                       else [0.04, 0.28, 0.34, 0.16, 0.10, 0.05, 0.03])
+
+        genero_idade = {}
+        for g, gp in (("F", f_pct), ("M", m_pct), ("U", u_pct)):
+            for age, aw in zip(ages, age_weights):
+                v = int(total * gp * aw * rng.uniform(0.85, 1.15))
+                if v > 0:
+                    genero_idade[f"{g}.{age}"] = v
+            genero_idade[g] = int(total * gp)
+
+        paises_pool = [
+            ("BR", 0.78), ("PT", 0.06), ("US", 0.05), ("AR", 0.03),
+            ("ES", 0.02), ("AO", 0.02), ("MZ", 0.01), ("FR", 0.01),
+            ("IT", 0.01), ("CA", 0.01),
+        ]
+        paises = sorted(
+            [{"key": k, "value": int(total * w * rng.uniform(0.85, 1.15))} for k, w in paises_pool],
+            key=lambda x: x["value"], reverse=True,
+        )
+
+        cidades_pool = [
+            ("São Paulo, BR", 0.18), ("Rio de Janeiro, BR", 0.10),
+            ("Belo Horizonte, BR", 0.06), ("Brasília, BR", 0.05),
+            ("Curitiba, BR", 0.04), ("Porto Alegre, BR", 0.04),
+            ("Salvador, BR", 0.03), ("Recife, BR", 0.03),
+            ("Fortaleza, BR", 0.03), ("Campinas, BR", 0.02),
+            ("Lisboa, PT", 0.02), ("Buenos Aires, AR", 0.02),
+            ("Goiânia, BR", 0.02), ("Manaus, BR", 0.015),
+            ("Florianópolis, BR", 0.015),
+        ]
+        cidades = sorted(
+            [{"key": k, "value": int(total * w * rng.uniform(0.85, 1.15))} for k, w in cidades_pool],
+            key=lambda x: x["value"], reverse=True,
+        )
+
+        locales = sorted(
+            [
+                {"key": "pt_BR", "value": int(total * 0.85)},
+                {"key": "pt_PT", "value": int(total * 0.05)},
+                {"key": "en_US", "value": int(total * 0.05)},
+                {"key": "es_ES", "value": int(total * 0.03)},
+                {"key": "es_LA", "value": int(total * 0.02)},
+            ],
+            key=lambda x: x["value"], reverse=True,
+        )
+
+        return {
+            "tipo": tipo,
+            "data_referencia": str(date.today()),
+            "total_count": total,
+            "genero_idade": genero_idade,
+            "paises": paises,
+            "cidades": cidades,
+            "locales": locales,
+            "fonte": "mock",
+        }
+
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # LINKEDIN
