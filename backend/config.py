@@ -17,7 +17,12 @@ class Settings(BaseSettings):
     clickup_list_id: str = ""
     clickup_team_id: str = ""
 
-    # Meta (Instagram Business API)
+    # Meta — Instagram Business Login (caminho atual desde abr/2026)
+    # IDs/secrets do produto "Instagram API with Instagram Login" no painel Meta
+    ig_app_id: str = ""
+    ig_app_secret: str = ""
+
+    # Legacy — Facebook Login for Business (deprecated, mantido só pra rollback)
     meta_app_id: str = ""
     meta_app_secret: str = ""
     meta_redirect_uri: str = "https://docs.foundersledgrowth.online/api/instagram/oauth/callback"

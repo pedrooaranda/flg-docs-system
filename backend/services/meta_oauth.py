@@ -1,18 +1,24 @@
 """
-Serviço OAuth Meta (Facebook Login) → Instagram Business API.
+Serviço OAuth — Instagram Business Login (caminho atual desde abr/2026).
 
 Fluxo:
-  1. /connect/{cliente_id} → redirect para dialog Facebook OAuth
-  2. /callback → recebe code, troca por short-lived token
-  3. Troca short-lived (1h) por long-lived (60 dias)
-  4. Busca Facebook Pages do usuário
-  5. Para cada Page, busca Instagram Business Account vinculado
-  6. Salva conexão em instagram_conexoes
-  7. Refresh job aos 50 dias (margem de segurança)
+  1. /connect/{cliente_id} → redirect para instagram.com/oauth/authorize
+  2. /callback → recebe code, troca por short-lived token (1h)
+  3. Troca short-lived por long-lived (60 dias) via graph.instagram.com
+  4. Pega ig_user_id direto via /me (sem precisar passar por Pages do Facebook)
+  5. Salva conexão em instagram_conexoes com auth_provider='ig_login'
+  6. Refresh aos 50 dias estende validade por mais 60 dias
 
-Documentação:
-  https://developers.facebook.com/docs/instagram-api/getting-started
-  https://developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived
+Referências:
+  https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
+  https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login
+
+Histórico:
+  Antes (até abr/2026) usávamos o caminho "Instagram API with Facebook Login"
+  via facebook.com/dialog/oauth + escopos instagram_basic / instagram_manage_insights.
+  Esses escopos foram desligados pela Meta em 27-jan-2025 e a Meta empurrou todo
+  mundo pra esse caminho novo. Mantemos o nome do módulo como meta_oauth pra não
+  quebrar imports, mas a implementação agora é Instagram Business Login.
 """
 
 import hashlib
@@ -26,27 +32,28 @@ import httpx
 
 logger = logging.getLogger("flg.meta_oauth")
 
-GRAPH_API_BASE = "https://graph.facebook.com/v21.0"
-FB_OAUTH_DIALOG = "https://www.facebook.com/v21.0/dialog/oauth"
+# Endpoints Instagram Business Login
+IG_OAUTH_DIALOG = "https://www.instagram.com/oauth/authorize"
+IG_TOKEN_EXCHANGE = "https://api.instagram.com/oauth/access_token"  # POST short-lived
+IG_GRAPH = "https://graph.instagram.com"  # GET long-lived + refresh + dados
 
-# Permissions necessárias para Instagram Business API insights
-META_SCOPES = ",".join([
-    "instagram_basic",
-    "instagram_manage_insights",
-    "pages_show_list",
-    "pages_read_engagement",
-    "business_management",
+# Permissões necessárias pra ler métricas Business
+# https://developers.facebook.com/docs/permissions#instagram_business_basic
+IG_SCOPES = ",".join([
+    "instagram_business_basic",
+    "instagram_business_manage_insights",
 ])
 
 
 def _get_app_credentials() -> tuple[str, str]:
-    """Retorna (app_id, app_secret) — falha se não configurado."""
-    app_id = os.getenv("META_APP_ID", "")
-    app_secret = os.getenv("META_APP_SECRET", "")
+    """Retorna (ig_app_id, ig_app_secret) — falha se não configurado."""
+    app_id = os.getenv("IG_APP_ID", "")
+    app_secret = os.getenv("IG_APP_SECRET", "")
     if not app_id or not app_secret:
         raise RuntimeError(
-            "META_APP_ID/META_APP_SECRET não configurados. "
-            "Configure no .env do backend."
+            "IG_APP_ID/IG_APP_SECRET não configurados. "
+            "Pegue no painel Meta → produto 'Instagram API with Instagram Login' "
+            "e configure no .env do backend."
         )
     return app_id, app_secret
 
@@ -60,14 +67,12 @@ def _get_redirect_uri() -> str:
 
 def build_authorization_url(cliente_id: str, consultor_email: str, onboard_token: str = "") -> str:
     """
-    Gera URL para iniciar OAuth Facebook Login.
+    Gera URL para iniciar OAuth Instagram Business Login.
     state encoda cliente_id + hash para validar no callback.
-    Se onboard_token != "", marca o state como self-onboard pro callback redirecionar
-    pra página pública em vez do /admin.
+    Se onboard_token != "", marca o state como self-onboard.
     """
     app_id, app_secret = _get_app_credentials()
 
-    # State: cliente_id:hash[:onboard:<token>] — flag pra distinguir fluxo público
     state_hash = hashlib.sha256(
         f"{cliente_id}:{consultor_email}:{app_secret[:8]}".encode()
     ).hexdigest()[:32]
@@ -78,11 +83,12 @@ def build_authorization_url(cliente_id: str, consultor_email: str, onboard_token
     params = {
         "client_id": app_id,
         "redirect_uri": _get_redirect_uri(),
-        "scope": META_SCOPES,
+        "scope": IG_SCOPES,
         "response_type": "code",
         "state": state,
+        "force_reauth": "true",
     }
-    return f"{FB_OAUTH_DIALOG}?{urlencode(params)}"
+    return f"{IG_OAUTH_DIALOG}?{urlencode(params)}"
 
 
 def validate_state(state: str, expected_consultor_email: str) -> Optional[str]:
@@ -105,164 +111,124 @@ def validate_state(state: str, expected_consultor_email: str) -> Optional[str]:
 async def exchange_code_for_token(code: str) -> dict:
     """
     Troca authorization code por short-lived access token (1h).
-    Retorna dict com access_token, token_type, expires_in.
+    Endpoint: POST api.instagram.com/oauth/access_token (form-encoded).
+    Retorna {access_token, user_id, permissions}.
     """
     app_id, app_secret = _get_app_credentials()
 
     async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(
-            f"{GRAPH_API_BASE}/oauth/access_token",
-            params={
+        resp = await client.post(
+            IG_TOKEN_EXCHANGE,
+            data={
                 "client_id": app_id,
                 "client_secret": app_secret,
+                "grant_type": "authorization_code",
                 "redirect_uri": _get_redirect_uri(),
                 "code": code,
             },
         )
-        resp.raise_for_status()
+        if resp.status_code != 200:
+            logger.error(f"IG token exchange falhou {resp.status_code}: {resp.text[:300]}")
+            resp.raise_for_status()
         return resp.json()
 
 
 async def exchange_for_long_lived(short_token: str) -> dict:
     """
-    Troca short-lived token (1h) por long-lived (60 dias).
-    Retorna dict com access_token, token_type, expires_in.
+    Troca short-lived (1h) por long-lived (60d) — Instagram Business Login.
+    Endpoint: GET graph.instagram.com/access_token (grant_type=ig_exchange_token).
+    Retorna {access_token, token_type, expires_in}.
     """
-    app_id, app_secret = _get_app_credentials()
+    _, app_secret = _get_app_credentials()
 
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(
-            f"{GRAPH_API_BASE}/oauth/access_token",
+            f"{IG_GRAPH}/access_token",
             params={
-                "grant_type": "fb_exchange_token",
-                "client_id": app_id,
+                "grant_type": "ig_exchange_token",
                 "client_secret": app_secret,
-                "fb_exchange_token": short_token,
+                "access_token": short_token,
             },
         )
-        resp.raise_for_status()
+        if resp.status_code != 200:
+            logger.error(f"IG long-lived exchange falhou {resp.status_code}: {resp.text[:300]}")
+            resp.raise_for_status()
         return resp.json()
 
 
 async def refresh_long_lived_token(current_token: str) -> dict:
     """
-    Refresh de long-lived token. Estende validade por mais 60 dias.
-    Deve ser chamado antes da expiração (idealmente aos 50 dias).
-    """
-    return await exchange_for_long_lived(current_token)
-
-
-async def get_user_pages(access_token: str) -> list[dict]:
-    """
-    Lista Facebook Pages do usuário. Cada Page pode ter um Instagram
-    Business Account vinculado.
+    Refresh long-lived token. Estende por mais 60 dias.
+    Só funciona se o token tiver pelo menos 24h de idade.
+    Endpoint: GET graph.instagram.com/refresh_access_token (grant_type=ig_refresh_token).
     """
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(
-            f"{GRAPH_API_BASE}/me/accounts",
+            f"{IG_GRAPH}/refresh_access_token",
             params={
+                "grant_type": "ig_refresh_token",
+                "access_token": current_token,
+            },
+        )
+        if resp.status_code != 200:
+            logger.error(f"IG refresh falhou {resp.status_code}: {resp.text[:300]}")
+            resp.raise_for_status()
+        return resp.json()
+
+
+async def fetch_ig_profile(access_token: str) -> dict:
+    """
+    Pega perfil do usuário logado — Instagram Business Login dispensa Pages.
+    Retorna profile com ig_user_id (chave 'id' ou 'user_id').
+    """
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(
+            f"{IG_GRAPH}/v21.0/me",
+            params={
+                "fields": "user_id,username,name,account_type,profile_picture_url,followers_count,follows_count,media_count,biography,website",
                 "access_token": access_token,
-                "fields": "id,name,access_token,instagram_business_account",
             },
         )
-        resp.raise_for_status()
-        return resp.json().get("data", [])
-
-
-async def get_instagram_account(page_id: str, page_access_token: str) -> Optional[dict]:
-    """
-    Busca o Instagram Business Account vinculado a uma Page.
-    Retorna profile completo ou None se Page não tem IG vinculado.
-    """
-    async with httpx.AsyncClient(timeout=15) as client:
-        # Primeiro pega o IG account ID
-        resp = await client.get(
-            f"{GRAPH_API_BASE}/{page_id}",
-            params={
-                "fields": "instagram_business_account",
-                "access_token": page_access_token,
-            },
-        )
-        resp.raise_for_status()
-        ig_link = resp.json().get("instagram_business_account")
-        if not ig_link or "id" not in ig_link:
-            return None
-        ig_user_id = ig_link["id"]
-
-        # Busca dados do perfil
-        resp = await client.get(
-            f"{GRAPH_API_BASE}/{ig_user_id}",
-            params={
-                "fields": "id,username,name,biography,profile_picture_url,"
-                          "followers_count,follows_count,media_count,website",
-                "access_token": page_access_token,
-            },
-        )
-        resp.raise_for_status()
-        profile = resp.json()
-        profile["ig_user_id"] = ig_user_id
-        profile["page_id"] = page_id
-        profile["page_access_token"] = page_access_token
-        return profile
+        if resp.status_code != 200:
+            logger.error(f"IG /me falhou {resp.status_code}: {resp.text[:300]}")
+            resp.raise_for_status()
+        data = resp.json()
+        # Normaliza ig_user_id (api retorna user_id no IG Login, id no FB Login)
+        ig_user_id = str(data.get("user_id") or data.get("id"))
+        data["ig_user_id"] = ig_user_id
+        return data
 
 
 async def discover_instagram_for_user(short_token: str) -> tuple[str, dict, list[dict]]:
     """
-    Fluxo completo após receber o code:
-      1. Troca por long-lived
-      2. Busca Pages do usuário
-      3. Para cada Page, busca IG Business Account
-      4. Retorna (long_lived_token, primeiro_ig_profile, todas_pages)
+    Fluxo simplificado pro Instagram Business Login:
+      1. Troca short-lived por long-lived
+      2. GET /me — retorna direto o perfil IG
+      3. Retorna (long_token, ig_profile, [ig_profile])
 
-    Se usuário tem múltiplas Pages com IG, frontend deve permitir escolher.
-    Para MVP, pegamos a primeira encontrada.
+    Mantém assinatura compatível com o fluxo anterior (que retornava
+    múltiplas Pages) — agora sempre devolve uma lista de 1 item porque
+    Instagram Login é por conta IG, não por Page.
     """
-    # 1. Long-lived
     long_lived = await exchange_for_long_lived(short_token)
     long_token = long_lived["access_token"]
-    expires_in = long_lived.get("expires_in", 60 * 24 * 3600)  # 60 dias default
 
-    # 2. Pages
-    pages = await get_user_pages(long_token)
-    if not pages:
+    profile = await fetch_ig_profile(long_token)
+    if not profile.get("ig_user_id"):
         raise RuntimeError(
-            "Usuário não tem Facebook Pages. "
-            "É preciso vincular uma Page para usar Instagram Business API."
+            "Conta Instagram não retornou ig_user_id. "
+            "Verifique se a conta é Business ou Creator (Personal não funciona com Insights)."
         )
 
-    # 3. Buscar IG em cada Page
-    ig_options = []
-    for page in pages:
-        page_id = page["id"]
-        page_token = page.get("access_token", long_token)
-        try:
-            ig_profile = await get_instagram_account(page_id, page_token)
-            if ig_profile:
-                ig_profile["page_name"] = page.get("name")
-                ig_options.append(ig_profile)
-        except Exception as e:
-            logger.warning(f"Erro ao buscar IG da Page {page_id}: {e}")
-            continue
-
-    if not ig_options:
-        raise RuntimeError(
-            "Nenhum Instagram Business Account vinculado às Pages. "
-            "Converta a conta para Business e vincule a uma Facebook Page."
-        )
-
-    return long_token, ig_options[0], ig_options
+    return long_token, profile, [profile]
 
 
 def calculate_token_expires_at(expires_in_seconds: int) -> datetime:
-    """Calcula timestamp de expiração baseado em expires_in."""
     return datetime.now(timezone.utc) + timedelta(seconds=expires_in_seconds)
 
 
 def calculate_next_refresh_at(token_expires_at: datetime) -> datetime:
-    """
-    Calcula quando refresh deve ser feito (10 dias antes da expiração).
-    Default: token = 60 dias → refresh aos 50 dias.
-    """
+    """Refresh aos 50 dias (10 dias de margem antes da expiração de 60 dias)."""
     return token_expires_at - timedelta(days=10)
 
 
@@ -271,25 +237,25 @@ def calculate_next_refresh_at(token_expires_at: datetime) -> datetime:
 def save_or_update_connection(
     sb,
     cliente_id: str,
-    fb_user_id: str,
+    fb_user_id: str,           # mantido na assinatura por compat — não usado no IG Login
     ig_profile: dict,
     access_token: str,
     expires_at: datetime,
     consultor_email: str,
 ) -> dict:
     """
-    Salva ou atualiza conexão Instagram para um cliente.
-    Retorna o registro salvo.
+    Salva ou atualiza conexão Instagram pra um cliente.
+    Sempre marca auth_provider='ig_login' (caminho atual).
     """
     payload = {
         "cliente_id": cliente_id,
-        "fb_user_id": fb_user_id,
-        "fb_page_id": ig_profile["page_id"],
+        "fb_user_id": fb_user_id or "",  # campo legado, vazio no IG Login
+        "fb_page_id": "",                 # idem — não tem Page
         "ig_user_id": ig_profile["ig_user_id"],
         "username": ig_profile.get("username", ""),
         "access_token": access_token,
         "token_expires_at": expires_at.isoformat(),
-        "scopes": META_SCOPES,
+        "scopes": IG_SCOPES,
         "profile_picture_url": ig_profile.get("profile_picture_url"),
         "display_name": ig_profile.get("name"),
         "biography": ig_profile.get("biography"),
@@ -298,6 +264,7 @@ def save_or_update_connection(
         "follows_count": ig_profile.get("follows_count", 0),
         "media_count": ig_profile.get("media_count", 0),
         "status": "ativo",
+        "auth_provider": "ig_login",
         "next_refresh_at": calculate_next_refresh_at(expires_at).isoformat(),
         "last_error": None,
         "conectado_por": consultor_email,

@@ -108,6 +108,19 @@ async def _apply_migration_003():
         """INSERT INTO storage.buckets (id, name, public)
            VALUES ('encontros', 'encontros', true)
            ON CONFLICT (id) DO NOTHING""",
+        # Coluna auth_provider em instagram_conexoes
+        # 'fb_login' = legado (Facebook Login for Business, deprecado)
+        # 'ig_login' = atual (Instagram Business Login, desde abr/2026)
+        """ALTER TABLE instagram_conexoes
+           ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'fb_login'""",
+        # Invalida conexões legadas: tokens antigos foram emitidos via FB Login e
+        # não funcionam no novo backend (graph.instagram.com). Cliente precisa reconectar.
+        """UPDATE instagram_conexoes
+           SET status = 'desconectado',
+               access_token = '',
+               last_error = 'Sistema migrado para Instagram Business Login em abr/2026. Reconecte o cliente pelo link de onboarding.',
+               updated_at = NOW()
+           WHERE auth_provider = 'fb_login' AND status = 'ativo'""",
     ]
     try:
         async with await psycopg.AsyncConnection.connect(db_url, autocommit=True) as conn:

@@ -119,44 +119,22 @@ async def oauth_callback(
         short_token_data = await exchange_code_for_token(code)
         short_token = short_token_data["access_token"]
 
-        # 2. Descobrir IG account (long-lived + pages + IG)
-        long_token, ig_profile, all_options = await discover_instagram_for_user(
-            short_token
-        )
+        # 2. Trocar por long-lived + pegar perfil IG
+        # discover_instagram_for_user já chama exchange_for_long_lived internamente,
+        # então não duplicamos aqui (segundo exchange falha — short_token vira inválido).
+        long_token, ig_profile, _all_options = await discover_instagram_for_user(short_token)
 
-        # 3. Calcular expiração (Meta pode mudar; default 60 dias)
-        expires_in = short_token_data.get("expires_in", 60 * 24 * 3600)
-        # Re-checar com long_lived response se houver
-        try:
-            from services.meta_oauth import exchange_for_long_lived
-            ll_data = await exchange_for_long_lived(short_token)
-            expires_in = ll_data.get("expires_in", expires_in)
-        except Exception:
-            pass
-
+        # 3. Long-lived padrão é 60d. A doc do Meta retorna expires_in mas como
+        # discover já consumiu o short_token, usamos default seguro.
+        expires_in = 60 * 24 * 3600
         expires_at = calculate_token_expires_at(expires_in)
 
-        # 4. Buscar fb_user_id (necessário para webhooks futuros)
-        fb_user_id = None
-        try:
-            import httpx
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.get(
-                    "https://graph.facebook.com/v21.0/me",
-                    params={"access_token": long_token, "fields": "id"},
-                )
-                if resp.status_code == 200:
-                    fb_user_id = resp.json().get("id")
-        except Exception as e:
-            logger.warning(f"Não conseguiu obter fb_user_id: {e}")
-
-        # 5. Salvar conexão
-        # consultor_email vem do callback context — guardamos como "system" se não temos
-        consultor_email = "system@flg"  # Sem JWT no callback, fallback
+        # 4. Salvar conexão (fb_user_id fica vazio — IG Login não passa por Pages)
+        consultor_email = "system@flg"  # Sem JWT no callback
         save_or_update_connection(
             _supabase,
             cliente_id=cliente_id,
-            fb_user_id=fb_user_id or "unknown",
+            fb_user_id="",
             ig_profile=ig_profile,
             access_token=long_token,
             expires_at=expires_at,

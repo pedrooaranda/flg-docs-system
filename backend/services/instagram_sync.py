@@ -30,7 +30,10 @@ import httpx
 
 logger = logging.getLogger("flg.ig_sync")
 
-GRAPH = "https://graph.facebook.com/v21.0"
+# Migrado de graph.facebook.com → graph.instagram.com em abr/2026 com a
+# adoção do Instagram Business Login. Endpoints, paths e parâmetros são
+# os mesmos — só mudou o host base.
+GRAPH = "https://graph.instagram.com/v21.0"
 HTTP_TIMEOUT = 20
 INTER_CALL_DELAY = 0.2  # 200ms entre chamadas Graph API
 DAYS_RESYNC_RECENT_POSTS = 7
