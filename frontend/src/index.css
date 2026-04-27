@@ -327,6 +327,15 @@
   }
 }
 
+/* Banner "Dados Demo" — ícone pulsando */
+.mock-banner-pulse {
+  animation: mock-banner-pulse 2.4s ease-in-out infinite;
+}
+@keyframes mock-banner-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(234,179,8,0.5), 0 0 8px rgba(234,179,8,0.18); }
+  50%      { box-shadow: 0 0 0 6px rgba(234,179,8,0),    0 0 16px rgba(234,179,8,0.4); }
+}
+
 /* ── react-day-picker dark theme (FLG) ── */
 .flg-daypicker .rdp {
   --rdp-cell-size: 32px;

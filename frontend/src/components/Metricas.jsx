@@ -5,14 +5,15 @@ import {
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { Users, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Wifi, WifiOff, Play, Share2, Target, Clock, RefreshCw, Crown } from 'lucide-react'
+import { Users, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Wifi, Play, Share2, Target, Clock, RefreshCw, Crown } from 'lucide-react'
 import { api } from '../lib/api'
 import { isAdmin as checkAdmin } from '../lib/utils'
 import { useApp } from '../contexts/AppContext'
+import { useNavigate } from 'react-router-dom'
 import {
   DateRangePicker,
   KpiGridSkeleton, ChartSkeleton, HeatmapSkeleton, PostsGridSkeleton,
-  PostsTable, ViewToggle, DemographicsSection,
+  PostsTable, ViewToggle, DemographicsSection, MockDataBanner,
 } from './MetricasParts'
 
 const GOLD = '#C9A84C'
@@ -728,6 +729,7 @@ function formatRelative(iso) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export default function Metricas({ session }) {
+  const navigate = useNavigate()
   const user = session?.user
   const admin = checkAdmin(user)
   const { clientes: allClientes } = useApp()
@@ -805,13 +807,11 @@ export default function Metricas({ session }) {
             accent={platConfig.color}
           />
 
-          {overview && (
+          {overview && conectado && (
             <div className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-full"
-              style={conectado
-                ? { background: 'rgba(52,211,153,0.12)', color: '#34D399', border: '1px solid rgba(52,211,153,0.25)' }
-                : { background: 'var(--flg-bg-hover)', color: 'var(--flg-text-muted)', border: '1px solid var(--flg-border)' }}>
-              {conectado ? <Wifi size={11} /> : <WifiOff size={11} />}
-              {conectado ? `${platConfig.label} conectado` : 'Dados mock'}
+              style={{ background: 'rgba(52,211,153,0.12)', color: '#34D399', border: '1px solid rgba(52,211,153,0.25)' }}>
+              <Wifi size={11} />
+              {platConfig.label} conectado
             </div>
           )}
 
@@ -852,6 +852,10 @@ export default function Metricas({ session }) {
 
       {!loading && overview && (
         <>
+          {!conectado && (
+            <MockDataBanner onConectar={() => navigate('/admin')} />
+          )}
+
           {/* ── KPI Grid ── */}
           <section>
             <SectionTitle>Visão Geral — {platConfig.label} — últimos 30 dias</SectionTitle>

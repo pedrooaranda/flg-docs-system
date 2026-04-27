@@ -522,18 +522,22 @@ function formatNum(n) {
 export function DemographicsSection({ clienteId, accent = '#E4405F' }) {
   const [tipo, setTipo] = useState('follower')
   const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!clienteId) return
     setLoading(true)
+    setError(null)
     api(`/metricas/${clienteId}/demografia?tipo=${tipo}`)
       .then(d => setData(d.demografia))
-      .catch(() => setData(null))
+      .catch(err => {
+        console.error('Demografia load error:', err)
+        setError(err.message || 'Erro ao carregar demografia')
+        setData(null)
+      })
       .finally(() => setLoading(false))
   }, [clienteId, tipo])
-
-  if (!data && !loading) return null
 
   const generoIdade = data?.genero_idade || {}
   const paises = data?.paises || []
@@ -569,6 +573,11 @@ export function DemographicsSection({ clienteId, accent = '#E4405F' }) {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-3 rounded-lg p-3 text-xs" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', color: 'rgba(239,68,68,0.85)' }}>
+          ⚠ Não foi possível carregar demografia: {error}
+        </div>
+      )}
       {apiMessage && fonte === 'live' && total === 0 && (
         <div className="mb-3 rounded-lg p-3 text-xs" style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.2)', color: 'rgba(234,179,8,0.85)' }}>
           ⚠ {apiMessage}
@@ -714,6 +723,65 @@ function CityBars({ data, total, accent, loading }) {
         </div>
       )}
     </div>
+  )
+}
+
+// ─── Banner: dados demo (mock) ────────────────────────────────────────────────
+
+export function MockDataBanner({ onConectar }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl p-3.5 flex items-center justify-between gap-4 relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, rgba(234,179,8,0.08), rgba(245,158,11,0.04))',
+        border: '1px solid rgba(234,179,8,0.30)',
+        boxShadow: '0 0 0 1px rgba(234,179,8,0.08)',
+      }}
+    >
+      <div className="flex items-center gap-3 flex-1">
+        <div
+          className="rounded-lg flex items-center justify-center mock-banner-pulse shrink-0"
+          style={{
+            width: 36, height: 36,
+            background: 'rgba(234,179,8,0.18)',
+            border: '1px solid rgba(234,179,8,0.4)',
+          }}
+        >
+          <span className="text-base">🎭</span>
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded uppercase"
+              style={{ background: 'rgba(234,179,8,0.20)', color: '#FACC15', border: '1px solid rgba(234,179,8,0.35)' }}
+            >
+              Dados Demo
+            </span>
+            <span className="text-xs text-white/70 font-semibold">
+              Este cliente ainda não conectou o Instagram
+            </span>
+          </div>
+          <p className="text-[11px] text-white/45 mt-0.5">
+            Você está vendo uma simulação realista. Conecte o Instagram pra ver dados reais sincronizados.
+          </p>
+        </div>
+      </div>
+      {onConectar && (
+        <button
+          onClick={onConectar}
+          className="text-[11px] font-bold px-3 py-2 rounded-lg shrink-0 transition-transform hover:scale-105"
+          style={{
+            background: 'linear-gradient(135deg, #FACC15, #EAB308)',
+            color: '#1a1300',
+            boxShadow: '0 4px 14px rgba(234,179,8,0.35)',
+          }}
+        >
+          Ir para conexões →
+        </button>
+      )}
+    </motion.div>
   )
 }
 
