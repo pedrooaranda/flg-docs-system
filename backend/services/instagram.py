@@ -15,10 +15,13 @@ Documentação: https://developers.facebook.com/docs/instagram-api
 """
 
 import hashlib
+import logging
 import os
 import random
 from abc import ABC, abstractmethod
 from datetime import date, timedelta
+
+logger = logging.getLogger("flg.instagram")
 
 
 # ─── Contrato abstrato ────────────────────────────────────────────────────────
@@ -431,8 +434,15 @@ def get_repository(cliente_id: str = None) -> InstagramRepository:
             ).eq("status", "ativo").maybe_single().execute()
             if r and r.data:
                 return LiveInstagramRepository(sb)
-        except Exception:
-            pass
+            else:
+                logger.info(
+                    f"get_repository: cliente={cliente_id} sem conexão ativa — usando Mock"
+                )
+        except Exception as e:
+            logger.warning(
+                f"get_repository: falha ao consultar instagram_conexoes para "
+                f"cliente={cliente_id} — fallback Mock. Erro: {type(e).__name__}: {str(e)[:200]}"
+            )
 
     return MockInstagramRepository()
 

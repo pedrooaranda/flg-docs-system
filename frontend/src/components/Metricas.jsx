@@ -700,10 +700,96 @@ function ClienteCombobox({ clientes, value, onChange, accent = GOLD }) {
   )
 }
 
+// ─── Banner: conectado mas aguardando primeira sincronização ─────────────────
+function AguardandoSyncBanner({ clienteId, accent = GOLD, onSynced }) {
+  const [syncing, setSyncing] = useState(false)
+  const [feedback, setFeedback] = useState(null)
+
+  async function handleSync() {
+    if (syncing) return
+    setSyncing(true)
+    setFeedback(null)
+    try {
+      const r = await api(`/instagram/oauth/sync/${clienteId}`, { method: 'POST' })
+      const status = r?.status || (r?.errors?.length ? 'partial' : 'ok')
+      if (status === 'ok' || status === 'partial') {
+        if (onSynced) onSynced(r)
+      }
+      if (r?.errors?.length) {
+        setFeedback({ kind: status === 'failed' ? 'failed' : 'partial', errors: r.errors })
+      }
+    } catch (err) {
+      setFeedback({ kind: 'failed', errors: [{ step: 'request', message: err?.message || 'Erro desconhecido' }] })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  return (
+    <div
+      className="rounded-xl p-4 flex flex-col gap-3"
+      style={{
+        background: 'linear-gradient(135deg, rgba(56,189,248,0.08), rgba(34,211,238,0.04))',
+        border: '1px solid rgba(56,189,248,0.30)',
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className="rounded-lg flex items-center justify-center shrink-0"
+          style={{ width: 36, height: 36, background: 'rgba(56,189,248,0.18)', border: '1px solid rgba(56,189,248,0.4)' }}
+        >
+          <RefreshCw size={18} style={{ color: '#7DD3FC' }} className={syncing ? 'animate-spin' : ''} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-semibold text-white/90">Instagram conectado · aguardando primeira sincronização</div>
+          <div className="text-[11px] text-white/55 mt-0.5">
+            A conta foi vinculada, mas ainda não puxamos os dados. O sync automático roda toda madrugada (04h UTC) — clique abaixo pra rodar agora.
+          </div>
+        </div>
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          className="text-[11px] font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap"
+          style={{
+            background: syncing ? 'var(--flg-bg-hover)' : accent,
+            color: syncing ? 'var(--flg-text-muted)' : '#0B0B0B',
+            border: `1px solid ${accent}`,
+            cursor: syncing ? 'wait' : 'pointer',
+          }}
+        >
+          {syncing ? 'Sincronizando…' : 'Sincronizar agora'}
+        </button>
+      </div>
+
+      {feedback?.errors?.length > 0 && (
+        <div
+          className="rounded-lg p-2.5 text-[11px]"
+          style={{
+            background: 'rgba(248,113,113,0.08)',
+            border: '1px solid rgba(248,113,113,0.30)',
+          }}
+        >
+          <div className="font-semibold text-[#F87171] mb-1">
+            {feedback.kind === 'failed' ? '❌ Sync falhou' : '⚠️ Sync com falhas parciais'}
+          </div>
+          <ul className="space-y-0.5 text-white/75">
+            {feedback.errors.map((e, i) => (
+              <li key={i}>
+                <span className="font-semibold text-white/90">{e.step}:</span> {e.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Sync button + última sincronização ──────────────────────────────────────
 function SyncButton({ clienteId, onSynced, accent = GOLD }) {
   const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState(null)
+  const [feedback, setFeedback] = useState(null) // { kind: 'ok'|'partial'|'failed', message, errors? }
 
   useEffect(() => {
     if (!clienteId) return
@@ -712,36 +798,83 @@ function SyncButton({ clienteId, onSynced, accent = GOLD }) {
       .catch(() => {})
   }, [clienteId])
 
+  // Auto-dismiss do feedback depois de uns segundos (mais tempo se for erro)
+  useEffect(() => {
+    if (!feedback) return
+    const ms = feedback.kind === 'ok' ? 4000 : 12000
+    const t = setTimeout(() => setFeedback(null), ms)
+    return () => clearTimeout(t)
+  }, [feedback])
+
   async function handleSync() {
     if (syncing) return
     setSyncing(true)
+    setFeedback(null)
     try {
-      const r = await api(`/instagram/sync/${clienteId}`, { method: 'POST' })
+      const r = await api(`/instagram/oauth/sync/${clienteId}`, { method: 'POST' })
       setLastSync(new Date().toISOString())
+      const status = r?.status || (r?.errors?.length ? 'partial' : 'ok')
+      const summary = `posts=${r?.posts ?? 0} · métricas=${r?.metricas_diarias ?? 0} · horários=${r?.horarios ?? 0}`
+      if (status === 'ok') {
+        setFeedback({ kind: 'ok', message: `Sincronizado · ${summary}` })
+      } else if (status === 'partial') {
+        setFeedback({ kind: 'partial', message: `Sync parcial · ${summary}`, errors: r.errors })
+      } else {
+        setFeedback({ kind: 'failed', message: 'Sync falhou em todas as etapas', errors: r.errors })
+      }
       if (onSynced) onSynced(r)
     } catch (err) {
-      console.error('Sync error', err)
+      setFeedback({ kind: 'failed', message: err?.message || 'Erro ao sincronizar', errors: [] })
     } finally {
       setSyncing(false)
     }
   }
 
+  const feedbackColor = feedback?.kind === 'ok' ? '#34D399' : feedback?.kind === 'partial' ? '#FACC15' : '#F87171'
+
   return (
-    <button
-      onClick={handleSync}
-      disabled={syncing}
-      className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-full transition-all"
-      style={{
-        background: 'var(--flg-bg-hover)',
-        color: syncing ? 'var(--flg-text-muted)' : accent,
-        border: `1px solid ${accent}30`,
-        cursor: syncing ? 'wait' : 'pointer',
-      }}
-      title={lastSync ? `Última sync: ${formatRelative(lastSync)}` : 'Nunca sincronizado'}
-    >
-      <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} />
-      {syncing ? 'Sincronizando…' : (lastSync ? `Sync ${formatRelative(lastSync)}` : 'Atualizar agora')}
-    </button>
+    <div className="relative inline-flex items-center gap-2">
+      <button
+        onClick={handleSync}
+        disabled={syncing}
+        className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-full transition-all"
+        style={{
+          background: 'var(--flg-bg-hover)',
+          color: syncing ? 'var(--flg-text-muted)' : accent,
+          border: `1px solid ${accent}30`,
+          cursor: syncing ? 'wait' : 'pointer',
+        }}
+        title={lastSync ? `Última sync: ${formatRelative(lastSync)}` : 'Nunca sincronizado'}
+      >
+        <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} />
+        {syncing ? 'Sincronizando…' : (lastSync ? `Sync ${formatRelative(lastSync)}` : 'Atualizar agora')}
+      </button>
+
+      {feedback && (
+        <div
+          className="absolute top-full mt-2 left-0 z-20 rounded-lg px-3 py-2 text-[11px] max-w-md shadow-lg"
+          style={{
+            background: 'var(--flg-bg-raised)',
+            border: `1px solid ${feedbackColor}50`,
+            color: 'var(--flg-text)',
+          }}
+        >
+          <div className="font-semibold flex items-center gap-2" style={{ color: feedbackColor }}>
+            <span>{feedback.kind === 'ok' ? '✅' : feedback.kind === 'partial' ? '⚠️' : '❌'}</span>
+            {feedback.message}
+          </div>
+          {feedback.errors?.length > 0 && (
+            <ul className="mt-1.5 space-y-0.5 text-[10.5px] text-white/70">
+              {feedback.errors.map((e, i) => (
+                <li key={i}>
+                  <span className="font-semibold text-white/90">{e.step}:</span> {e.message}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -814,6 +947,7 @@ export default function Metricas({ session }) {
 
   const kpis = overview?.kpis
   const conectado = overview?.conectado
+  const aguardandoSync = overview?.aguardando_sync === true
   const platConfig = PLATFORMS[platform]
   const kpiDefs = PLATFORM_KPIS[platform] || []
   const primaryChart = PLATFORM_CHART_PRIMARY[platform]
@@ -884,7 +1018,11 @@ export default function Metricas({ session }) {
         </div>
       )}
 
-      {!loading && overview && (
+      {!loading && overview && aguardandoSync && (
+        <AguardandoSyncBanner clienteId={clienteId} accent={platConfig.color} onSynced={() => setLoading(true)} />
+      )}
+
+      {!loading && overview && !aguardandoSync && (
         <>
           {!conectado && (
             <MockDataBanner onConectar={() => navigate('/admin')} />

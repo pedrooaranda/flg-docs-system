@@ -169,7 +169,28 @@ async def get_overview(
 ):
     repo = _get_repo(plataforma, cliente_id)
     historico = repo.get_historico(cliente_id, 60)
+    connected = repo.is_connected(cliente_id)
+
+    cliente_row = _supabase.table("clientes").select("nome, empresa").eq(
+        "id", cliente_id
+    ).single().execute()
+    cliente_nome = cliente_row.data.get("nome", "—") if cliente_row.data else "—"
+
+    # Cliente conectado mas sync ainda não populou as tabelas — devolve overview
+    # vazio com flag pro frontend mostrar estado "aguardando primeira sync".
+    # Mock sempre devolve histórico, então isso só dispara no caminho Live.
     if not historico:
+        if connected:
+            return {
+                "cliente_id": cliente_id,
+                "cliente_nome": cliente_nome,
+                "plataforma": plataforma,
+                "periodo": {"inicio": None, "fim": None},
+                "conectado": True,
+                "aguardando_sync": True,
+                "kpis": {},
+                "sparklines": {},
+            }
         raise HTTPException(404, "Sem dados para este cliente")
 
     atual = historico[30:]
@@ -183,13 +204,6 @@ async def get_overview(
     for label, field in _SPARKLINE_FIELDS.get(plataforma, []):
         sparklines[label] = [{"data": d["data"], "v": d.get(field, 0)} for d in spark7]
 
-    connected = repo.is_connected(cliente_id)
-
-    cliente_row = _supabase.table("clientes").select("nome, empresa").eq(
-        "id", cliente_id
-    ).single().execute()
-    cliente_nome = cliente_row.data.get("nome", "—") if cliente_row.data else "—"
-
     return {
         "cliente_id": cliente_id,
         "cliente_nome": cliente_nome,
@@ -199,6 +213,7 @@ async def get_overview(
             "fim": atual[-1]["data"] if atual else None,
         },
         "conectado": connected,
+        "aguardando_sync": False,
         "kpis": kpis,
         "sparklines": sparklines,
     }

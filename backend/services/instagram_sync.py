@@ -19,6 +19,7 @@ Rate limits Meta Graph API v21.0:
 """
 
 import asyncio
+import json
 import logging
 import os
 from collections import defaultdict
@@ -84,12 +85,7 @@ async def _run_daily_sync():
 async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict:
     """
     Sincroniza um cliente específico.
-    Retorna dict com contadores e duração.
-    Usado tanto pelo cron quanto pelo endpoint manual.
-
-    sync_demographics: se True, também puxa follower_demographics e
-        engaged_audience_demographics. Por padrão só roda no sync semanal
-        (segunda-feira) ou quando explicitamente pedido.
+    Retorna dict com contadores, duração e erros por etapa.
     """
     from deps import supabase_client as sb
 
@@ -107,51 +103,92 @@ async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict
     access_token = conn["access_token"]
     username = conn.get("username", "?")
 
-    logger.info(f"📊 Sync @{username} (cliente={cliente_id})...")
+    logger.info(f"📊 Sync @{username} (cliente={cliente_id}, ig_user_id={ig_user_id})...")
 
     counters = {"followers": 0, "posts": 0, "metricas_diarias": 0, "horarios": 0, "demografia": 0}
+    errors = []  # [{step, message}]
 
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
         # 1. Snapshot followers + perfil
-        profile = await _fetch_profile(client, ig_user_id, access_token)
-        if profile:
-            counters["followers"] = await _save_followers_snapshot(sb, cliente_id, profile)
-            await _update_conexao_profile(sb, conn["id"], profile)
+        try:
+            profile = await _fetch_profile(client, ig_user_id, access_token)
+            if profile:
+                counters["followers"] = await _save_followers_snapshot(sb, cliente_id, profile)
+                await _update_conexao_profile(sb, conn["id"], profile)
+            else:
+                errors.append({"step": "profile", "message": "Profile retornou vazio. Token pode não ter acesso à conta IG."})
+        except Exception as e:
+            errors.append({"step": "profile", "message": f"{type(e).__name__}: {str(e)[:200]}"})
+            logger.error(f"Profile fetch erro: {e}", exc_info=True)
 
-        # 2. Posts (FEED + REELS) recentes
-        posts_synced = await _sync_posts(sb, client, cliente_id, ig_user_id, access_token)
-        counters["posts"] = posts_synced
+        # 2. Posts (FEED + REELS)
+        try:
+            counters["posts"] = await _sync_posts(sb, client, cliente_id, ig_user_id, access_token)
+        except Exception as e:
+            errors.append({"step": "posts", "message": f"{type(e).__name__}: {str(e)[:200]}"})
+            logger.error(f"Posts sync erro: {e}", exc_info=True)
 
         # 3. Stories ativas (24h)
-        stories_synced = await _sync_stories(sb, client, cliente_id, ig_user_id, access_token)
-        counters["posts"] += stories_synced
+        try:
+            counters["posts"] += await _sync_stories(sb, client, cliente_id, ig_user_id, access_token)
+        except Exception as e:
+            errors.append({"step": "stories", "message": f"{type(e).__name__}: {str(e)[:200]}"})
 
-        # 4. Agregar métricas diárias (calcular a partir dos posts)
-        counters["metricas_diarias"] = _aggregate_daily_metrics(sb, cliente_id)
+        # 4. Agregados locais
+        try:
+            counters["metricas_diarias"] = _aggregate_daily_metrics(sb, cliente_id)
+            counters["horarios"] = _aggregate_horarios(sb, cliente_id)
+        except Exception as e:
+            errors.append({"step": "aggregate", "message": f"{type(e).__name__}: {str(e)[:200]}"})
 
-        # 5. Recalcular heatmap horários
-        counters["horarios"] = _aggregate_horarios(sb, cliente_id)
-
-        # 6. Demografia (semanal por padrão — endpoint caro)
+        # 5. Demografia (semanal ou explícito)
         if sync_demographics or _is_weekly_sync_day():
-            counters["demografia"] = await _sync_demographics(sb, client, cliente_id, ig_user_id, access_token)
+            try:
+                counters["demografia"] = await _sync_demographics(sb, client, cliente_id, ig_user_id, access_token)
+            except Exception as e:
+                errors.append({"step": "demografia", "message": f"{type(e).__name__}: {str(e)[:200]}"})
 
     duration_ms = int((datetime.now(timezone.utc) - started_at).total_seconds() * 1000)
+
+    # Estado: tudo ok / parcial / total. Usado pra log e pro last_error.
+    total_steps = sum(counters.values())
+    if not errors:
+        status_kind = "ok"
+        last_error_value = None
+    elif total_steps == 0:
+        status_kind = "failed"
+        last_error_value = json.dumps({"errors": errors, "at": datetime.now(timezone.utc).isoformat()})
+    else:
+        status_kind = "partial"
+        last_error_value = json.dumps({"errors": errors, "at": datetime.now(timezone.utc).isoformat()})
 
     sb.table("instagram_conexoes").update({
         "last_sync_at": datetime.now(timezone.utc).isoformat(),
         "last_sync_duration_ms": duration_ms,
-        "last_error": None,
+        "last_error": last_error_value,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", conn["id"]).execute()
 
-    logger.info(
-        f"✅ Sync @{username} ok — posts={counters['posts']}, "
-        f"métricas={counters['metricas_diarias']}, horários={counters['horarios']}, "
-        f"{duration_ms}ms"
+    summary = (
+        f"posts={counters['posts']}, métricas={counters['metricas_diarias']}, "
+        f"horários={counters['horarios']}, demografia={counters['demografia']}, {duration_ms}ms"
     )
+    if status_kind == "ok":
+        logger.info(f"✅ Sync @{username} ok — {summary}")
+    elif status_kind == "partial":
+        steps_failed = ", ".join(e["step"] for e in errors)
+        logger.warning(f"⚠️ Sync @{username} parcial ({steps_failed}) — {summary}")
+    else:
+        steps_failed = ", ".join(e["step"] for e in errors)
+        logger.error(f"❌ Sync @{username} falhou ({steps_failed}) — {summary}")
 
-    return {**counters, "duration_ms": duration_ms, "username": username}
+    return {
+        **counters,
+        "duration_ms": duration_ms,
+        "username": username,
+        "status": status_kind,
+        "errors": errors,
+    }
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

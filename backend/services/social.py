@@ -8,10 +8,13 @@ Factory: get_platform_repository(plataforma, cliente_id) → retorna o mock corr
 """
 
 import hashlib
+import logging
 import os
 import random
 from abc import ABC, abstractmethod
 from datetime import date, timedelta
+
+logger = logging.getLogger("flg.social")
 
 PLATAFORMAS_VALIDAS = ("instagram", "linkedin", "youtube", "tiktok")
 
@@ -481,13 +484,21 @@ def get_platform_repository(plataforma: str = "instagram", cliente_id: str = Non
     if plataforma == "instagram" and cliente_id:
         try:
             from deps import supabase_client as sb
-            r = sb.table("instagram_conexoes").select("id").eq(
+            r = sb.table("instagram_conexoes").select("id,status").eq(
                 "cliente_id", cliente_id
             ).eq("status", "ativo").maybe_single().execute()
             if r and r.data:
                 from services.instagram import LiveInstagramRepository
                 return LiveInstagramRepository(sb)
-        except Exception:
-            pass
+            else:
+                logger.info(
+                    f"get_platform_repository: cliente={cliente_id} sem conexão ativa "
+                    f"em instagram_conexoes — usando MockInstagramRepository"
+                )
+        except Exception as e:
+            logger.warning(
+                f"get_platform_repository: falha ao consultar instagram_conexoes "
+                f"para cliente={cliente_id} — fallback Mock. Erro: {type(e).__name__}: {str(e)[:200]}"
+            )
 
     return cls()
