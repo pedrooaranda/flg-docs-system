@@ -298,4 +298,13 @@
     0%, 100% { border-color: rgba(201,168,76,0.5); }
     50% { border-color: rgba(201,168,76,0.15); }
   }
+
+  /* KPI vencedor — glow sutil pulsando */
+  .kpi-pulse {
+    animation: kpi-pulse 3.2s ease-in-out infinite;
+  }
+  @keyframes kpi-pulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(201,168,76,0.06), 0 0 14px rgba(201,168,76,0.04); }
+    50%      { box-shadow: 0 0 0 1px rgba(201,168,76,0.20), 0 0 22px rgba(201,168,76,0.18); }
+  }
 }
