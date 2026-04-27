@@ -63,8 +63,8 @@ export default function ConectarInstagram() {
           >
             <span className="font-display font-bold text-base" style={{ color: '#1a1300' }}>FLG</span>
           </div>
-          <h1 className="font-display text-2xl font-bold text-white">Jornada System</h1>
-          <p className="text-xs text-white/40 mt-1">Conexão Instagram</p>
+          <h1 className="font-display text-2xl font-bold text-white">Founders Led Growth</h1>
+          <p className="text-[11px] text-white/40 mt-1 tracking-widest uppercase">Autorização de acesso</p>
         </div>
 
         <motion.div
@@ -80,18 +80,18 @@ export default function ConectarInstagram() {
         >
           {loading && (
             <div className="text-center py-4">
-              <Loader2 size={28} className="mx-auto mb-3 text-gold-mid animate-spin" style={{ color: '#C9A84C' }} />
-              <p className="text-sm text-white/50">Validando link…</p>
+              <Loader2 size={28} className="mx-auto mb-3 animate-spin" style={{ color: '#C9A84C' }} />
+              <p className="text-sm text-white/50">Validando autorização…</p>
             </div>
           )}
 
           {!loading && error && (
             <div className="text-center py-4">
               <AlertCircle size={32} className="mx-auto mb-3 text-red-400" />
-              <h2 className="text-base font-semibold text-white mb-1">Link inválido</h2>
+              <h2 className="text-base font-semibold text-white mb-1">Link inválido ou expirado</h2>
               <p className="text-xs text-white/50">{error}</p>
-              <p className="text-[11px] text-white/30 mt-4">
-                Peça ao seu consultor um link novo.
+              <p className="text-[11px] text-white/35 mt-4 leading-relaxed">
+                Solicite ao seu consultor da FLG um novo link de autorização.
               </p>
             </div>
           )}
@@ -99,12 +99,12 @@ export default function ConectarInstagram() {
           {!loading && info && igConnected && (
             <div className="text-center py-4">
               <CheckCircle2 size={36} className="mx-auto mb-3 text-emerald-400" />
-              <h2 className="text-lg font-semibold text-white mb-1">Conectado!</h2>
-              <p className="text-xs text-white/50 mb-4">
-                Instagram de <strong className="text-white/80">{info.cliente_nome}</strong> conectado com sucesso.
+              <h2 className="text-lg font-semibold text-white mb-1">Acesso autorizado</h2>
+              <p className="text-xs text-white/55 mb-4 leading-relaxed">
+                O Instagram de <strong className="text-white/80">{info.cliente_nome}</strong> foi vinculado com sucesso ao Jornada System.
               </p>
-              <p className="text-[11px] text-white/30">
-                Pode fechar esta janela. Seu consultor já vai começar a ver as métricas.
+              <p className="text-[11px] text-white/35 leading-relaxed">
+                Pode encerrar esta janela. Seu consultor passará a acompanhar a evolução do perfil em detalhe a partir de agora.
               </p>
             </div>
           )}
@@ -112,9 +112,9 @@ export default function ConectarInstagram() {
           {!loading && info && igError && !igConnected && (
             <div className="text-center py-4">
               <AlertCircle size={32} className="mx-auto mb-3 text-amber-400" />
-              <h2 className="text-base font-semibold text-white mb-1">Conexão interrompida</h2>
-              <p className="text-xs text-white/50 mb-3">
-                Não foi possível concluir a autorização. Você pode tentar novamente abaixo.
+              <h2 className="text-base font-semibold text-white mb-1">Autorização não concluída</h2>
+              <p className="text-xs text-white/55 mb-3 leading-relaxed">
+                Houve uma interrupção no processo. Você pode tentar novamente sem problema — nada foi salvo até aqui.
               </p>
               <p className="text-[10px] text-white/30 mb-4">{decodeURIComponent(igError)}</p>
               <button
@@ -132,37 +132,37 @@ export default function ConectarInstagram() {
               {info.ja_conectado ? (
                 <div className="text-center py-2">
                   <CheckCircle2 size={28} className="mx-auto mb-3 text-emerald-400" />
-                  <h2 className="text-base font-semibold text-white mb-1">Já está conectado</h2>
-                  <p className="text-xs text-white/50">
+                  <h2 className="text-base font-semibold text-white mb-1">Acesso já autorizado</h2>
+                  <p className="text-xs text-white/55 leading-relaxed">
                     O Instagram de <strong className="text-white/80">{info.cliente_nome}</strong>
                     {info.username_conectado && <> (<span style={{ color: '#C9A84C' }}>@{info.username_conectado}</span>)</>}
-                    {' '}já está vinculado ao Jornada System.
+                    {' '}já está vinculado ao Jornada System. Seu consultor tem visibilidade completa sobre os resultados.
                   </p>
-                  <p className="text-[11px] text-white/30 mt-4">
-                    Se quiser reconectar com outra conta, fale com seu consultor.
+                  <p className="text-[11px] text-white/35 mt-4 leading-relaxed">
+                    Para vincular outra conta, fale diretamente com seu consultor da FLG.
                   </p>
                 </div>
               ) : (
                 <>
-                  <h2 className="text-lg font-semibold text-white mb-1">
-                    Olá, {info.cliente_nome.split(' ')[0]}!
+                  <h2 className="text-lg font-semibold text-white mb-1.5">
+                    Olá, {info.cliente_nome.split(' ')[0]}.
                   </h2>
-                  <p className="text-xs text-white/55 mb-5">
-                    Para que seu consultor da FLG acompanhe seus resultados em tempo real, conecte sua conta Instagram em um clique.
+                  <p className="text-xs text-white/60 mb-5 leading-relaxed">
+                    Esta é a etapa de autorização para que seu consultor da FLG acompanhe seu perfil no Instagram em profundidade e analise os resultados de forma contínua, gerando recomendações estratégicas baseadas em dados.
                   </p>
 
-                  <div className="space-y-2.5 mb-6 text-[11px] text-white/55">
+                  <div className="space-y-2.5 mb-6 text-[11px] text-white/60">
                     <div className="flex items-start gap-2">
                       <ShieldCheck size={13} style={{ color: '#34D399' }} className="mt-0.5 shrink-0" />
-                      <span>Você autoriza pela tela oficial do Facebook (mesma do Meta Business Suite)</span>
+                      <span>Autorização realizada pela tela oficial do Meta — a mesma utilizada no Business Suite.</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <Lock size={13} style={{ color: '#34D399' }} className="mt-0.5 shrink-0" />
-                      <span>Acessamos apenas métricas (alcance, engajamento, posts) — nunca publicamos por você</span>
+                      <span>Acesso exclusivamente de leitura: métricas, posts e insights. Em nenhum momento publicamos ou interagimos em seu nome.</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <CheckCircle2 size={13} style={{ color: '#34D399' }} className="mt-0.5 shrink-0" />
-                      <span>Pode revogar acesso a qualquer momento em <span className="text-white/70">facebook.com/settings</span></span>
+                      <span>Você pode revogar o acesso a qualquer momento nas configurações do Facebook.</span>
                     </div>
                   </div>
 
@@ -176,13 +176,17 @@ export default function ConectarInstagram() {
                     }}
                   >
                     <Instagram size={16} />
-                    Conectar com Facebook
+                    Autorizar acesso pelo Facebook
                   </button>
 
-                  <p className="text-[10px] text-white/30 text-center mt-4">
-                    Ao conectar, você aceita nossa{' '}
+                  <p className="text-[10px] text-white/35 text-center mt-4 leading-relaxed">
+                    Ao continuar, você concorda com nossa{' '}
                     <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/60">
                       Política de Privacidade
+                    </a>{' '}
+                    e{' '}
+                    <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/60">
+                      Termos de Uso
                     </a>
                     .
                   </p>
