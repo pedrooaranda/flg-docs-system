@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { BookOpen, Users, Layers, Pencil, Check, X, Download, RefreshCw, AlertCircle, CheckCircle2, ExternalLink, Link2, Unlink } from 'lucide-react'
+import { BookOpen, Users, Layers, Pencil, Check, X, Download, RefreshCw, AlertCircle, CheckCircle2, ExternalLink, Link2, Unlink, Search, ArrowUpDown } from 'lucide-react'
 import { api } from '../lib/api'
 import { progressPercent } from '../lib/utils'
 import { Avatar } from './ui/Avatar'
@@ -226,6 +226,9 @@ function InstagramConnectionsSection({ clientes }) {
   const toast = useToast()
   const [connections, setConnections] = useState({})
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState('name') // 'name' | 'status'
+  const [sortDir, setSortDir] = useState('asc') // 'asc' | 'desc'
 
   useEffect(() => {
     if (!clientes.length) { setLoading(false); return }
@@ -242,6 +245,35 @@ function InstagramConnectionsSection({ clientes }) {
       setLoading(false)
     })
   }, [clientes])
+
+  function toggleSort(col) {
+    if (sortBy === col) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(col)
+      setSortDir('asc')
+    }
+  }
+
+  const filteredSorted = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const filtered = q
+      ? clientes.filter(c =>
+          (c.nome || '').toLowerCase().includes(q) ||
+          (c.empresa || '').toLowerCase().includes(q) ||
+          (connections[c.id]?.username || '').toLowerCase().includes(q)
+        )
+      : clientes
+    const dir = sortDir === 'asc' ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'status') {
+        const sa = connections[a.id]?.conectado ? 1 : 0
+        const sb = connections[b.id]?.conectado ? 1 : 0
+        if (sa !== sb) return (sb - sa) * dir
+      }
+      return (a.nome || '').localeCompare(b.nome || '', 'pt-BR') * dir
+    })
+  }, [clientes, connections, search, sortBy, sortDir])
 
   async function handleConnect(clienteId) {
     try {
@@ -274,24 +306,59 @@ function InstagramConnectionsSection({ clientes }) {
           <span className="ml-2 text-sm font-normal text-white/30">({conectados}/{clientes.length})</span>
         </h2>
       </div>
+      <div className="mb-3 flex items-center gap-2">
+        <div className="relative flex-1 max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar cliente, empresa ou @username…"
+            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm bg-black/30 border border-white/10 text-white placeholder:text-white/25 focus:outline-none focus:border-gold-mid/50"
+          />
+        </div>
+        {search && (
+          <span className="text-[11px] text-white/40">
+            {filteredSorted.length} de {clientes.length}
+          </span>
+        )}
+      </div>
       <div className="card-flg overflow-hidden">
         {loading ? (
           <div className="p-8 flex justify-center"><Spinner /></div>
         ) : clientes.length === 0 ? (
           <p className="p-6 text-sm text-white/30 text-center">Nenhum cliente cadastrado.</p>
+        ) : filteredSorted.length === 0 ? (
+          <p className="p-6 text-sm text-white/30 text-center">Nenhum resultado para "{search}".</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/5">
-                {['Cliente', '@username', 'Followers', 'Status', 'Ações'].map(col => (
-                  <th key={col} className="text-left px-4 py-3 text-[10px] tracking-widest uppercase text-white/30 font-normal">
-                    {col}
-                  </th>
-                ))}
+                <th
+                  onClick={() => toggleSort('name')}
+                  className="text-left px-4 py-3 text-[10px] tracking-widest uppercase text-white/30 font-normal cursor-pointer hover:text-white/60 select-none"
+                >
+                  <span className="inline-flex items-center gap-1">
+                    Cliente
+                    {sortBy === 'name' && <ArrowUpDown size={10} />}
+                  </span>
+                </th>
+                <th className="text-left px-4 py-3 text-[10px] tracking-widest uppercase text-white/30 font-normal">@username</th>
+                <th className="text-left px-4 py-3 text-[10px] tracking-widest uppercase text-white/30 font-normal">Followers</th>
+                <th
+                  onClick={() => toggleSort('status')}
+                  className="text-left px-4 py-3 text-[10px] tracking-widest uppercase text-white/30 font-normal cursor-pointer hover:text-white/60 select-none"
+                >
+                  <span className="inline-flex items-center gap-1">
+                    Status
+                    {sortBy === 'status' && <ArrowUpDown size={10} />}
+                  </span>
+                </th>
+                <th className="text-left px-4 py-3 text-[10px] tracking-widest uppercase text-white/30 font-normal">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {clientes.map(c => {
+              {filteredSorted.map(c => {
                 const conn = connections[c.id] || {}
                 const ok = conn.conectado
                 return (
