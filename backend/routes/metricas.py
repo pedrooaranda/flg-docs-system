@@ -176,6 +176,12 @@ async def get_overview(
     ).single().execute()
     cliente_nome = cliente_row.data.get("nome", "—") if cliente_row.data else "—"
 
+    # Diagnóstico: se for IG conectado, traz última sync e último erro pra UI poder
+    # explicar quando dados ficam zerados (ex: sync rodou mas insights falharam).
+    diagnostico = None
+    if plataforma == "instagram" and connected:
+        diagnostico = _build_ig_diagnostico(cliente_id, historico)
+
     # Cliente conectado mas sync ainda não populou as tabelas — devolve overview
     # vazio com flag pro frontend mostrar estado "aguardando primeira sync".
     # Mock sempre devolve histórico, então isso só dispara no caminho Live.
@@ -190,6 +196,7 @@ async def get_overview(
                 "aguardando_sync": True,
                 "kpis": {},
                 "sparklines": {},
+                "diagnostico": diagnostico,
             }
         raise HTTPException(404, "Sem dados para este cliente")
 
@@ -216,6 +223,39 @@ async def get_overview(
         "aguardando_sync": False,
         "kpis": kpis,
         "sparklines": sparklines,
+        "diagnostico": diagnostico,
+    }
+
+
+def _build_ig_diagnostico(cliente_id: str, historico: list) -> dict:
+    """
+    Diagnóstico pro frontend explicar dados vazios.
+    Conta posts dos últimos 30 dias e busca último erro de sync.
+    """
+    import json as _json
+    posts_no_periodo = sum((h.get("posts_publicados") or 0) for h in historico[-30:])
+    posts_no_periodo += sum((h.get("reels_publicados") or 0) for h in historico[-30:])
+    posts_no_periodo += sum((h.get("stories_publicados") or 0) for h in historico[-30:])
+
+    conn = _supabase.table("instagram_conexoes").select(
+        "last_sync_at,last_error,token_expires_at"
+    ).eq("cliente_id", cliente_id).eq("status", "ativo").maybe_single().execute()
+
+    last_error_parsed = None
+    last_sync_at = None
+    if conn and conn.data:
+        last_sync_at = conn.data.get("last_sync_at")
+        raw_err = conn.data.get("last_error")
+        if raw_err:
+            try:
+                last_error_parsed = _json.loads(raw_err)
+            except Exception:
+                last_error_parsed = {"errors": [{"step": "unknown", "message": raw_err}]}
+
+    return {
+        "posts_no_periodo": posts_no_periodo,
+        "last_sync_at": last_sync_at,
+        "last_error": last_error_parsed,
     }
 
 

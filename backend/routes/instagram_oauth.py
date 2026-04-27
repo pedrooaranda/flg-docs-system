@@ -293,10 +293,12 @@ async def sync_cliente_manual(cliente_id: str, user=Depends(get_current_user)):
     """
     Trigger manual de sync para um cliente conectado.
     Usado pelo botão "Atualizar agora" na página Métricas.
+
+    Sempre puxa demografia (endpoint caro, mas user pediu explicitamente).
     """
     from services.instagram_sync import sync_cliente
     try:
-        result = await sync_cliente(cliente_id)
+        result = await sync_cliente(cliente_id, sync_demographics=True)
         return {"ok": True, **result}
     except Exception as e:
         logger.error(f"Sync manual falhou cliente={cliente_id}: {e}", exc_info=True)

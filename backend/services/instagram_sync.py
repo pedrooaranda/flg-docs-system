@@ -106,6 +106,7 @@ async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict
     logger.info(f"📊 Sync @{username} (cliente={cliente_id}, ig_user_id={ig_user_id})...")
 
     counters = {"followers": 0, "posts": 0, "metricas_diarias": 0, "horarios": 0, "demografia": 0}
+    diagnostics = {}  # detalhes extras (insights variantes, media_fetched, etc.)
     errors = []  # [{step, message}]
 
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
@@ -123,7 +124,23 @@ async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict
 
         # 2. Posts (FEED + REELS)
         try:
-            counters["posts"] = await _sync_posts(sb, client, cliente_id, ig_user_id, access_token)
+            posts_result = await _sync_posts(sb, client, cliente_id, ig_user_id, access_token)
+            counters["posts"] = posts_result["synced"]
+            diagnostics["media_fetched"] = posts_result["media_fetched"]
+            diagnostics["insights_full"] = posts_result["insights_full"]
+            diagnostics["insights_safe"] = posts_result["insights_safe"]
+            diagnostics["insights_failed"] = posts_result["insights_failed"]
+            # Se Meta devolveu posts mas TODOS os insights falharam, sinaliza problema —
+            # provavelmente conta Personal/Creator sem permissão de Insights.
+            if posts_result["media_fetched"] > 0 and posts_result["insights_failed"] == posts_result["media_fetched"]:
+                errors.append({
+                    "step": "posts",
+                    "message": (
+                        f"Insights falhou em todos os {posts_result['media_fetched']} posts. "
+                        "Possíveis causas: conta IG não é Business/Creator, ou faltou aprovar "
+                        "permissão instagram_manage_insights no OAuth."
+                    ),
+                })
         except Exception as e:
             errors.append({"step": "posts", "message": f"{type(e).__name__}: {str(e)[:200]}"})
             logger.error(f"Posts sync erro: {e}", exc_info=True)
@@ -188,6 +205,7 @@ async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict
         "username": username,
         "status": status_kind,
         "errors": errors,
+        "diagnostics": diagnostics,
     }
 
 
@@ -256,7 +274,12 @@ async def _update_conexao_profile(sb, conn_id: str, profile: dict):
 # 2. POSTS (FEED + REELS)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id: str, token: str) -> int:
+async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id: str, token: str) -> dict:
+    """
+    Retorna dict com contadores: media_fetched, synced, insights_full, insights_safe,
+    insights_failed. Quem chama somava só o contador de synced — agora loga o resto
+    pra diagnóstico.
+    """
     fields = (
         "id,media_type,media_product_type,caption,permalink,media_url,thumbnail_url,"
         "timestamp,like_count,comments_count"
@@ -268,10 +291,17 @@ async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id
     await asyncio.sleep(INTER_CALL_DELAY)
     if resp.status_code != 200:
         logger.warning(f"Posts fetch falhou {resp.status_code}: {resp.text[:200]}")
-        return 0
+        # Sinaliza pro chamador via exception com mensagem clara — vai parar no errors[]
+        raise RuntimeError(f"Posts fetch HTTP {resp.status_code}: {resp.text[:200]}")
 
     media_items = resp.json().get("data", [])
-    synced = 0
+    counters = {
+        "media_fetched": len(media_items),
+        "synced": 0,
+        "insights_full": 0,
+        "insights_safe": 0,
+        "insights_failed": 0,
+    }
 
     cutoff_resync = datetime.now(timezone.utc) - timedelta(days=DAYS_RESYNC_RECENT_POSTS)
     cutoff_finalize = datetime.now(timezone.utc) - timedelta(days=DAYS_FINALIZE_POSTS)
@@ -301,39 +331,82 @@ async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id
             continue
 
         insights = await _fetch_post_insights(client, media_id, item.get("media_product_type", "FEED"), token)
+        variant = insights.pop("_insights_variant", "failed")
+        counters[f"insights_{variant}"] += 1
 
         row = _build_post_row(cliente_id, item, insights, posted_at, cutoff_finalize)
 
         sb.table("instagram_posts").upsert(row, on_conflict="ig_media_id").execute()
-        synced += 1
+        counters["synced"] += 1
 
-    return synced
+    logger.info(
+        f"_sync_posts cliente={cliente_id}: media={counters['media_fetched']}, "
+        f"synced={counters['synced']}, insights full/safe/failed="
+        f"{counters['insights_full']}/{counters['insights_safe']}/{counters['insights_failed']}"
+    )
+    return counters
+
+
+# Insights: pedimos a lista completa primeiro. Se Meta rejeitar (ex: deprecou
+# alguma métrica como `impressions` ou `profile_visits` para certos tipos de
+# conta), tentamos um subset menor e seguro pra trazer ao menos o essencial.
+# Conjunto "essencial" = só o que continua suportado em 2025+.
+_INSIGHTS_METRICS = {
+    "REELS": {
+        "full": "reach,saved,shares,total_interactions,plays,ig_reels_video_view_total_time,ig_reels_avg_watch_time,likes,comments",
+        "safe": "reach,saved,shares,total_interactions,likes,comments",
+    },
+    "STORY": {
+        "full": "reach,impressions,exits,replies,taps_forward,taps_back,shares",
+        "safe": "reach,replies,taps_forward,taps_back",
+    },
+    "FEED": {
+        "full": "reach,impressions,saved,shares,total_interactions,profile_visits,follows,likes,comments",
+        "safe": "reach,saved,shares,total_interactions,likes,comments",
+    },
+}
 
 
 async def _fetch_post_insights(client: httpx.AsyncClient, media_id: str, media_product_type: str, token: str) -> dict:
-    if media_product_type == "REELS":
-        metrics = "reach,saved,shares,total_interactions,plays,ig_reels_video_view_total_time,ig_reels_avg_watch_time,likes,comments"
-    elif media_product_type == "STORY":
-        metrics = "reach,impressions,exits,replies,taps_forward,taps_back,shares"
-    else:
-        metrics = "reach,impressions,saved,shares,total_interactions,profile_visits,follows,likes,comments"
+    """
+    Tenta primeiro a lista FULL. Se Meta retornar 400 (provavelmente porque
+    deprecou alguma métrica para esse tipo de conta), retenta com SAFE.
+    Logs registram qual variante foi usada e por quê.
+    """
+    bucket = "REELS" if media_product_type == "REELS" else "STORY" if media_product_type == "STORY" else "FEED"
+    full = _INSIGHTS_METRICS[bucket]["full"]
+    safe = _INSIGHTS_METRICS[bucket]["safe"]
 
-    resp = await client.get(
-        f"{GRAPH}/{media_id}/insights",
-        params={"metric": metrics, "access_token": token},
-    )
-    await asyncio.sleep(INTER_CALL_DELAY)
-    if resp.status_code != 200:
-        logger.debug(f"Insights {media_id} falhou {resp.status_code}: {resp.text[:200]}")
-        return {}
+    for attempt_label, metrics in (("full", full), ("safe", safe)):
+        resp = await client.get(
+            f"{GRAPH}/{media_id}/insights",
+            params={"metric": metrics, "access_token": token},
+        )
+        await asyncio.sleep(INTER_CALL_DELAY)
 
-    raw = resp.json().get("data", [])
-    out = {}
-    for entry in raw:
-        name = entry.get("name")
-        values = entry.get("values", [])
-        out[name] = values[0].get("value") if values else None
-    return out
+        if resp.status_code == 200:
+            raw = resp.json().get("data", [])
+            out = {}
+            for entry in raw:
+                name = entry.get("name")
+                values = entry.get("values", [])
+                out[name] = values[0].get("value") if values else None
+            if attempt_label == "safe":
+                logger.info(f"Insights {media_id} ({bucket}) usado fallback SAFE")
+            out["_insights_variant"] = attempt_label
+            return out
+
+        # Não-200: log e tenta próximo nível
+        if attempt_label == "full":
+            logger.warning(
+                f"Insights {media_id} ({bucket}) FULL falhou {resp.status_code}: {resp.text[:240]} — tentando SAFE"
+            )
+        else:
+            logger.warning(
+                f"Insights {media_id} ({bucket}) SAFE também falhou {resp.status_code}: {resp.text[:240]}"
+            )
+
+    return {"_insights_variant": "failed"}
 
 
 def _build_post_row(cliente_id: str, item: dict, insights: dict, posted_at: datetime, cutoff_finalize: datetime) -> dict:
