@@ -124,12 +124,26 @@ async def oauth_callback(
         # então não duplicamos aqui (segundo exchange falha — short_token vira inválido).
         long_token, ig_profile, _all_options = await discover_instagram_for_user(short_token)
 
-        # 3. Long-lived padrão é 60d. A doc do Meta retorna expires_in mas como
+        # 3. Validar account_type — Personal não tem acesso a Insights e
+        # qualquer tracking real é impossível. Aborta antes de salvar a conexão
+        # (cliente vê tela explicativa pra converter conta e tentar de novo).
+        account_type = (ig_profile.get("account_type") or "").upper()
+        if account_type and account_type not in ("BUSINESS", "CREATOR"):
+            logger.warning(
+                f"OAuth recusado cliente={cliente_id} @{ig_profile.get('username')}: "
+                f"account_type={account_type} (precisa Business ou Creator)"
+            )
+            return RedirectResponse(_redirect_target(
+                f"ig_error=account_personal&account_type={account_type}"
+                f"&ig_username={ig_profile.get('username', '')}"
+            ))
+
+        # 4. Long-lived padrão é 60d. A doc do Meta retorna expires_in mas como
         # discover já consumiu o short_token, usamos default seguro.
         expires_in = 60 * 24 * 3600
         expires_at = calculate_token_expires_at(expires_in)
 
-        # 4. Salvar conexão (fb_user_id fica vazio — IG Login não passa por Pages)
+        # 5. Salvar conexão (fb_user_id fica vazio — IG Login não passa por Pages)
         consultor_email = "system@flg"  # Sem JWT no callback
         save_or_update_connection(
             _supabase,
@@ -143,7 +157,7 @@ async def oauth_callback(
 
         logger.info(
             f"✅ Instagram conectado: cliente={cliente_id} "
-            f"@{ig_profile.get('username')} (ig_id={ig_profile['ig_user_id']})"
+            f"@{ig_profile.get('username')} (ig_id={ig_profile['ig_user_id']}, type={account_type or 'unknown'})"
         )
 
         return RedirectResponse(_redirect_target(

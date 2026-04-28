@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Instagram, CheckCircle2, AlertCircle, Loader2, Lock, ShieldCheck } from 'lucide-react'
+import { Instagram, CheckCircle2, AlertCircle, Loader2, Lock, ShieldCheck, ExternalLink } from 'lucide-react'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -17,10 +17,15 @@ export default function ConectarInstagram() {
   const token = search.get('t') || ''
   const igConnected = search.get('ig_connected')
   const igError = search.get('ig_error')
+  const igUsername = search.get('ig_username') || ''
 
   const [info, setInfo] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  // Pre-check de pré-requisitos: cliente precisa confirmar que entendeu antes de autorizar
+  const [confirmaProfissional, setConfirmaProfissional] = useState(false)
+  const [confirmaAdmin, setConfirmaAdmin] = useState(false)
+  const podeAutorizar = confirmaProfissional && confirmaAdmin
 
   useEffect(() => {
     if (!token) {
@@ -109,7 +114,49 @@ export default function ConectarInstagram() {
             </div>
           )}
 
-          {!loading && info && igError && !igConnected && (
+          {!loading && info && igError && !igConnected && igError === 'account_personal' && (
+            <div className="py-2">
+              <AlertCircle size={32} className="mx-auto mb-3 text-amber-400" />
+              <h2 className="text-base font-semibold text-white mb-2 text-center">
+                Sua conta ainda é Pessoal
+              </h2>
+              <p className="text-xs text-white/65 mb-4 leading-relaxed text-center">
+                {igUsername ? <>A conta <strong className="text-white/90">@{igUsername}</strong> autorizou,</> : 'A conta autorizou,'} mas o Instagram só libera métricas e insights pra contas <strong className="text-white/90">Profissionais</strong> (Comercial ou Criador). Sem isso a gente não consegue puxar nada.
+              </p>
+
+              <div
+                className="rounded-lg p-3 mb-4 text-[11px] text-white/70"
+                style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.20)' }}
+              >
+                <p className="font-semibold text-white/85 mb-1.5">Como mudar (1 minuto):</p>
+                <ol className="space-y-1 list-decimal list-inside leading-relaxed">
+                  <li>Abra o app do Instagram</li>
+                  <li>Vá em <strong>Perfil → Menu (☰) → Configurações e privacidade</strong></li>
+                  <li>Toque em <strong>Conta → Tipo de conta e ferramentas → Mudar para conta profissional</strong></li>
+                  <li>Escolha <strong>Comercial</strong> ou <strong>Criador de conteúdo</strong> e siga os passos</li>
+                  <li>Volte aqui e clique em "Tentar novamente"</li>
+                </ol>
+                <a
+                  href="https://help.instagram.com/138925576130557"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 mt-2.5 text-[11px] text-amber-400 underline hover:text-amber-300"
+                >
+                  Tutorial oficial do Instagram <ExternalLink size={10} />
+                </a>
+              </div>
+
+              <button
+                onClick={startOAuth}
+                className="w-full py-2.5 rounded-lg text-sm font-semibold"
+                style={{ background: '#C9A84C', color: '#1a1300' }}
+              >
+                Já mudei — Tentar novamente
+              </button>
+            </div>
+          )}
+
+          {!loading && info && igError && !igConnected && igError !== 'account_personal' && (
             <div className="text-center py-4">
               <AlertCircle size={32} className="mx-auto mb-3 text-amber-400" />
               <h2 className="text-base font-semibold text-white mb-1">Autorização não concluída</h2>
@@ -151,32 +198,87 @@ export default function ConectarInstagram() {
                     Esta é a etapa de autorização para que seu consultor da FLG acompanhe seu perfil no Instagram em profundidade e analise os resultados de forma contínua, gerando recomendações estratégicas baseadas em dados.
                   </p>
 
-                  <div className="space-y-2.5 mb-6 text-[11px] text-white/60">
+                  <div className="space-y-2.5 mb-5 text-[11px] text-white/60">
                     <div className="flex items-start gap-2">
                       <ShieldCheck size={13} style={{ color: '#34D399' }} className="mt-0.5 shrink-0" />
                       <span>Autorização realizada pela tela oficial do Meta — a mesma utilizada no Business Suite.</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <Lock size={13} style={{ color: '#34D399' }} className="mt-0.5 shrink-0" />
-                      <span>Acesso exclusivamente de leitura: métricas, posts e insights. Em nenhum momento publicamos ou interagimos em seu nome.</span>
+                      <span>Acesso exclusivamente de leitura: métricas, posts, insights e comentários. Em nenhum momento publicamos ou interagimos em seu nome.</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <CheckCircle2 size={13} style={{ color: '#34D399' }} className="mt-0.5 shrink-0" />
-                      <span>Você pode revogar o acesso a qualquer momento nas configurações do Facebook.</span>
+                      <span>Você pode revogar o acesso a qualquer momento nas configurações do Instagram.</span>
                     </div>
+                  </div>
+
+                  {/* Pre-check de pré-requisitos — Personal não funciona com Insights */}
+                  <div
+                    className="rounded-xl p-3.5 mb-4"
+                    style={{
+                      background: 'rgba(201,168,76,0.06)',
+                      border: '1px solid rgba(201,168,76,0.20)',
+                    }}
+                  >
+                    <p className="text-[11px] font-semibold text-white/85 mb-2.5">
+                      Antes de autorizar, confirme:
+                    </p>
+                    <label className="flex items-start gap-2.5 mb-2 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={confirmaProfissional}
+                        onChange={e => setConfirmaProfissional(e.target.checked)}
+                        className="mt-0.5 shrink-0 cursor-pointer accent-amber-400"
+                      />
+                      <span className="text-[11px] text-white/70 leading-relaxed group-hover:text-white/90">
+                        Minha conta no Instagram é <strong className="text-white/95">Profissional</strong> (Comercial ou Criador de conteúdo).{' '}
+                        <a
+                          href="https://help.instagram.com/138925576130557"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline text-amber-400 hover:text-amber-300"
+                        >
+                          Como verificar
+                        </a>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2.5 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={confirmaAdmin}
+                        onChange={e => setConfirmaAdmin(e.target.checked)}
+                        className="mt-0.5 shrink-0 cursor-pointer accent-amber-400"
+                      />
+                      <span className="text-[11px] text-white/70 leading-relaxed group-hover:text-white/90">
+                        Eu sou o <strong className="text-white/95">administrador</strong> dessa conta (logo agora no app do Instagram).
+                      </span>
+                    </label>
+                    {!podeAutorizar && (
+                      <p className="text-[10px] text-white/40 mt-3 leading-relaxed">
+                        Conta Pessoal não funciona — o Instagram bloqueia acesso a métricas. Se ainda for Pessoal, mude em <em>Configurações → Conta → Mudar para profissional</em> antes de continuar.
+                      </p>
+                    )}
                   </div>
 
                   <button
                     onClick={startOAuth}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-transform hover:scale-[1.02]"
+                    disabled={!podeAutorizar}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all"
                     style={{
-                      background: 'linear-gradient(135deg, #F5D68A, #C9A84C, #8B6914)',
-                      color: '#1a1300',
-                      boxShadow: '0 8px 24px rgba(201,168,76,0.35)',
+                      background: podeAutorizar
+                        ? 'linear-gradient(135deg, #F5D68A, #C9A84C, #8B6914)'
+                        : 'rgba(255,255,255,0.05)',
+                      color: podeAutorizar ? '#1a1300' : 'rgba(255,255,255,0.30)',
+                      boxShadow: podeAutorizar ? '0 8px 24px rgba(201,168,76,0.35)' : 'none',
+                      cursor: podeAutorizar ? 'pointer' : 'not-allowed',
+                      transform: 'scale(1)',
                     }}
+                    onMouseEnter={e => podeAutorizar && (e.currentTarget.style.transform = 'scale(1.02)')}
+                    onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
                   >
                     <Instagram size={16} />
-                    Autorizar acesso pelo Facebook
+                    Autorizar acesso pelo Instagram
                   </button>
 
                   <p className="text-[10px] text-white/35 text-center mt-4 leading-relaxed">

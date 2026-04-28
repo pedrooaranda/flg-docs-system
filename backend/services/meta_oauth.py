@@ -37,11 +37,17 @@ IG_OAUTH_DIALOG = "https://www.instagram.com/oauth/authorize"
 IG_TOKEN_EXCHANGE = "https://api.instagram.com/oauth/access_token"  # POST short-lived
 IG_GRAPH = "https://graph.instagram.com"  # GET long-lived + refresh + dados
 
-# Permissões necessárias pra ler métricas Business
-# https://developers.facebook.com/docs/permissions#instagram_business_basic
+# Permissões pedidas no OAuth — somente leitura, nunca publicamos nem mandamos DM.
+# https://developers.facebook.com/docs/permissions
+#
+# - instagram_business_basic: perfil, posts, reels, stories, contadores
+# - instagram_business_manage_insights: reach, impressions, demografia, retention
+# - instagram_business_manage_comments: TEXTO dos comentários (ler — não responder)
+#   Pedido agora pra evitar reconexão futura quando UI de análise de comentários sair.
 IG_SCOPES = ",".join([
     "instagram_business_basic",
     "instagram_business_manage_insights",
+    "instagram_business_manage_comments",
 ])
 
 
