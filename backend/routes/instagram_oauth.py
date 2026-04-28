@@ -171,9 +171,16 @@ async def oauth_callback(
         ))
 
     except Exception as e:
-        logger.error(f"OAuth callback erro: {e}", exc_info=True)
+        # Loga com tipo + cliente_id pra rastrear no Docker logs
+        logger.error(
+            f"OAuth callback erro cliente={cliente_id}: "
+            f"{type(e).__name__}: {e}",
+            exc_info=True,
+        )
+        # Detail vai pra URL — mantém curto e não vaza secrets
+        detail_clean = str(e)[:160].replace("\n", " ").replace("&", "_")
         return RedirectResponse(_redirect_target(
-            f"ig_error=callback_failed&detail={str(e)[:200]}"
+            f"ig_error=callback_failed&detail={detail_clean}"
         ))
 
 

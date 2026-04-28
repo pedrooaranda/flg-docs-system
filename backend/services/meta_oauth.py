@@ -251,7 +251,9 @@ def save_or_update_connection(
 ) -> dict:
     """
     Salva ou atualiza conexão Instagram pra um cliente.
-    Sempre marca auth_provider='ig_login' (caminho atual).
+    Marca auth_provider='ig_login' quando a coluna existir; se não existir
+    (ex: migration ainda não rodou), tenta de novo sem essa chave pra que o
+    callback OAuth NUNCA falhe pro cliente final por causa de schema desatualizado.
     """
     payload = {
         "cliente_id": cliente_id,
@@ -277,7 +279,23 @@ def save_or_update_connection(
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    result = sb.table("instagram_conexoes").upsert(
-        payload, on_conflict="cliente_id"
-    ).execute()
-    return result.data[0] if result.data else payload
+    try:
+        result = sb.table("instagram_conexoes").upsert(
+            payload, on_conflict="cliente_id"
+        ).execute()
+        return result.data[0] if result.data else payload
+    except Exception as e:
+        # Postgrest erro PGRST204: coluna não existe no schema cache.
+        # Tenta de novo removendo as chaves "novas" que podem não existir
+        # se a migration não rodou (ex: VPS sem IPv6 pro Postgres direct).
+        msg = str(e)
+        if "auth_provider" in msg or "PGRST204" in msg:
+            logger.warning(
+                f"upsert falhou ({msg[:200]}); tentando sem auth_provider"
+            )
+            payload.pop("auth_provider", None)
+            result = sb.table("instagram_conexoes").upsert(
+                payload, on_conflict="cliente_id"
+            ).execute()
+            return result.data[0] if result.data else payload
+        raise
