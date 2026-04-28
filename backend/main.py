@@ -121,6 +121,9 @@ async def _apply_migration_003():
                last_error = 'Sistema migrado para Instagram Business Login em abr/2026. Reconecte o cliente pelo link de onboarding.',
                updated_at = NOW()
            WHERE auth_provider = 'fb_login' AND status = 'ativo'""",
+        # Coluna nome_formatado em clientes — usada SÓ no link público de onboarding
+        # pra mostrar "Letícia Toledo" em vez de "LETICIATOLEDO". Lazy-fill via LLM.
+        "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS nome_formatado TEXT",
     ]
     try:
         async with await psycopg.AsyncConnection.connect(db_url, autocommit=True) as conn:

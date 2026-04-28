@@ -371,7 +371,13 @@ async def generate_onboard_token(cliente_id: str, user=Depends(get_current_user)
 
 @router.get("/onboard-info")
 async def onboard_info(token: str = Query(...)):
-    """Endpoint público — frontend usa pra mostrar nome do cliente na landing."""
+    """
+    Endpoint público — frontend usa pra mostrar nome do cliente na landing.
+    Usa nome_formatado (LLM-formatted, cached) pra exibir 'Letícia Toledo' em vez
+    de 'LETICIATOLEDO'. SÓ aqui — admin/métricas/agente continuam usando o nome cru.
+    """
+    from services.nome_formatter import formatar_nome_cliente
+
     cliente_id = _verify_onboard_token(token)
     cliente = _supabase.table("clientes").select("id, nome, empresa").eq(
         "id", cliente_id
@@ -379,6 +385,8 @@ async def onboard_info(token: str = Query(...)):
     if not cliente.data:
         raise HTTPException(404, "Cliente não encontrado")
     c = cliente.data[0]
+
+    nome_publico = formatar_nome_cliente(_supabase, cliente_id)
 
     # Já está conectado?
     conn = _supabase.table("instagram_conexoes").select("username, status").eq(
@@ -389,7 +397,7 @@ async def onboard_info(token: str = Query(...)):
 
     return {
         "cliente_id": cliente_id,
-        "cliente_nome": c["nome"],
+        "cliente_nome": nome_publico,
         "cliente_empresa": c.get("empresa"),
         "ja_conectado": ja_conectado,
         "username_conectado": username_conectado,
