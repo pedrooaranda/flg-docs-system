@@ -124,14 +124,20 @@ async def oauth_callback(
         # então não duplicamos aqui (segundo exchange falha — short_token vira inválido).
         long_token, ig_profile, _all_options = await discover_instagram_for_user(short_token)
 
-        # 3. Validar account_type — Personal não tem acesso a Insights e
-        # qualquer tracking real é impossível. Aborta antes de salvar a conexão
-        # (cliente vê tela explicativa pra converter conta e tentar de novo).
+        # 3. Validar account_type — Personal não tem acesso a Insights.
+        # Rejeita SOMENTE se vier explicitamente PERSONAL. Qualquer outro valor
+        # (BUSINESS, MEDIA_CREATOR, CREATOR, ou algo novo no futuro) passa —
+        # contas profissionais Instagram aparecem com nomes diferentes na API
+        # dependendo se é Comercial ("BUSINESS") ou Criador ("MEDIA_CREATOR").
         account_type = (ig_profile.get("account_type") or "").upper()
-        if account_type and account_type not in ("BUSINESS", "CREATOR"):
+        logger.info(
+            f"OAuth callback cliente={cliente_id} @{ig_profile.get('username')} "
+            f"account_type={account_type or 'unknown'}"
+        )
+        if account_type == "PERSONAL":
             logger.warning(
                 f"OAuth recusado cliente={cliente_id} @{ig_profile.get('username')}: "
-                f"account_type={account_type} (precisa Business ou Creator)"
+                f"conta PERSONAL não dá acesso a Insights"
             )
             return RedirectResponse(_redirect_target(
                 f"ig_error=account_personal&account_type={account_type}"
