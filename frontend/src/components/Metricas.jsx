@@ -303,9 +303,14 @@ function KpiCard({ icon: Icon, label, value, decimals = 0, suffix = '', delta, p
           </div>
         )}
       </div>
-      {delta !== undefined && (
+      {delta !== undefined && delta !== null && (
         <div className={`text-[11px] font-semibold ${positive ? 'text-emerald-400' : 'text-red-400'}`}>
           {positive ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}% vs. mês anterior
+        </div>
+      )}
+      {delta === null && (
+        <div className="text-[11px] font-medium text-white/30">
+          sem comparativo do período anterior
         </div>
       )}
     </motion.div>

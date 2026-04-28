@@ -264,16 +264,20 @@ class LiveInstagramRepository(InstagramRepository):
     def get_historico(self, cliente_id: str, dias: int = 30) -> list:
         cutoff = (date.today() - timedelta(days=dias - 1)).isoformat()
 
-        followers = self.sb.table("instagram_followers_historico").select("*").eq(
+        # Followers: pega TUDO (não filtra por cutoff) pra ter o último valor
+        # conhecido ANTES do período — usado pro carry-forward dos dias sem snapshot.
+        # Cliente recém-conectado tem só 1 snapshot (hoje), sem isso o gráfico
+        # mostra linha plana em 0 e spike pra 28000 no último dia.
+        all_followers = self.sb.table("instagram_followers_historico").select("*").eq(
             "cliente_id", cliente_id
-        ).gte("data", cutoff).order("data").execute().data or []
+        ).order("data").execute().data or []
 
         diarias = self.sb.table("instagram_metricas_diarias").select("*").eq(
             "cliente_id", cliente_id
         ).eq("media_product_type", "ALL").gte("data", cutoff).order("data").execute().data or []
 
         diarias_por_dia = {d["data"]: d for d in diarias}
-        followers_por_dia = {f["data"]: f for f in followers}
+        followers_por_dia = {f["data"]: f for f in all_followers}
 
         feed_diarias = self.sb.table("instagram_metricas_diarias").select(
             "data,posts_publicados"
@@ -294,14 +298,31 @@ class LiveInstagramRepository(InstagramRepository):
         reels_map = {x["data"]: x.get("posts_publicados", 0) for x in reels_diarias}
         stories_map = {x["data"]: x.get("posts_publicados", 0) for x in stories_diarias}
 
+        # Carry-forward dos seguidores: pra cada dia do período, se não tem
+        # snapshot daquele dia, usa o último snapshot conhecido (mais recente
+        # antes daquele dia). Resultado: linha contínua em vez de spike 0 → N.
+        sorted_snapshots = sorted(all_followers, key=lambda x: x["data"])
+
+        def _last_known_followers(target_date: str) -> int:
+            last = 0
+            for snap in sorted_snapshots:
+                if snap["data"] <= target_date:
+                    last = snap.get("followers_count") or last
+                else:
+                    break
+            return last
+
         result = []
         for i in range(dias):
             d = (date.today() - timedelta(days=dias - i - 1)).isoformat()
             f = followers_por_dia.get(d, {})
             agg = diarias_por_dia.get(d, {})
+            seguidores = f.get("followers_count") if f else None
+            if seguidores is None:
+                seguidores = _last_known_followers(d)
             result.append({
                 "data": d,
-                "seguidores": f.get("followers_count") or 0,
+                "seguidores": seguidores,
                 "delta_seguidores": f.get("delta_followers") or 0,
                 "alcance_total": agg.get("total_reach") or 0,
                 "impressoes_total": agg.get("total_impressions") or 0,

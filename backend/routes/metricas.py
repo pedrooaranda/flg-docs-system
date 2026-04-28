@@ -35,7 +35,15 @@ def _get_repo(plataforma: str, cliente_id: str):
 # ─── Helpers de agregação ────────────────────────────────────────────────────
 
 def _avg(lst, key):
+    """Média aritmética simples de todos os dias (incluindo zeros).
+    Use pra métricas onde 'dia sem dado' é informação válida (raro)."""
     vals = [d[key] for d in lst if d.get(key) is not None]
+    return round(sum(vals) / len(vals), 2) if vals else 0
+
+def _avg_active(lst, key):
+    """Média ignorando dias zerados — pra métricas tipo 'taxa por post' e
+    'alcance por post'. Sem isso, 1 post com eng=12% em 30 dias dilui pra 0.4%."""
+    vals = [d[key] for d in lst if d.get(key) and d[key] > 0]
     return round(sum(vals) / len(vals), 2) if vals else 0
 
 def _sum(lst, key):
@@ -45,19 +53,25 @@ def _last(lst, key):
     return lst[-1].get(key) if lst else 0
 
 def _delta_pct(atual_val, anterior_val):
-    if anterior_val == 0:
-        return 0
+    """Retorna delta % vs período anterior.
+    None quando não há base de comparação (cliente novo / sem dados anteriores) —
+    frontend suprime o badge nesse caso pra não mostrar '0%' enganoso."""
+    if anterior_val is None or anterior_val == 0:
+        return None
     return round((atual_val - anterior_val) / anterior_val * 100, 1)
 
 
 # ─── Overview genérico multi-plataforma ──────────────────────────────────────
 
 def _build_kpis_instagram(atual, anterior):
+    # taxa_engajamento, alcance_medio, impressoes_medias usam _avg_active:
+    # são métricas "por post" e dias sem post não devem diluir.
+    # curtidas/comentários/salvamentos somam tudo (volume absoluto no período).
     return {
         "seguidores": {"valor": _last(atual, "seguidores"), "delta_pct": _delta_pct(_last(atual, "seguidores"), _last(anterior, "seguidores"))},
-        "taxa_engajamento": {"valor": _avg(atual, "taxa_engajamento"), "delta_pct": _delta_pct(_avg(atual, "taxa_engajamento"), _avg(anterior, "taxa_engajamento"))},
-        "alcance_medio": {"valor": int(_avg(atual, "alcance_total")), "delta_pct": _delta_pct(_avg(atual, "alcance_total"), _avg(anterior, "alcance_total"))},
-        "impressoes_medias": {"valor": int(_avg(atual, "impressoes_total")), "delta_pct": _delta_pct(_avg(atual, "impressoes_total"), _avg(anterior, "impressoes_total"))},
+        "taxa_engajamento": {"valor": _avg_active(atual, "taxa_engajamento"), "delta_pct": _delta_pct(_avg_active(atual, "taxa_engajamento"), _avg_active(anterior, "taxa_engajamento"))},
+        "alcance_medio": {"valor": int(_avg_active(atual, "alcance_total")), "delta_pct": _delta_pct(_avg_active(atual, "alcance_total"), _avg_active(anterior, "alcance_total"))},
+        "impressoes_medias": {"valor": int(_avg_active(atual, "impressoes_total")), "delta_pct": _delta_pct(_avg_active(atual, "impressoes_total"), _avg_active(anterior, "impressoes_total"))},
         "curtidas_total": {"valor": _sum(atual, "curtidas_total"), "delta_pct": _delta_pct(_sum(atual, "curtidas_total"), _sum(anterior, "curtidas_total"))},
         "comentarios_total": {"valor": _sum(atual, "comentarios_total"), "delta_pct": _delta_pct(_sum(atual, "comentarios_total"), _sum(anterior, "comentarios_total"))},
         "salvamentos_total": {"valor": _sum(atual, "salvamentos_total"), "delta_pct": _delta_pct(_sum(atual, "salvamentos_total"), _sum(anterior, "salvamentos_total"))},
