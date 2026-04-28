@@ -25,11 +25,12 @@ export default function ConectarInstagram() {
   // Pre-check de pré-requisitos: cliente precisa confirmar que entendeu antes de autorizar
   const [confirmaProfissional, setConfirmaProfissional] = useState(false)
   const [confirmaAdmin, setConfirmaAdmin] = useState(false)
-  const podeAutorizar = confirmaProfissional && confirmaAdmin
+  const [confirmaTermos, setConfirmaTermos] = useState(false)
+  const podeAutorizar = confirmaProfissional && confirmaAdmin && confirmaTermos
 
   useEffect(() => {
     if (!token) {
-      setError('Link inválido — token ausente')
+      setError('Link inválido. Token ausente.')
       setLoading(false)
       return
     }
@@ -55,7 +56,7 @@ export default function ConectarInstagram() {
   return (
     <div
       className="min-h-screen flex items-center justify-center p-6"
-      style={{ background: 'linear-gradient(135deg, #080808 0%, #1a1300 60%, #080808 100%)' }}
+      style={{ background: 'linear-gradient(135deg, #2a2218 0%, #3d3120 50%, #2a2218 100%)' }}
     >
       <div className="w-full max-w-md">
         {/* Logo / brand */}
@@ -63,13 +64,13 @@ export default function ConectarInstagram() {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-3"
             style={{
               background: 'linear-gradient(135deg, #F5D68A, #C9A84C, #8B6914)',
-              boxShadow: '0 8px 24px rgba(201,168,76,0.25)',
+              boxShadow: '0 8px 24px rgba(201,168,76,0.35)',
             }}
           >
             <span className="font-display font-bold text-base" style={{ color: '#1a1300' }}>FLG</span>
           </div>
           <h1 className="font-display text-2xl font-bold text-white">Founders Led Growth</h1>
-          <p className="text-[11px] text-white/40 mt-1 tracking-widest uppercase">Autorização de acesso</p>
+          <p className="text-[11px] text-white/55 mt-1 tracking-widest uppercase">Autorização de acesso</p>
         </div>
 
         <motion.div
@@ -77,9 +78,9 @@ export default function ConectarInstagram() {
           animate={{ opacity: 1, y: 0 }}
           className="rounded-2xl p-7"
           style={{
-            background: 'rgba(20,15,8,0.85)',
-            border: '1px solid rgba(201,168,76,0.18)',
-            boxShadow: '0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,168,76,0.05)',
+            background: 'rgba(38,30,22,0.82)',
+            border: '1px solid rgba(201,168,76,0.28)',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.45), 0 0 0 1px rgba(201,168,76,0.08)',
             backdropFilter: 'blur(12px)',
           }}
         >
@@ -151,7 +152,7 @@ export default function ConectarInstagram() {
                 className="w-full py-2.5 rounded-lg text-sm font-semibold"
                 style={{ background: '#C9A84C', color: '#1a1300' }}
               >
-                Já mudei — Tentar novamente
+                Já mudei. Tentar novamente
               </button>
             </div>
           )}
@@ -161,7 +162,7 @@ export default function ConectarInstagram() {
               <AlertCircle size={32} className="mx-auto mb-3 text-amber-400" />
               <h2 className="text-base font-semibold text-white mb-1">Autorização não concluída</h2>
               <p className="text-xs text-white/55 mb-3 leading-relaxed">
-                Houve uma interrupção no processo. Você pode tentar novamente sem problema — nada foi salvo até aqui.
+                Houve uma interrupção no processo. Você pode tentar novamente sem problema. Nada foi salvo até aqui.
               </p>
               <p className="text-[10px] text-white/30 mb-4">{decodeURIComponent(igError)}</p>
               <button
@@ -198,10 +199,10 @@ export default function ConectarInstagram() {
                     Esta é a etapa de autorização para que seu consultor da FLG acompanhe seu perfil no Instagram em profundidade e analise os resultados de forma contínua, gerando recomendações estratégicas baseadas em dados.
                   </p>
 
-                  <div className="space-y-2.5 mb-5 text-[11px] text-white/60">
+                  <div className="space-y-2.5 mb-5 text-[11px] text-white/65">
                     <div className="flex items-start gap-2">
                       <ShieldCheck size={13} style={{ color: '#34D399' }} className="mt-0.5 shrink-0" />
-                      <span>Autorização realizada pela tela oficial do Meta — a mesma utilizada no Business Suite.</span>
+                      <span>Autorização realizada pela tela oficial do Meta, a mesma utilizada no Business Suite.</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <Lock size={13} style={{ color: '#34D399' }} className="mt-0.5 shrink-0" />
@@ -243,7 +244,7 @@ export default function ConectarInstagram() {
                         </a>
                       </span>
                     </label>
-                    <label className="flex items-start gap-2.5 cursor-pointer group">
+                    <label className="flex items-start gap-2.5 mb-2 cursor-pointer group">
                       <input
                         type="checkbox"
                         checked={confirmaAdmin}
@@ -254,9 +255,28 @@ export default function ConectarInstagram() {
                         Eu sou o <strong className="text-white/95">administrador</strong> dessa conta (logo agora no app do Instagram).
                       </span>
                     </label>
+                    <label className="flex items-start gap-2.5 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={confirmaTermos}
+                        onChange={e => setConfirmaTermos(e.target.checked)}
+                        className="mt-0.5 shrink-0 cursor-pointer accent-amber-400"
+                      />
+                      <span className="text-[11px] text-white/70 leading-relaxed group-hover:text-white/90">
+                        Li e concordo com a{' '}
+                        <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="underline text-amber-400 hover:text-amber-300">
+                          Política de Privacidade
+                        </a>
+                        {' '}e os{' '}
+                        <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="underline text-amber-400 hover:text-amber-300">
+                          Termos de Uso
+                        </a>
+                        .
+                      </span>
+                    </label>
                     {!podeAutorizar && (
-                      <p className="text-[10px] text-white/40 mt-3 leading-relaxed">
-                        Conta Pessoal não funciona — o Instagram bloqueia acesso a métricas. Se ainda for Pessoal, mude em <em>Configurações → Conta → Mudar para profissional</em> antes de continuar.
+                      <p className="text-[10px] text-white/45 mt-3 leading-relaxed">
+                        Conta Pessoal não funciona porque o Instagram bloqueia acesso a métricas. Se ainda for Pessoal, mude em <em>Configurações &rsaquo; Conta &rsaquo; Mudar para profissional</em> antes de continuar.
                       </p>
                     )}
                   </div>
@@ -280,18 +300,6 @@ export default function ConectarInstagram() {
                     <Instagram size={16} />
                     Autorizar acesso pelo Instagram
                   </button>
-
-                  <p className="text-[10px] text-white/35 text-center mt-4 leading-relaxed">
-                    Ao continuar, você concorda com nossa{' '}
-                    <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/60">
-                      Política de Privacidade
-                    </a>{' '}
-                    e{' '}
-                    <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-white/60">
-                      Termos de Uso
-                    </a>
-                    .
-                  </p>
                 </>
               )}
             </>
