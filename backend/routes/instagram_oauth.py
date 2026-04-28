@@ -184,19 +184,23 @@ async def get_status(cliente_id: str, user=Depends(get_current_user)):
     ).eq("cliente_id", cliente_id).execute()
 
     if not result.data:
-        # Verificar se Meta App está configurado
-        app_id_configured = bool(os.getenv("META_APP_ID"))
+        # Verificar se Meta App está configurado (IG ou FB legacy)
+        app_configured = bool(os.getenv("IG_APP_ID") or os.getenv("META_APP_ID"))
         return {
             "conectado": False,
-            "app_configurado": app_id_configured,
+            "app_configurado": app_configured,
             "mensagem": (
                 "Instagram não conectado para este cliente."
-                if app_id_configured
-                else "META_APP_ID não configurado no servidor."
+                if app_configured
+                else "IG_APP_ID não configurado no servidor."
             ),
         }
 
     conn = result.data[0]
+    # 'conectado' reflete o status REAL da linha — uma linha com status
+    # 'desconectado' / 'expirado' / 'reconectar' preserva histórico de profile/followers
+    # mas NÃO conta como conexão ativa pro frontend.
+    is_ativo = (conn.get("status") or "") == "ativo"
 
     # Calcular dias até expirar
     dias_para_expirar = None
@@ -210,7 +214,7 @@ async def get_status(cliente_id: str, user=Depends(get_current_user)):
         pass
 
     return {
-        "conectado": True,
+        "conectado": is_ativo,
         "id": conn["id"],
         "username": conn.get("username"),
         "display_name": conn.get("display_name"),
