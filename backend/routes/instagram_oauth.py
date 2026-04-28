@@ -376,8 +376,6 @@ async def onboard_info(token: str = Query(...)):
     Usa nome_formatado (LLM-formatted, cached) pra exibir 'Letícia Toledo' em vez
     de 'LETICIATOLEDO'. SÓ aqui — admin/métricas/agente continuam usando o nome cru.
     """
-    from services.nome_formatter import formatar_nome_cliente
-
     cliente_id = _verify_onboard_token(token)
     cliente = _supabase.table("clientes").select("id, nome, empresa").eq(
         "id", cliente_id
@@ -386,7 +384,15 @@ async def onboard_info(token: str = Query(...)):
         raise HTTPException(404, "Cliente não encontrado")
     c = cliente.data[0]
 
-    nome_publico = formatar_nome_cliente(_supabase, cliente_id)
+    # Formata nome só pra exibição pública. Se o formatter falhar por qualquer
+    # motivo, cai pro nome cru — NUNCA derruba o /onboard-info, que faria o
+    # frontend mostrar "Link inválido ou expirado" pro cliente.
+    try:
+        from services.nome_formatter import formatar_nome_cliente
+        nome_publico = formatar_nome_cliente(_supabase, cliente_id)
+    except Exception as e:
+        logger.warning(f"nome_formatter falhou pra {cliente_id}: {e}; usando nome cru")
+        nome_publico = c["nome"]
 
     # Já está conectado?
     conn = _supabase.table("instagram_conexoes").select("username, status").eq(

@@ -46,15 +46,38 @@ def formatar_nome_cliente(sb, cliente_id: str) -> str:
     """
     Retorna nome formatado pra exibição pública.
     Cache em clientes.nome_formatado — chama LLM só na primeira leitura.
-    """
-    result = sb.table("clientes").select("nome, nome_formatado").eq(
-        "id", cliente_id
-    ).maybe_single().execute()
 
-    if not result or not result.data:
+    NUNCA levanta exceção — em qualquer falha (coluna ausente, supabase down,
+    LLM erro, etc.) cai pro fallback mais conservador: o nome cru. Isso evita
+    quebrar o /onboard-info, que é a única superfície que usa essa função.
+    """
+    cliente = None
+
+    # Tenta com a coluna nova (caminho normal)
+    try:
+        result = sb.table("clientes").select("nome, nome_formatado").eq(
+            "id", cliente_id
+        ).maybe_single().execute()
+        cliente = result.data if result else None
+    except Exception as e:
+        # Coluna nome_formatado pode não existir se a migration não rodou —
+        # tenta de novo só com 'nome' pra pelo menos exibir algo.
+        logger.warning(
+            f"select(nome, nome_formatado) falhou pra {cliente_id} ({e}); "
+            f"caindo pra select(nome) — coluna nome_formatado pode estar ausente"
+        )
+        try:
+            result = sb.table("clientes").select("nome").eq(
+                "id", cliente_id
+            ).maybe_single().execute()
+            cliente = result.data if result else None
+        except Exception as e2:
+            logger.error(f"select(nome) também falhou pra {cliente_id}: {e2}")
+            return "—"
+
+    if not cliente:
         return "—"
 
-    cliente = result.data
     cached = (cliente.get("nome_formatado") or "").strip()
     if cached:
         return cached
@@ -63,14 +86,19 @@ def formatar_nome_cliente(sb, cliente_id: str) -> str:
     if not nome_raw:
         return "—"
 
-    formatted = _format_with_llm(nome_raw)
+    # Tenta LLM — se falhar, retorna title case
+    try:
+        formatted = _format_with_llm(nome_raw)
+    except Exception as e:
+        logger.warning(f"_format_with_llm levantou pra '{nome_raw}': {e}")
+        return nome_raw.title()
 
+    # Cache opcional — falha aqui não impacta o retorno
     try:
         sb.table("clientes").update(
             {"nome_formatado": formatted}
         ).eq("id", cliente_id).execute()
     except Exception as e:
-        # Cache opcional — se falhar, retorna o formato e tenta de novo na próxima
         logger.warning(f"Falha ao salvar nome_formatado pra {cliente_id}: {e}")
 
     return formatted
