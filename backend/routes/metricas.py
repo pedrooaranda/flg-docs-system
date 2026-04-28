@@ -52,6 +52,16 @@ def _sum(lst, key):
 def _last(lst, key):
     return lst[-1].get(key) if lst else 0
 
+def _first(lst, key):
+    return lst[0].get(key) if lst else 0
+
+def _net_growth(lst, key):
+    """Crescimento líquido no período: último - primeiro.
+    Útil pra "novos seguidores no período". Funciona com carry-forward."""
+    if not lst or len(lst) < 2:
+        return 0
+    return (lst[-1].get(key) or 0) - (lst[0].get(key) or 0)
+
 def _delta_pct(atual_val, anterior_val):
     """Retorna delta % vs período anterior.
     None quando não há base de comparação (cliente novo / sem dados anteriores) —
@@ -64,17 +74,20 @@ def _delta_pct(atual_val, anterior_val):
 # ─── Overview genérico multi-plataforma ──────────────────────────────────────
 
 def _build_kpis_instagram(atual, anterior):
-    # taxa_engajamento, alcance_medio, impressoes_medias usam _avg_active:
-    # são métricas "por post" e dias sem post não devem diluir.
-    # curtidas/comentários/salvamentos somam tudo (volume absoluto no período).
+    # Métricas "por post" (taxa_engajamento, alcance, profile_visits) usam
+    # _avg_active — dias sem post não devem diluir. Métricas "volume"
+    # (curtidas, comentários, saves, shares) somam tudo (_sum).
+    # novos_seguidores_periodo é ganho líquido (último - primeiro).
     return {
         "seguidores": {"valor": _last(atual, "seguidores"), "delta_pct": _delta_pct(_last(atual, "seguidores"), _last(anterior, "seguidores"))},
+        "novos_seguidores_periodo": {"valor": _net_growth(atual, "seguidores"), "delta_pct": _delta_pct(_net_growth(atual, "seguidores"), _net_growth(anterior, "seguidores"))},
         "taxa_engajamento": {"valor": _avg_active(atual, "taxa_engajamento"), "delta_pct": _delta_pct(_avg_active(atual, "taxa_engajamento"), _avg_active(anterior, "taxa_engajamento"))},
         "alcance_medio": {"valor": int(_avg_active(atual, "alcance_total")), "delta_pct": _delta_pct(_avg_active(atual, "alcance_total"), _avg_active(anterior, "alcance_total"))},
-        "impressoes_medias": {"valor": int(_avg_active(atual, "impressoes_total")), "delta_pct": _delta_pct(_avg_active(atual, "impressoes_total"), _avg_active(anterior, "impressoes_total"))},
+        "visualizacoes_perfil": {"valor": _sum(atual, "visitas_perfil"), "delta_pct": _delta_pct(_sum(atual, "visitas_perfil"), _sum(anterior, "visitas_perfil"))},
         "curtidas_total": {"valor": _sum(atual, "curtidas_total"), "delta_pct": _delta_pct(_sum(atual, "curtidas_total"), _sum(anterior, "curtidas_total"))},
         "comentarios_total": {"valor": _sum(atual, "comentarios_total"), "delta_pct": _delta_pct(_sum(atual, "comentarios_total"), _sum(anterior, "comentarios_total"))},
         "salvamentos_total": {"valor": _sum(atual, "salvamentos_total"), "delta_pct": _delta_pct(_sum(atual, "salvamentos_total"), _sum(anterior, "salvamentos_total"))},
+        "compartilhamentos_total": {"valor": _sum(atual, "compartilhamentos_total"), "delta_pct": _delta_pct(_sum(atual, "compartilhamentos_total"), _sum(anterior, "compartilhamentos_total"))},
         "posts_publicados": {"valor": _sum(atual, "posts_publicados")},
         "reels_publicados": {"valor": _sum(atual, "reels_publicados")},
         "stories_publicados": {"valor": _sum(atual, "stories_publicados")},

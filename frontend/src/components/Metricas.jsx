@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts'
-import { Users, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Wifi, Play, Share2, Target, Clock, RefreshCw, Crown, ExternalLink } from 'lucide-react'
+import { Users, UserPlus, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Wifi, Play, Share2, Target, Clock, RefreshCw, Crown, ExternalLink, Camera, Film } from 'lucide-react'
 import { api } from '../lib/api'
 import { isAdmin as checkAdmin } from '../lib/utils'
 import { useApp } from '../contexts/AppContext'
@@ -82,13 +82,17 @@ function PlatformIcon({ platform, size = 18 }) {
 const PLATFORM_KPIS = {
   instagram: [
     { key: 'seguidores', label: 'Seguidores', icon: Users, histKey: 'seguidores' },
+    { key: 'novos_seguidores_periodo', label: 'Novos no período', icon: UserPlus, prefix: '+' },
     { key: 'taxa_engajamento', label: 'Engajamento', icon: TrendingUp, decimals: 2, suffix: '%', histKey: 'taxa_engajamento' },
     { key: 'alcance_medio', label: 'Alcance médio', icon: Eye, histKey: 'alcance_total' },
-    { key: 'impressoes_medias', label: 'Impressões', icon: Eye, histKey: 'impressoes_total' },
+    { key: 'visualizacoes_perfil', label: 'Visualizações do perfil', icon: Eye, histKey: 'visitas_perfil' },
     { key: 'curtidas_total', label: 'Curtidas', icon: Heart, histKey: 'curtidas_total' },
     { key: 'comentarios_total', label: 'Comentários', icon: MessageCircle, histKey: 'comentarios_total' },
     { key: 'salvamentos_total', label: 'Salvamentos', icon: Bookmark, histKey: 'salvamentos_total' },
-    { key: 'posts_publicados', label: 'Posts publicados', icon: BarChart2, noDelta: true, histKey: 'posts_publicados' },
+    { key: 'compartilhamentos_total', label: 'Compartilhamentos', icon: Share2, histKey: 'compartilhamentos_total' },
+    { key: 'posts_publicados', label: 'Posts (Feed)', icon: BarChart2, noDelta: true, histKey: 'posts_publicados' },
+    { key: 'reels_publicados', label: 'Reels', icon: Film, noDelta: true, histKey: 'reels_publicados' },
+    { key: 'stories_publicados', label: 'Stories', icon: Camera, noDelta: true, histKey: 'stories_publicados' },
   ],
   linkedin: [
     { key: 'seguidores', label: 'Seguidores', icon: Users },
