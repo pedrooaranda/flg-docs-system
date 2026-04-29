@@ -1,5 +1,5 @@
 import MetricasTipoView from './shared/MetricasTipoView'
-import { KPIS_STORIES } from './shared/constants'
+import { KPIS_STORIES, ORDER_OPTIONS_STORIES } from './shared/constants'
 
 export default function MetricasStories() {
   return (
@@ -11,6 +11,8 @@ export default function MetricasStories() {
       sectionTitle="Stories"
       listTitle="Stories ativas (24h) e recentes"
       emptyMessage="Nenhum Story no período."
+      orderOptions={ORDER_OPTIONS_STORIES}
+      defaultOrdenar="recente"
     />
   )
 }

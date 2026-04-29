@@ -1,5 +1,5 @@
 import MetricasTipoView from './shared/MetricasTipoView'
-import { KPIS_FEED } from './shared/constants'
+import { KPIS_FEED, ORDER_OPTIONS_FEED } from './shared/constants'
 
 export default function MetricasPosts() {
   return (
@@ -11,6 +11,8 @@ export default function MetricasPosts() {
       sectionTitle="Posts (Feed)"
       listTitle="Lista de posts"
       emptyMessage="Nenhum post no período."
+      orderOptions={ORDER_OPTIONS_FEED}
+      defaultOrdenar="engajamento"
     />
   )
 }

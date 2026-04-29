@@ -1,19 +1,26 @@
-import { useState, useEffect } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { api } from '../../../lib/api'
 
 /**
  * Hook compartilhado pelas abas Posts/Reels/Stories.
- * tipoBackend: 'feed' | 'reels' | 'story' (vai pro ?tipo= do /overview e /posts)
- * tipoFiltroPostFE: array de strings ['IMAGE','CAROUSEL','VIDEO'] etc — filtro
- *   frontend de segurança caso backend devolva tipos misturados
- * ordenar: vai pro ?ordenar= do /posts (Task 5 expõe controle de UI)
+ * Lê ?ordenar= do searchParams (ou usa defaultOrdenar). Expõe setOrdenar
+ * que atualiza a URL.
  */
-export function useTipoMetricas({ tipoBackend, tipoFiltroPostFE, ordenar = 'engajamento' }) {
+export function useTipoMetricas({ tipoBackend, tipoFiltroPostFE, defaultOrdenar = 'engajamento' }) {
   const { clienteId, periodo, platform, platConfig } = useOutletContext()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [overview, setOverview] = useState(null)
   const [posts, setPosts] = useState([])
+
+  const ordenar = searchParams.get('ordenar') || defaultOrdenar
+
+  const setOrdenar = useCallback((newOrdenar) => {
+    const sp = new URLSearchParams(searchParams)
+    sp.set('ordenar', newOrdenar)
+    setSearchParams(sp, { replace: true })
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     if (!clienteId) return
@@ -32,5 +39,5 @@ export function useTipoMetricas({ tipoBackend, tipoFiltroPostFE, ordenar = 'enga
     }).catch(console.error).finally(() => setLoading(false))
   }, [clienteId, periodo, platform, tipoBackend, ordenar])
 
-  return { clienteId, periodo, platform, platConfig, loading, overview, posts }
+  return { clienteId, periodo, platform, platConfig, loading, overview, posts, ordenar, setOrdenar }
 }

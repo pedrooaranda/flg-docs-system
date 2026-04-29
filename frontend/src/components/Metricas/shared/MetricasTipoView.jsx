@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { KpiGridSkeleton, PostsGridSkeleton, PostsTable, ViewToggle } from '../../MetricasParts'
 import KpiCard from './KpiCard'
 import PostCard from './PostCard'
+import SortDropdown from './SortDropdown'
 import { KPI_WEIGHT } from './constants'
 import { useTipoMetricas } from './useTipoMetricas'
 
@@ -14,12 +15,14 @@ function SectionTitle({ children }) {
  *
  * Props:
  * - tipoBackend: 'feed' | 'reels' | 'story'
- * - tipoFiltroPostFE: array de tipos válidos (ex: ['IMAGE','CAROUSEL','VIDEO'] pra Feed)
- * - kpisDef: lista de defs de KPI (KPIS_FEED, KPIS_REELS ou KPIS_STORIES)
+ * - tipoFiltroPostFE: array de tipos válidos pro filtro frontend de segurança
+ * - kpisDef: lista de defs de KPI
  * - kpiSkelCount: quantos skeletons mostrar
- * - sectionTitle: título da seção de KPIs (ex: 'Posts (Feed)')
- * - listTitle: título da lista de posts (ex: 'Lista de posts')
+ * - sectionTitle: título da seção de KPIs
+ * - listTitle: título da lista de posts
  * - emptyMessage: texto quando não tem post
+ * - orderOptions: array de { key, label } com opções de ordenação
+ * - defaultOrdenar: chave default da ordenação (quando URL não tem ?ordenar=)
  */
 export default function MetricasTipoView({
   tipoBackend,
@@ -29,10 +32,13 @@ export default function MetricasTipoView({
   sectionTitle,
   listTitle,
   emptyMessage,
+  orderOptions,
+  defaultOrdenar = 'engajamento',
 }) {
-  const { periodo, platform, platConfig, loading, overview, posts } = useTipoMetricas({
+  const { periodo, platform, platConfig, loading, overview, posts, ordenar, setOrdenar } = useTipoMetricas({
     tipoBackend,
     tipoFiltroPostFE,
+    defaultOrdenar,
   })
   const [postsView, setPostsView] = useState('cards')
 
@@ -82,9 +88,17 @@ export default function MetricasTipoView({
       </section>
 
       <section>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
           <SectionTitle>{listTitle}</SectionTitle>
-          <ViewToggle value={postsView} onChange={setPostsView} accent={platConfig.color} />
+          <div className="flex items-center gap-2">
+            <SortDropdown
+              value={ordenar}
+              onChange={setOrdenar}
+              options={orderOptions}
+              accent={platConfig.color}
+            />
+            <ViewToggle value={postsView} onChange={setPostsView} accent={platConfig.color} />
+          </div>
         </div>
         {posts.length === 0 ? (
           <p className="text-white/40 text-xs">{emptyMessage}</p>

@@ -72,3 +72,31 @@ export const KPI_WEIGHT = {
   comentarios_total: 1.0,
   curtidas_total: 0.8,
 }
+
+// Opções de ordenação por aba — keys batem com ?ordenar= do backend
+export const ORDER_OPTIONS_FEED = [
+  { key: 'engajamento', label: 'Mais engajados' },
+  { key: 'recente', label: 'Mais recentes' },
+  { key: 'curtidas', label: 'Mais curtidos' },
+  { key: 'comentarios', label: 'Mais comentados' },
+  { key: 'salvamentos', label: 'Mais salvos' },
+  { key: 'compartilhamentos', label: 'Mais compartilhados' },
+  { key: 'alcance', label: 'Maior alcance' },
+]
+
+export const ORDER_OPTIONS_REELS = [
+  { key: 'engajamento', label: 'Mais engajados' },
+  { key: 'recente', label: 'Mais recentes' },
+  { key: 'curtidas', label: 'Mais curtidos' },
+  { key: 'comentarios', label: 'Mais comentados' },
+  { key: 'salvamentos', label: 'Mais salvos' },
+  { key: 'compartilhamentos', label: 'Mais compartilhados' },
+  { key: 'alcance', label: 'Maior alcance' },
+]
+
+export const ORDER_OPTIONS_STORIES = [
+  { key: 'recente', label: 'Mais recentes' },
+  { key: 'alcance', label: 'Maior alcance' },
+  { key: 'replies', label: 'Mais replies' },
+  { key: 'exits', label: 'Mais exits' },
+]

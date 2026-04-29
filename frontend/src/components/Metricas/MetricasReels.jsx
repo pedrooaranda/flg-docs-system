@@ -1,5 +1,5 @@
 import MetricasTipoView from './shared/MetricasTipoView'
-import { KPIS_REELS } from './shared/constants'
+import { KPIS_REELS, ORDER_OPTIONS_REELS } from './shared/constants'
 
 export default function MetricasReels() {
   return (
@@ -11,6 +11,8 @@ export default function MetricasReels() {
       sectionTitle="Reels"
       listTitle="Lista de Reels"
       emptyMessage="Nenhum Reel no período."
+      orderOptions={ORDER_OPTIONS_REELS}
+      defaultOrdenar="engajamento"
     />
   )
 }
