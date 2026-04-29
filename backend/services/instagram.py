@@ -34,7 +34,7 @@ class InstagramRepository(ABC):
     def get_historico(self, cliente_id: str, dias: int) -> list: ...
 
     @abstractmethod
-    def get_posts(self, cliente_id: str, limit: int) -> list: ...
+    def get_posts(self, cliente_id: str, limit: int, **kwargs) -> list: ...
 
     @abstractmethod
     def get_horarios(self, cliente_id: str) -> list: ...
@@ -116,13 +116,21 @@ class MockInstagramRepository(InstagramRepository):
 
         return dados
 
-    def get_posts(self, cliente_id: str, limit: int = 12) -> list:
+    def get_posts(self, cliente_id: str, limit: int = 12, tipo: str = "all", ordenar: str = "engajamento", **kwargs) -> list:
         rng = self._rng(cliente_id)
-        tipos_ciclo = ["REEL", "IMAGE", "CAROUSEL", "REEL", "VIDEO", "IMAGE"]
-        posts = []
 
+        if tipo == "feed":
+            tipos_ciclo = ["IMAGE", "CAROUSEL", "VIDEO"]
+        elif tipo == "reels":
+            tipos_ciclo = ["REEL"]
+        elif tipo == "story":
+            tipos_ciclo = ["STORY"]
+        else:
+            tipos_ciclo = ["REEL", "IMAGE", "CAROUSEL", "STORY", "VIDEO", "REEL", "STORY", "IMAGE"]
+
+        posts = []
         for i in range(limit):
-            tipo = tipos_ciclo[i % len(tipos_ciclo)]
+            tipo_post = tipos_ciclo[i % len(tipos_ciclo)]
             alcance   = rng.randint(600, 6000)
             curtidas  = rng.randint(80, 500)
             coments   = rng.randint(5, 70)
@@ -132,21 +140,31 @@ class MockInstagramRepository(InstagramRepository):
 
             posts.append({
                 "id": f"mock_{cliente_id[:8]}_{i}",
-                "tipo": tipo,
+                "tipo": tipo_post,
                 "publicado_em": str(date.today() - timedelta(days=dias_atras)),
-                "legenda": _mock_legenda(tipo, rng),
+                "legenda": _mock_legenda(tipo_post, rng),
                 "curtidas": curtidas,
                 "comentarios": coments,
                 "salvamentos": salvam,
                 "compartilhamentos": rng.randint(2, 35),
                 "alcance": alcance,
                 "impressoes": int(alcance * rng.uniform(1.3, 2.2)),
-                "plays": curtidas * rng.randint(3, 8) if tipo in ("REEL", "VIDEO") else 0,
+                "plays": curtidas * rng.randint(3, 8) if tipo_post in ("REEL", "VIDEO") else 0,
                 "taxa_engajamento": taxa,
                 "fonte": "mock",
             })
 
-        return sorted(posts, key=lambda x: x["taxa_engajamento"], reverse=True)
+        sort_keys = {
+            "engajamento": "taxa_engajamento",
+            "recente": "publicado_em",
+            "curtidas": "curtidas",
+            "comentarios": "comentarios",
+            "salvamentos": "salvamentos",
+            "compartilhamentos": "compartilhamentos",
+            "alcance": "alcance",
+        }
+        sk = sort_keys.get(ordenar, "taxa_engajamento")
+        return sorted(posts, key=lambda x: x.get(sk) or 0, reverse=True)
 
     def get_demografia(self, cliente_id: str, tipo: str = "follower") -> dict:
         """Mock: distribuição realista de gênero × idade + países + cidades."""
@@ -372,10 +390,31 @@ class LiveInstagramRepository(InstagramRepository):
             })
         return result
 
-    def get_posts(self, cliente_id: str, limit: int = 12) -> list:
-        posts = self.sb.table("instagram_posts").select("*").eq(
-            "cliente_id", cliente_id
-        ).order("engagement_rate", desc=True).limit(limit).execute().data or []
+    ORDER_COLUMN_MAP = {
+        "engajamento": "engagement_rate",
+        "recente": "posted_at",
+        "curtidas": "likes",
+        "comentarios": "comments",
+        "salvamentos": "saved",
+        "compartilhamentos": "shares",
+        "alcance": "reach",
+        "replies": "replies",
+        "exits": "exits",
+    }
+
+    def get_posts(self, cliente_id: str, limit: int = 12, tipo: str = "all", ordenar: str = "engajamento") -> list:
+        column = self.ORDER_COLUMN_MAP.get(ordenar, "engagement_rate")
+        q = self.sb.table("instagram_posts").select("*").eq("cliente_id", cliente_id)
+
+        if tipo == "feed":
+            q = q.eq("media_product_type", "FEED")
+        elif tipo == "reels":
+            q = q.eq("media_product_type", "REELS")
+        elif tipo == "story":
+            q = q.eq("media_product_type", "STORY")
+        # tipo == "all" (default) → sem filtro
+
+        posts = q.order(column, desc=True).limit(limit).execute().data or []
 
         out = []
         for p in posts:

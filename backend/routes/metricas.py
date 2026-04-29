@@ -23,6 +23,10 @@ from deps import get_current_user, supabase_client
 from services.social import get_platform_repository, PLATAFORMAS_VALIDAS
 
 router = APIRouter(prefix="/metricas", tags=["metricas"])
+
+VALID_ORDENAR = {"engajamento", "recente", "curtidas", "comentarios", "salvamentos",
+                 "compartilhamentos", "alcance", "replies", "exits"}
+VALID_TIPO = {"all", "feed", "reels", "story"}
 _supabase = supabase_client
 
 
@@ -384,13 +388,24 @@ async def get_posts(
     cliente_id: str,
     limit: int = 12,
     plataforma: str = "instagram",
+    tipo: str = "all",
+    ordenar: str = "engajamento",
     user=Depends(get_current_user),
 ):
     if limit > 50:
         limit = 50
+    if tipo not in VALID_TIPO:
+        raise HTTPException(400, f"tipo deve ser um de: {sorted(VALID_TIPO)}")
+    if ordenar not in VALID_ORDENAR:
+        raise HTTPException(400, f"ordenar deve ser um de: {sorted(VALID_ORDENAR)}")
     repo = _get_repo(plataforma, cliente_id)
-    return {"cliente_id": cliente_id, "plataforma": plataforma,
-            "posts": repo.get_posts(cliente_id, limit)}
+    return {
+        "cliente_id": cliente_id,
+        "plataforma": plataforma,
+        "tipo": tipo,
+        "ordenar": ordenar,
+        "posts": repo.get_posts(cliente_id, limit, tipo=tipo, ordenar=ordenar),
+    }
 
 
 # ─── Horários ─────────────────────────────────────────────────────────────────

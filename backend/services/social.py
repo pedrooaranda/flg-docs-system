@@ -29,7 +29,7 @@ class SocialRepository(ABC):
     def get_historico(self, cliente_id: str, dias: int) -> list: ...
 
     @abstractmethod
-    def get_posts(self, cliente_id: str, limit: int) -> list: ...
+    def get_posts(self, cliente_id: str, limit: int, **kwargs) -> list: ...
 
     @abstractmethod
     def get_horarios(self, cliente_id: str) -> list: ...
@@ -116,7 +116,7 @@ class MockInstagramRepository(BaseMockRepository):
             })
         return dados
 
-    def get_posts(self, cliente_id: str, limit: int = 12) -> list:
+    def get_posts(self, cliente_id: str, limit: int = 12, **kwargs) -> list:
         rng = self._rng(cliente_id)
         tipos = ["REEL", "IMAGE", "CAROUSEL", "REEL", "VIDEO", "IMAGE"]
         legendas_map = {
@@ -263,7 +263,7 @@ class MockLinkedInRepository(BaseMockRepository):
             })
         return dados
 
-    def get_posts(self, cliente_id: str, limit: int = 12) -> list:
+    def get_posts(self, cliente_id: str, limit: int = 12, **kwargs) -> list:
         rng = self._rng(cliente_id)
         tipos = ["POST", "ARTICLE", "POLL", "POST", "DOCUMENT", "POST"]
         legendas_map = {
@@ -340,7 +340,7 @@ class MockYouTubeRepository(BaseMockRepository):
             })
         return dados
 
-    def get_posts(self, cliente_id: str, limit: int = 12) -> list:
+    def get_posts(self, cliente_id: str, limit: int = 12, **kwargs) -> list:
         rng = self._rng(cliente_id)
         tipos = ["VIDEO", "SHORT", "VIDEO", "VIDEO", "SHORT", "VIDEO"]
         titulos_map = {
@@ -419,7 +419,7 @@ class MockTikTokRepository(BaseMockRepository):
             })
         return dados
 
-    def get_posts(self, cliente_id: str, limit: int = 12) -> list:
+    def get_posts(self, cliente_id: str, limit: int = 12, **kwargs) -> list:
         rng = self._rng(cliente_id)
         legendas = [
             "O que ninguém te conta sobre empreender no Brasil",
