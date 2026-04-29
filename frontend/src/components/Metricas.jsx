@@ -1101,7 +1101,7 @@ export default function Metricas({ session }) {
 
     const p = platform
     Promise.all([
-      api(`/metricas/${clienteId}/overview?plataforma=${p}`),
+      api(`/metricas/${clienteId}/overview?plataforma=${p}&dias=${periodo}`),
       api(`/metricas/${clienteId}/historico?plataforma=${p}&dias=${periodo}`),
       api(`/metricas/${clienteId}/posts?plataforma=${p}&limit=9`),
       api(`/metricas/${clienteId}/horarios?plataforma=${p}`),
@@ -1219,7 +1219,7 @@ export default function Metricas({ session }) {
 
           {/* ── KPI Grid ── */}
           <section>
-            <SectionTitle>Visão Geral — {platConfig.label} — últimos 30 dias</SectionTitle>
+            <SectionTitle>Visão Geral — {platConfig.label} — últimos {periodo} dias</SectionTitle>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {(() => {
                 // Peso por KPI: métricas que importam mais valem 2x na disputa pela coroa.
