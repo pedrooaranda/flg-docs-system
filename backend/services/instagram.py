@@ -298,19 +298,33 @@ class LiveInstagramRepository(InstagramRepository):
         reels_map = {x["data"]: x.get("posts_publicados", 0) for x in reels_diarias}
         stories_map = {x["data"]: x.get("posts_publicados", 0) for x in stories_diarias}
 
-        # Carry-forward dos seguidores: pra cada dia do período, se não tem
-        # snapshot daquele dia, usa o último snapshot conhecido (mais recente
-        # antes daquele dia). Resultado: linha contínua em vez de spike 0 → N.
+        # Estimador de seguidores por dia com 3 prioridades:
+        #   1. Snapshot exato do dia
+        #   2. Último snapshot ANTERIOR (carry-forward) — caso normal
+        #   3. PRIMEIRO snapshot POSTERIOR (forward-projection) — cliente novo
+        #      sem histórico anterior. Honesto: assume que ontem ele tinha mais
+        #      ou menos a mesma audiência de hoje (vs assumir 0, que cria
+        #      "Novos no período = total de seguidores" e gráfico spike).
         sorted_snapshots = sorted(all_followers, key=lambda x: x["data"])
 
-        def _last_known_followers(target_date: str) -> int:
-            last = 0
+        def _approx_followers(target_date: str) -> int:
+            if not sorted_snapshots:
+                return 0
+            last_before = None
+            first_after = None
             for snap in sorted_snapshots:
-                if snap["data"] <= target_date:
-                    last = snap.get("followers_count") or last
-                else:
-                    break
-            return last
+                snap_date = snap["data"]
+                if snap_date == target_date:
+                    return snap.get("followers_count") or 0
+                if snap_date < target_date:
+                    last_before = snap
+                elif first_after is None:
+                    first_after = snap
+            if last_before:
+                return last_before.get("followers_count") or 0
+            if first_after:
+                return first_after.get("followers_count") or 0
+            return 0
 
         result = []
         for i in range(dias):
@@ -319,7 +333,7 @@ class LiveInstagramRepository(InstagramRepository):
             agg = diarias_por_dia.get(d, {})
             seguidores = f.get("followers_count") if f else None
             if seguidores is None:
-                seguidores = _last_known_followers(d)
+                seguidores = _approx_followers(d)
             result.append({
                 "data": d,
                 "seguidores": seguidores,

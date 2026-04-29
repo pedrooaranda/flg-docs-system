@@ -750,7 +750,7 @@ function DadosZeradosBanner({ diagnostico, clienteId, accent = GOLD, onSynced })
             {hasError ? (
               <>O último sync rodou{lastSyncAt && ` em ${new Date(lastSyncAt).toLocaleString('pt-BR')}`} mas teve falhas. Veja abaixo o que precisa ser corrigido.</>
             ) : (
-              <>Sync rodou{lastSyncAt && ` em ${new Date(lastSyncAt).toLocaleString('pt-BR')}`} mas não trouxe posts/insights nos últimos 30 dias. Pode ser conta sem posts recentes, conta não-Business (sem acesso a Insights), ou permissão faltando no OAuth.</>
+              <>Sync rodou{lastSyncAt && ` em ${new Date(lastSyncAt).toLocaleString('pt-BR')}`} mas não trouxe posts/insights nos últimos {diagnostico?.dias_periodo || 30} dias. Pode ser conta sem posts recentes nesse período, conta não-Business (sem acesso a Insights), ou permissão faltando no OAuth.</>
             )}
           </div>
 
@@ -766,7 +766,7 @@ function DadosZeradosBanner({ diagnostico, clienteId, accent = GOLD, onSynced })
 
           {!hasError && postsNoPeriodo === 0 && (
             <div className="mt-2 text-[11px] text-white/55">
-              Última conta de posts no período: <span className="font-semibold text-white/80">{postsNoPeriodo}</span>
+              Posts encontrados nos últimos {diagnostico?.dias_periodo || 30} dias: <span className="font-semibold text-white/80">{postsNoPeriodo}</span>
             </div>
           )}
 

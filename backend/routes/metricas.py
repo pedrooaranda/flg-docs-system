@@ -211,7 +211,7 @@ async def get_overview(
     # explicar quando dados ficam zerados (ex: sync rodou mas insights falharam).
     diagnostico = None
     if plataforma == "instagram" and connected:
-        diagnostico = _build_ig_diagnostico(cliente_id, historico)
+        diagnostico = _build_ig_diagnostico(cliente_id, historico, dias=dias)
 
     # Cliente conectado mas sync ainda não populou as tabelas — devolve overview
     # vazio com flag pro frontend mostrar estado "aguardando primeira sync".
@@ -261,15 +261,18 @@ async def get_overview(
     }
 
 
-def _build_ig_diagnostico(cliente_id: str, historico: list) -> dict:
+def _build_ig_diagnostico(cliente_id: str, historico: list, dias: int = 30) -> dict:
     """
     Diagnóstico pro frontend explicar dados vazios.
-    Conta posts dos últimos 30 dias e busca último erro de sync.
+    Conta posts dos últimos `dias` dias (= período "atual" do overview) e busca
+    último erro de sync. O histórico que chega aqui tem dias*2 itens — pegamos
+    só a metade mais recente (a janela atual, que é o que o usuário tá vendo).
     """
     import json as _json
-    posts_no_periodo = sum((h.get("posts_publicados") or 0) for h in historico[-30:])
-    posts_no_periodo += sum((h.get("reels_publicados") or 0) for h in historico[-30:])
-    posts_no_periodo += sum((h.get("stories_publicados") or 0) for h in historico[-30:])
+    janela_atual = historico[-dias:] if historico else []
+    posts_no_periodo = sum((h.get("posts_publicados") or 0) for h in janela_atual)
+    posts_no_periodo += sum((h.get("reels_publicados") or 0) for h in janela_atual)
+    posts_no_periodo += sum((h.get("stories_publicados") or 0) for h in janela_atual)
 
     conn = _supabase.table("instagram_conexoes").select(
         "last_sync_at,last_error,token_expires_at"
@@ -288,6 +291,7 @@ def _build_ig_diagnostico(cliente_id: str, historico: list) -> dict:
 
     return {
         "posts_no_periodo": posts_no_periodo,
+        "dias_periodo": dias,
         "last_sync_at": last_sync_at,
         "last_error": last_error_parsed,
     }
