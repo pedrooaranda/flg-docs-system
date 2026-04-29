@@ -19,6 +19,7 @@ import {
   useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel,
   flexRender,
 } from '@tanstack/react-table'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, LabelList, ResponsiveContainer } from 'recharts'
 import { api } from '../lib/api'
 
 // ─── DateRangePicker ──────────────────────────────────────────────────────────
@@ -519,6 +520,16 @@ function formatNum(n) {
   return Number(n).toLocaleString('pt-BR')
 }
 
+function formatCompact(n) {
+  if (n == null) return '—'
+  const num = Number(n)
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace('.0', '') + 'M'
+  if (num >= 1_000) return (num / 1_000).toFixed(1).replace('.0', '') + 'K'
+  return num.toLocaleString('pt-BR')
+}
+
+const RANK_COLORS = ['#FACC15', '#CBD5E1', '#D97706'] // ouro, prata, bronze
+
 export function DemographicsSection({ clienteId, accent = '#E4405F' }) {
   const [tipo, setTipo] = useState('follower')
   const [data, setData] = useState(null)
@@ -593,16 +604,21 @@ export function DemographicsSection({ clienteId, accent = '#E4405F' }) {
   )
 }
 
-function GenderAgeChart({ data, accent, loading }) {
+function GenderAgeChart({ data, loading }) {
   const ages = ['13-17', '18-24', '25-34', '35-44', '45-54', '55-64', '65+']
-  const female = ages.map(a => -(data[`F.${a}`] || 0))
-  const male = ages.map(a => +(data[`M.${a}`] || 0))
-  const totalF = data['F'] || female.reduce((a, b) => a + Math.abs(b), 0)
-  const totalM = data['M'] || male.reduce((a, b) => a + b, 0)
+  const totalF = data['F'] || 0
+  const totalM = data['M'] || 0
   const grandTotal = totalF + totalM
   const pctF = grandTotal ? Math.round((totalF / grandTotal) * 100) : 0
   const pctM = grandTotal ? Math.round((totalM / grandTotal) * 100) : 0
-  const maxAbs = Math.max(...male, ...female.map(Math.abs), 1)
+
+  const chartData = ages.map(age => ({
+    age,
+    F: data[`F.${age}`] || 0,
+    M: data[`M.${age}`] || 0,
+  }))
+
+  const hasCrossData = chartData.some(d => d.F > 0 || d.M > 0)
 
   return (
     <div className="rounded-xl p-4" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
@@ -615,40 +631,41 @@ function GenderAgeChart({ data, accent, loading }) {
           </div>
         )}
       </div>
-      {loading || !grandTotal ? (
+      {loading ? (
         <div className="space-y-2">
-          {ages.map((a, i) => <Skel key={i} h={16} />)}
+          {ages.map((_, i) => <Skel key={i} h={16} />)}
+        </div>
+      ) : !hasCrossData ? (
+        <div className="text-[11px] text-white/30 py-8 text-center">
+          Sem dados de cruzamento gênero × idade.
+          <div className="text-[10px] text-white/20 mt-1">A Meta API só retorna esse cruzamento com audiência mínima.</div>
         </div>
       ) : (
-        <div className="space-y-1.5">
-          {ages.map((age, i) => {
-            const f = Math.abs(female[i])
-            const m = male[i]
-            const fW = (f / maxAbs) * 100
-            const mW = (m / maxAbs) * 100
-            return (
-              <div key={age} className="flex items-center text-[10px] gap-2">
-                <span className="w-10 text-right text-white/30">{age}</span>
-                <div className="flex-1 flex items-center gap-0.5">
-                  <div className="flex-1 flex justify-end">
-                    <div className="rounded-l h-3.5 transition-all" style={{ width: `${fW}%`, background: 'linear-gradient(90deg, #F472B610, #F472B6)' }} title={`F ${age}: ${formatNum(f)}`} />
-                  </div>
-                  <div className="w-px h-4 bg-white/10" />
-                  <div className="flex-1">
-                    <div className="rounded-r h-3.5 transition-all" style={{ width: `${mW}%`, background: 'linear-gradient(270deg, #60A5FA10, #60A5FA)' }} title={`M ${age}: ${formatNum(m)}`} />
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={chartData} margin={{ top: 14, right: 4, bottom: 0, left: -12 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis dataKey="age" tick={{ fill: 'rgba(255,255,255,0.45)', fontSize: 10 }} tickLine={false} axisLine={false} />
+            <YAxis tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} tickLine={false} axisLine={false} width={40} tickFormatter={formatCompact} />
+            <ReTooltip
+              cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+              contentStyle={{ background: 'var(--flg-bg-card)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 8, fontSize: 11 }}
+              formatter={(v, name) => [formatNum(v), name === 'F' ? 'Feminino' : 'Masculino']}
+            />
+            <Bar dataKey="F" fill="#F472B6" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="F" position="top" fill="rgba(255,255,255,0.55)" fontSize={9} formatter={formatCompact} />
+            </Bar>
+            <Bar dataKey="M" fill="#60A5FA" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="M" position="top" fill="rgba(255,255,255,0.55)" fontSize={9} formatter={formatCompact} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       )}
     </div>
   )
 }
 
 function CountryBars({ data, total, accent, loading }) {
-  const top = (data || []).slice(0, 6)
+  const top = (data || []).slice(0, 10)
   return (
     <div className="rounded-xl p-4" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
       <div className="flex items-center justify-between mb-3">
@@ -657,24 +674,31 @@ function CountryBars({ data, total, accent, loading }) {
       </div>
       {loading ? (
         <div className="space-y-2">
-          {Array.from({ length: 6 }).map((_, i) => <Skel key={i} h={20} />)}
+          {Array.from({ length: 10 }).map((_, i) => <Skel key={i} h={20} />)}
         </div>
       ) : top.length === 0 ? (
         <div className="text-[11px] text-white/30 py-6 text-center">Sem dados</div>
       ) : (
         <div className="space-y-2">
-          {top.map(item => {
+          {top.map((item, idx) => {
             const pct = total ? (item.value / total) * 100 : 0
+            const rankColor = RANK_COLORS[idx]
             return (
               <div key={item.key} className="text-[11px]">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-white/70 flex items-center gap-1.5">
+                    <span
+                      className="text-[9px] font-bold w-4 text-center"
+                      style={{ color: rankColor || 'rgba(255,255,255,0.3)' }}
+                    >
+                      #{idx + 1}
+                    </span>
                     <span className="text-base leading-none">{FLAG_EMOJI(item.key)}</span>
                     {COUNTRY_NAMES[item.key] || item.key}
                   </span>
                   <span className="text-white/40">
                     <span style={{ color: accent }} className="font-semibold">{pct.toFixed(1)}%</span>
-                    <span className="ml-1.5 text-white/30">{formatNum(item.value)}</span>
+                    <span className="ml-1.5 text-white/30">{formatCompact(item.value)}</span>
                   </span>
                 </div>
                 <div className="h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }}>
@@ -693,7 +717,7 @@ function CountryBars({ data, total, accent, loading }) {
 }
 
 function CityBars({ data, total, accent, loading }) {
-  const top = (data || []).slice(0, 8)
+  const top = (data || []).slice(0, 10)
   return (
     <div className="rounded-xl p-4" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
       <div className="flex items-center justify-between mb-3">
@@ -702,20 +726,29 @@ function CityBars({ data, total, accent, loading }) {
       </div>
       {loading ? (
         <div className="space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => <Skel key={i} h={18} />)}
+          {Array.from({ length: 10 }).map((_, i) => <Skel key={i} h={18} />)}
         </div>
       ) : top.length === 0 ? (
         <div className="text-[11px] text-white/30 py-6 text-center">Sem dados</div>
       ) : (
         <div className="space-y-1.5">
-          {top.map(item => {
+          {top.map((item, idx) => {
             const pct = total ? (item.value / total) * 100 : 0
+            const rankColor = RANK_COLORS[idx]
             return (
               <div key={item.key} className="flex items-center justify-between text-[11px]">
-                <span className="text-white/70 truncate flex-1">{item.key}</span>
+                <span className="text-white/70 flex items-center gap-1.5 truncate flex-1 min-w-0">
+                  <span
+                    className="text-[9px] font-bold w-4 text-center shrink-0"
+                    style={{ color: rankColor || 'rgba(255,255,255,0.3)' }}
+                  >
+                    #{idx + 1}
+                  </span>
+                  <span className="truncate">{item.key}</span>
+                </span>
                 <span className="ml-2 text-white/30 shrink-0">
                   <span style={{ color: accent }} className="font-semibold">{pct.toFixed(1)}%</span>
-                  <span className="ml-1.5">· {formatNum(item.value)}</span>
+                  <span className="ml-1.5">· {formatCompact(item.value)}</span>
                 </span>
               </div>
             )
