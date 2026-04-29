@@ -192,10 +192,14 @@ async def get_ranking(
 async def get_overview(
     cliente_id: str,
     plataforma: str = "instagram",
+    dias: int = 30,
     user=Depends(get_current_user),
 ):
+    if dias < 1 or dias > 365:
+        raise HTTPException(400, "dias deve estar entre 1 e 365")
     repo = _get_repo(plataforma, cliente_id)
-    historico = repo.get_historico(cliente_id, 60)
+    # Pega 2x o período pra ter janela "atual" + "anterior" pro delta_pct
+    historico = repo.get_historico(cliente_id, dias * 2)
     connected = repo.is_connected(cliente_id)
 
     cliente_row = _supabase.table("clientes").select("nome, empresa").eq(
@@ -219,6 +223,7 @@ async def get_overview(
                 "cliente_nome": cliente_nome,
                 "plataforma": plataforma,
                 "periodo": {"inicio": None, "fim": None},
+                "dias_periodo": dias,
                 "conectado": True,
                 "aguardando_sync": True,
                 "kpis": {},
@@ -227,13 +232,14 @@ async def get_overview(
             }
         raise HTTPException(404, "Sem dados para este cliente")
 
-    atual = historico[30:]
-    anterior = historico[:30]
+    atual = historico[dias:]
+    anterior = historico[:dias]
 
     builder = _KPI_BUILDERS.get(plataforma, _build_kpis_instagram)
     kpis = builder(atual, anterior)
 
-    spark7 = historico[-7:]
+    # Sparklines: mostra últimos min(7, dias) pontos do período atual
+    spark7 = atual[-min(7, dias):] if atual else []
     sparklines = {}
     for label, field in _SPARKLINE_FIELDS.get(plataforma, []):
         sparklines[label] = [{"data": d["data"], "v": d.get(field, 0)} for d in spark7]
@@ -246,6 +252,7 @@ async def get_overview(
             "inicio": atual[0]["data"] if atual else None,
             "fim": atual[-1]["data"] if atual else None,
         },
+        "dias_periodo": dias,
         "conectado": connected,
         "aguardando_sync": False,
         "kpis": kpis,
