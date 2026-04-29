@@ -21,6 +21,11 @@ const Copywriter       = lazy(() => import('./components/Copywriter'))
 const IntelecFLG       = lazy(() => import('./components/admin/IntelecFLG'))
 const AgentesConfig    = lazy(() => import('./components/admin/AgentesConfig'))
 const Metricas         = lazy(() => import('./components/Metricas'))
+const MetricasGeral    = lazy(() => import('./components/Metricas/MetricasGeral'))
+const MetricasPosts    = lazy(() => import('./components/Metricas/MetricasPosts'))
+const MetricasReels    = lazy(() => import('./components/Metricas/MetricasReels'))
+const MetricasStories  = lazy(() => import('./components/Metricas/MetricasStories'))
+const Ranking          = lazy(() => import('./components/Ranking'))
 const LegalPage        = lazy(() => import('./components/LegalPage'))
 const ConectarInstagram = lazy(() => import('./components/ConectarInstagram'))
 
@@ -102,9 +107,23 @@ export default function App() {
             ) : <Navigate to="/login" replace />
           } />
 
+          {/* Métricas — sub-rotas por aba (Geral / Posts / Reels / Stories) */}
           <Route path="/metricas" element={
             <AuthGuard session={session} title="Métricas Instagram">
               <Metricas session={session} />
+            </AuthGuard>
+          }>
+            <Route index element={<Suspense fallback={<PageSpinner />}><MetricasGeral /></Suspense>} />
+            <Route path=":clienteId" element={<Suspense fallback={<PageSpinner />}><MetricasGeral /></Suspense>} />
+            <Route path=":clienteId/geral" element={<Suspense fallback={<PageSpinner />}><MetricasGeral /></Suspense>} />
+            <Route path=":clienteId/posts" element={<Suspense fallback={<PageSpinner />}><MetricasPosts /></Suspense>} />
+            <Route path=":clienteId/reels" element={<Suspense fallback={<PageSpinner />}><MetricasReels /></Suspense>} />
+            <Route path=":clienteId/stories" element={<Suspense fallback={<PageSpinner />}><MetricasStories /></Suspense>} />
+          </Route>
+
+          <Route path="/ranking" element={
+            <AuthGuard session={session} title="Ranking de Clientes">
+              <Ranking />
             </AuthGuard>
           } />
 
