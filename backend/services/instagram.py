@@ -261,8 +261,16 @@ class LiveInstagramRepository(InstagramRepository):
         ).eq("status", "ativo").maybe_single().execute()
         return bool(r and r.data)
 
-    def get_historico(self, cliente_id: str, dias: int = 30) -> list:
+    def get_historico(self, cliente_id: str, dias: int = 30, tipo: str = "all") -> list:
+        """
+        tipo: 'all' | 'feed' | 'reels' | 'story' — filtra os agregados por tipo
+              de mídia. Default 'all' mantém comportamento legado.
+        """
         cutoff = (date.today() - timedelta(days=dias - 1)).isoformat()
+        # Mapeia o tipo da rota pro valor do DB (media_product_type)
+        tipo_db = {"all": "ALL", "feed": "FEED", "reels": "REELS", "story": "STORY"}.get(
+            tipo.lower(), "ALL"
+        )
 
         # Followers: pega TUDO (não filtra por cutoff) pra ter o último valor
         # conhecido ANTES do período — usado pro carry-forward dos dias sem snapshot.
@@ -274,7 +282,7 @@ class LiveInstagramRepository(InstagramRepository):
 
         diarias = self.sb.table("instagram_metricas_diarias").select("*").eq(
             "cliente_id", cliente_id
-        ).eq("media_product_type", "ALL").gte("data", cutoff).order("data").execute().data or []
+        ).eq("media_product_type", tipo_db).gte("data", cutoff).order("data").execute().data or []
 
         diarias_por_dia = {d["data"]: d for d in diarias}
         followers_por_dia = {f["data"]: f for f in all_followers}
@@ -350,6 +358,16 @@ class LiveInstagramRepository(InstagramRepository):
                 "posts_publicados": feed_map.get(d, 0),
                 "reels_publicados": reels_map.get(d, 0),
                 "stories_publicados": stories_map.get(d, 0),
+                # Campos extras pra builders por tipo:
+                "plays_total": agg.get("total_plays") or 0,
+                "watch_time_ms_total": agg.get("total_watch_time_ms") or 0,
+                "watch_time_segundos_medio": float(agg.get("avg_watch_time_seconds") or 0),
+                "retention_rate": float(agg.get("avg_retention_rate") or 0),
+                "follows_total": agg.get("total_follows") or 0,
+                "replies_total": agg.get("total_replies") or 0,
+                "taps_forward_total": agg.get("total_taps_forward") or 0,
+                "taps_back_total": agg.get("total_taps_back") or 0,
+                "exits_total": agg.get("total_exits") or 0,
                 "fonte": "live",
             })
         return result
