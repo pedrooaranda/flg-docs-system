@@ -34,3 +34,4 @@ frontend/.vite/
 *.tmp
 *.bak
 node_modules/
+.superpowers/
