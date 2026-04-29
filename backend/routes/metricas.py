@@ -73,11 +73,10 @@ def _delta_pct(atual_val, anterior_val):
 
 # ─── Overview genérico multi-plataforma ──────────────────────────────────────
 
-def _build_kpis_instagram(atual, anterior):
-    # Métricas "por post" (taxa_engajamento, alcance, profile_visits) usam
-    # _avg_active — dias sem post não devem diluir. Métricas "volume"
-    # (curtidas, comentários, saves, shares) somam tudo (_sum).
-    # novos_seguidores_periodo é ganho líquido (último - primeiro).
+# ─── Builders por tipo de mídia ──────────────────────────────────────────────
+
+# Geral: visão consolidada (todos os tipos somados)
+def _build_kpis_geral(atual, anterior):
     return {
         "seguidores": {"valor": _last(atual, "seguidores"), "delta_pct": _delta_pct(_last(atual, "seguidores"), _last(anterior, "seguidores"))},
         "novos_seguidores_periodo": {"valor": _net_growth(atual, "seguidores"), "delta_pct": _delta_pct(_net_growth(atual, "seguidores"), _net_growth(anterior, "seguidores"))},
@@ -91,6 +90,47 @@ def _build_kpis_instagram(atual, anterior):
         "posts_publicados": {"valor": _sum(atual, "posts_publicados")},
         "reels_publicados": {"valor": _sum(atual, "reels_publicados")},
         "stories_publicados": {"valor": _sum(atual, "stories_publicados")},
+    }
+
+
+# Feed: posts no formato tradicional
+def _build_kpis_feed(atual, anterior):
+    return {
+        "posts_publicados": {"valor": _sum(atual, "posts_publicados")},
+        "taxa_engajamento": {"valor": _avg_active(atual, "taxa_engajamento"), "delta_pct": _delta_pct(_avg_active(atual, "taxa_engajamento"), _avg_active(anterior, "taxa_engajamento"))},
+        "alcance_medio": {"valor": int(_avg_active(atual, "alcance_total")), "delta_pct": _delta_pct(_avg_active(atual, "alcance_total"), _avg_active(anterior, "alcance_total"))},
+        "curtidas_total": {"valor": _sum(atual, "curtidas_total"), "delta_pct": _delta_pct(_sum(atual, "curtidas_total"), _sum(anterior, "curtidas_total"))},
+        "comentarios_total": {"valor": _sum(atual, "comentarios_total"), "delta_pct": _delta_pct(_sum(atual, "comentarios_total"), _sum(anterior, "comentarios_total"))},
+        "salvamentos_total": {"valor": _sum(atual, "salvamentos_total"), "delta_pct": _delta_pct(_sum(atual, "salvamentos_total"), _sum(anterior, "salvamentos_total"))},
+        "compartilhamentos_total": {"valor": _sum(atual, "compartilhamentos_total"), "delta_pct": _delta_pct(_sum(atual, "compartilhamentos_total"), _sum(anterior, "compartilhamentos_total"))},
+    }
+
+
+# Reels: ênfase em plays e watch time (métricas chave de vídeo curto)
+def _build_kpis_reels(atual, anterior):
+    return {
+        "reels_publicados": {"valor": _sum(atual, "reels_publicados")},
+        "plays_total": {"valor": _sum(atual, "plays_total"), "delta_pct": _delta_pct(_sum(atual, "plays_total"), _sum(anterior, "plays_total"))},
+        "alcance_medio": {"valor": int(_avg_active(atual, "alcance_total")), "delta_pct": _delta_pct(_avg_active(atual, "alcance_total"), _avg_active(anterior, "alcance_total"))},
+        "watch_time_segundos_medio": {"valor": _avg_active(atual, "watch_time_segundos_medio"), "delta_pct": _delta_pct(_avg_active(atual, "watch_time_segundos_medio"), _avg_active(anterior, "watch_time_segundos_medio"))},
+        "taxa_engajamento": {"valor": _avg_active(atual, "taxa_engajamento"), "delta_pct": _delta_pct(_avg_active(atual, "taxa_engajamento"), _avg_active(anterior, "taxa_engajamento"))},
+        "curtidas_total": {"valor": _sum(atual, "curtidas_total"), "delta_pct": _delta_pct(_sum(atual, "curtidas_total"), _sum(anterior, "curtidas_total"))},
+        "comentarios_total": {"valor": _sum(atual, "comentarios_total"), "delta_pct": _delta_pct(_sum(atual, "comentarios_total"), _sum(anterior, "comentarios_total"))},
+        "compartilhamentos_total": {"valor": _sum(atual, "compartilhamentos_total"), "delta_pct": _delta_pct(_sum(atual, "compartilhamentos_total"), _sum(anterior, "compartilhamentos_total"))},
+        "salvamentos_total": {"valor": _sum(atual, "salvamentos_total"), "delta_pct": _delta_pct(_sum(atual, "salvamentos_total"), _sum(anterior, "salvamentos_total"))},
+    }
+
+
+# Stories: ênfase em interações de tap (Forward, Back, Exits, Replies)
+def _build_kpis_stories(atual, anterior):
+    return {
+        "stories_publicados": {"valor": _sum(atual, "stories_publicados")},
+        "alcance_medio": {"valor": int(_avg_active(atual, "alcance_total")), "delta_pct": _delta_pct(_avg_active(atual, "alcance_total"), _avg_active(anterior, "alcance_total"))},
+        "replies_total": {"valor": _sum(atual, "replies_total"), "delta_pct": _delta_pct(_sum(atual, "replies_total"), _sum(anterior, "replies_total"))},
+        "taps_forward_total": {"valor": _sum(atual, "taps_forward_total"), "delta_pct": _delta_pct(_sum(atual, "taps_forward_total"), _sum(anterior, "taps_forward_total"))},
+        "taps_back_total": {"valor": _sum(atual, "taps_back_total"), "delta_pct": _delta_pct(_sum(atual, "taps_back_total"), _sum(anterior, "taps_back_total"))},
+        "exits_total": {"valor": _sum(atual, "exits_total"), "delta_pct": _delta_pct(_sum(atual, "exits_total"), _sum(anterior, "exits_total"))},
+        "compartilhamentos_total": {"valor": _sum(atual, "compartilhamentos_total"), "delta_pct": _delta_pct(_sum(atual, "compartilhamentos_total"), _sum(anterior, "compartilhamentos_total"))},
     }
 
 def _build_kpis_linkedin(atual, anterior):
@@ -133,12 +173,27 @@ def _build_kpis_tiktok(atual, anterior):
         "videos_publicados": {"valor": _sum(atual, "videos_publicados")},
     }
 
+# Mapping de builders por (plataforma, tipo). Tipo só aplica pra Instagram —
+# outras plataformas usam 'all' fixo.
 _KPI_BUILDERS = {
-    "instagram": _build_kpis_instagram,
+    "instagram": {
+        "all": _build_kpis_geral,
+        "feed": _build_kpis_feed,
+        "reels": _build_kpis_reels,
+        "story": _build_kpis_stories,
+    },
     "linkedin": _build_kpis_linkedin,
     "youtube": _build_kpis_youtube,
     "tiktok": _build_kpis_tiktok,
 }
+
+
+def _resolve_builder(plataforma: str, tipo: str):
+    """Retorna o builder correto. Plataformas não-IG ignoram tipo."""
+    cfg = _KPI_BUILDERS.get(plataforma, _build_kpis_geral)
+    if isinstance(cfg, dict):
+        return cfg.get(tipo.lower(), cfg["all"])
+    return cfg
 
 # Sparkline fields per platform
 _SPARKLINE_FIELDS = {
@@ -193,13 +248,20 @@ async def get_overview(
     cliente_id: str,
     plataforma: str = "instagram",
     dias: int = 30,
+    tipo: str = "all",
     user=Depends(get_current_user),
 ):
     if dias < 1 or dias > 365:
         raise HTTPException(400, "dias deve estar entre 1 e 365")
+    if tipo.lower() not in ("all", "feed", "reels", "story"):
+        raise HTTPException(400, "tipo deve ser all, feed, reels ou story")
     repo = _get_repo(plataforma, cliente_id)
-    # Pega 2x o período pra ter janela "atual" + "anterior" pro delta_pct
-    historico = repo.get_historico(cliente_id, dias * 2)
+    # Pega 2x o período pra ter janela "atual" + "anterior" pro delta_pct.
+    # Tipo só é repassado pro Live IG — Mocks ignoram via **kwargs.
+    if plataforma == "instagram":
+        historico = repo.get_historico(cliente_id, dias * 2, tipo=tipo)
+    else:
+        historico = repo.get_historico(cliente_id, dias * 2)
     connected = repo.is_connected(cliente_id)
 
     cliente_row = _supabase.table("clientes").select("nome, empresa").eq(
@@ -224,6 +286,7 @@ async def get_overview(
                 "plataforma": plataforma,
                 "periodo": {"inicio": None, "fim": None},
                 "dias_periodo": dias,
+                "tipo": tipo,
                 "conectado": True,
                 "aguardando_sync": True,
                 "kpis": {},
@@ -235,7 +298,7 @@ async def get_overview(
     atual = historico[dias:]
     anterior = historico[:dias]
 
-    builder = _KPI_BUILDERS.get(plataforma, _build_kpis_instagram)
+    builder = _resolve_builder(plataforma, tipo)
     kpis = builder(atual, anterior)
 
     # Sparklines: mostra últimos min(7, dias) pontos do período atual
@@ -253,6 +316,7 @@ async def get_overview(
             "fim": atual[-1]["data"] if atual else None,
         },
         "dias_periodo": dias,
+        "tipo": tipo,
         "conectado": connected,
         "aguardando_sync": False,
         "kpis": kpis,

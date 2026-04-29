@@ -84,7 +84,7 @@ class BaseMockRepository(SocialRepository):
 class MockInstagramRepository(BaseMockRepository):
     plataforma = "instagram"
 
-    def get_historico(self, cliente_id: str, dias: int = 30) -> list:
+    def get_historico(self, cliente_id: str, dias: int = 30, **kwargs) -> list:
         rng = self._rng(cliente_id)
         seg = rng.randint(900, 9000)
         eng_base = rng.uniform(2.0, 5.5)

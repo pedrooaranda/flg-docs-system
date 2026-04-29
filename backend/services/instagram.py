@@ -67,7 +67,7 @@ class MockInstagramRepository(InstagramRepository):
     def is_connected(self, cliente_id: str) -> bool:
         return False
 
-    def get_historico(self, cliente_id: str, dias: int = 30) -> list:
+    def get_historico(self, cliente_id: str, dias: int = 30, **kwargs) -> list:
         rng = self._rng(cliente_id)
         seguidores_base = rng.randint(900, 9000)
         eng_base = rng.uniform(2.0, 5.5)
