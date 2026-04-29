@@ -38,7 +38,9 @@ HTTP_TIMEOUT = 20
 INTER_CALL_DELAY = 0.2  # 200ms entre chamadas Graph API
 DAYS_RESYNC_RECENT_POSTS = 7
 DAYS_FINALIZE_POSTS = 30
-MAX_POSTS_PER_SYNC = 50
+POSTS_PER_PAGE = 50           # tamanho de cada página /me/media
+MAX_PAGES_PER_SYNC = 10       # teto de páginas (proteção rate limit Meta: 200 calls/h)
+MAX_HISTORICAL_DAYS = 90      # janela retroativa máxima — não pagina antes disso
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -130,6 +132,7 @@ async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict
             posts_result = await _sync_posts(sb, client, cliente_id, ig_user_id, access_token)
             counters["posts"] = posts_result["synced"]
             diagnostics["media_fetched"] = posts_result["media_fetched"]
+            diagnostics["pages_fetched"] = posts_result["pages_fetched"]
             diagnostics["insights_full"] = posts_result["insights_full"]
             diagnostics["insights_safe"] = posts_result["insights_safe"]
             diagnostics["insights_failed"] = posts_result["insights_failed"]
@@ -280,71 +283,103 @@ async def _update_conexao_profile(sb, conn_id: str, profile: dict):
 async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id: str, token: str) -> dict:
     """
     Retorna dict com contadores: media_fetched, synced, insights_full, insights_safe,
-    insights_failed. Quem chama somava só o contador de synced — agora loga o resto
-    pra diagnóstico.
+    insights_failed, pages_fetched. Pagina até MAX_HISTORICAL_DAYS atrás OU
+    até bater num post já finalizado no DB (cron incremental fica rápido).
     """
     fields = (
         "id,media_type,media_product_type,caption,permalink,media_url,thumbnail_url,"
         "timestamp,like_count,comments_count"
     )
-    resp = await client.get(
-        f"{GRAPH}/{ig_user_id}/media",
-        params={"fields": fields, "limit": MAX_POSTS_PER_SYNC, "access_token": token},
-    )
-    await asyncio.sleep(INTER_CALL_DELAY)
-    if resp.status_code != 200:
-        logger.warning(f"Posts fetch falhou {resp.status_code}: {resp.text[:200]}")
-        # Sinaliza pro chamador via exception com mensagem clara — vai parar no errors[]
-        raise RuntimeError(f"Posts fetch HTTP {resp.status_code}: {resp.text[:200]}")
 
-    media_items = resp.json().get("data", [])
     counters = {
-        "media_fetched": len(media_items),
+        "media_fetched": 0,
         "synced": 0,
         "insights_full": 0,
         "insights_safe": 0,
         "insights_failed": 0,
+        "pages_fetched": 0,
     }
 
     cutoff_resync = datetime.now(timezone.utc) - timedelta(days=DAYS_RESYNC_RECENT_POSTS)
     cutoff_finalize = datetime.now(timezone.utc) - timedelta(days=DAYS_FINALIZE_POSTS)
+    cutoff_historical = datetime.now(timezone.utc) - timedelta(days=MAX_HISTORICAL_DAYS)
 
-    for item in media_items:
-        media_id = item["id"]
-        posted_at = _parse_ts(item.get("timestamp"))
-        if not posted_at:
-            continue
+    next_url = f"{GRAPH}/{ig_user_id}/media"
+    next_params = {"fields": fields, "limit": POSTS_PER_PAGE, "access_token": token}
 
-        existing = sb.table("instagram_posts").select(
-            "id,metricas_finalizadas,ultima_atualizacao_metricas"
-        ).eq("ig_media_id", media_id).maybe_single().execute()
+    while next_url and counters["pages_fetched"] < MAX_PAGES_PER_SYNC:
+        resp = await client.get(next_url, params=next_params)
+        await asyncio.sleep(INTER_CALL_DELAY)
+        if resp.status_code != 200:
+            logger.warning(f"Posts fetch falhou {resp.status_code}: {resp.text[:200]}")
+            if counters["pages_fetched"] == 0:
+                # Falhou logo na 1ª página — propaga pro caller virar errors[]
+                raise RuntimeError(f"Posts fetch HTTP {resp.status_code}: {resp.text[:200]}")
+            break  # Falhou no meio da paginação — usa o que conseguimos
 
-        existing_data = existing.data if existing else None
+        body = resp.json()
+        media_items = body.get("data", [])
+        counters["pages_fetched"] += 1
+        counters["media_fetched"] += len(media_items)
 
-        if existing_data and existing_data.get("metricas_finalizadas"):
-            continue
+        if not media_items:
+            break
 
-        skip_resync = False
-        if existing_data and posted_at < cutoff_resync:
-            last_update = _parse_ts(existing_data.get("ultima_atualizacao_metricas"))
-            if last_update and (datetime.now(timezone.utc) - last_update).days < 1:
-                skip_resync = True
+        stop_paginating = False  # vira True se atinge fundo histórico ou hit post consolidado
 
-        if skip_resync:
-            continue
+        for item in media_items:
+            media_id = item["id"]
+            posted_at = _parse_ts(item.get("timestamp"))
+            if not posted_at:
+                continue
 
-        insights = await _fetch_post_insights(client, media_id, item.get("media_product_type", "FEED"), token)
-        variant = insights.pop("_insights_variant", "failed")
-        counters[f"insights_{variant}"] += 1
+            # Critério de parada A: post mais antigo que MAX_HISTORICAL_DAYS — fora do escopo
+            if posted_at < cutoff_historical:
+                stop_paginating = True
+                continue
 
-        row = _build_post_row(cliente_id, item, insights, posted_at, cutoff_finalize)
+            existing = sb.table("instagram_posts").select(
+                "id,metricas_finalizadas,ultima_atualizacao_metricas"
+            ).eq("ig_media_id", media_id).maybe_single().execute()
 
-        sb.table("instagram_posts").upsert(row, on_conflict="ig_media_id").execute()
-        counters["synced"] += 1
+            existing_data = existing.data if existing else None
+
+            # Critério de parada B: post já FINALIZADO no DB → tudo antes já foi
+            # sincronizado em runs anteriores. Pode parar (não processa esse e nem segue paginando).
+            if existing_data and existing_data.get("metricas_finalizadas"):
+                stop_paginating = True
+                continue
+
+            # Skip resync se já está no DB e foi atualizado hoje
+            skip_resync = False
+            if existing_data and posted_at < cutoff_resync:
+                last_update = _parse_ts(existing_data.get("ultima_atualizacao_metricas"))
+                if last_update and (datetime.now(timezone.utc) - last_update).days < 1:
+                    skip_resync = True
+
+            if skip_resync:
+                continue
+
+            insights = await _fetch_post_insights(client, media_id, item.get("media_product_type", "FEED"), token)
+            variant = insights.pop("_insights_variant", "failed")
+            counters[f"insights_{variant}"] += 1
+
+            row = _build_post_row(cliente_id, item, insights, posted_at, cutoff_finalize)
+            sb.table("instagram_posts").upsert(row, on_conflict="ig_media_id").execute()
+            counters["synced"] += 1
+
+        if stop_paginating:
+            break
+
+        # Critério de parada C: fim natural da paginação Meta
+        paging = body.get("paging", {})
+        next_url = paging.get("next")
+        next_params = None  # next_url do Meta já vem com query string completa
 
     logger.info(
-        f"_sync_posts cliente={cliente_id}: media={counters['media_fetched']}, "
-        f"synced={counters['synced']}, insights full/safe/failed="
+        f"_sync_posts cliente={cliente_id}: pages={counters['pages_fetched']}, "
+        f"media={counters['media_fetched']}, synced={counters['synced']}, "
+        f"insights full/safe/failed="
         f"{counters['insights_full']}/{counters['insights_safe']}/{counters['insights_failed']}"
     )
     return counters
