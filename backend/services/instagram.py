@@ -415,6 +415,9 @@ class LiveInstagramRepository(InstagramRepository):
         # tipo == "all" (default) → sem filtro
 
         posts = q.order(column, desc=True).limit(limit).execute().data or []
+        # TEMP debug — remover depois
+        first3 = [(p.get("ig_media_id", "?")[-6:], p.get(column)) for p in posts[:3]]
+        logger.info(f"get_posts cliente={cliente_id[:8]} tipo={tipo} ordenar={ordenar} column={column} count={len(posts)} top3={first3}")
 
         out = []
         for p in posts:
