@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useParams, useNavigate, useSearchParams, Outlet, NavLink } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams, useLocation, Outlet, NavLink } from 'react-router-dom'
 import { useApp } from '../../contexts/AppContext'
 import { isAdmin as checkAdmin } from '../../lib/utils'
 import { DateRangePicker } from '../MetricasParts'
@@ -18,6 +18,7 @@ const TABS = [
 export default function MetricasLayout({ session }) {
   const navigate = useNavigate()
   const params = useParams()
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const user = session?.user
   const admin = checkAdmin(user)
@@ -29,8 +30,13 @@ export default function MetricasLayout({ session }) {
   const platform = 'instagram'
   const platConfig = PLATFORMS[platform]
   const periodo = parseInt(searchParams.get('dias') || '30', 10)
-  const tab = params.tab || 'geral'
   const clienteId = params.clienteId
+  // Detecta a tab pela URL (params.tab não funciona — rotas do App.jsx têm path
+  // estático tipo "/metricas/:clienteId/posts" em vez de ":clienteId/:tab").
+  // Pega o último segmento e valida contra a lista de tabs.
+  const segments = location.pathname.split('/').filter(Boolean)
+  const lastSegment = segments[segments.length - 1]
+  const tab = ['geral', 'posts', 'reels', 'stories'].includes(lastSegment) ? lastSegment : 'geral'
 
   // Redirect: sem cliente na URL → escolhe o primeiro
   useEffect(() => {
