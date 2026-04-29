@@ -684,7 +684,7 @@ def _aggregate_horarios(sb, cliente_id: str) -> int:
 # 6. DEMOGRAFIA (follower_demographics + engaged_audience_demographics)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-DEMO_BREAKDOWNS = ["age", "gender", "country", "city"]
+DEMO_BREAKDOWNS = ["age", "gender", "country", "city", "age,gender"]
 
 
 def _is_weekly_sync_day() -> bool:
@@ -789,6 +789,20 @@ def _merge_breakdown(agg: dict, breakdown: str, results: list):
             city = r.get("dimension_values", [""])[0]
             val = int(r.get("value") or 0)
             agg["cidades"].append({"key": city, "value": val})
+    elif breakdown == "age,gender":
+        # results: [{ "dimension_values": ["18-24", "F"], "value": 1234 }]
+        # Cruzamento puro — alimenta keys "F.18-24", "M.25-34" que o frontend usa.
+        # NÃO somar em total_count (branch "gender" sozinho já faz isso).
+        for r in results:
+            dims = r.get("dimension_values", [])
+            if len(dims) < 2:
+                continue
+            age, gender = dims[0], dims[1]
+            if gender not in ("F", "M", "U"):
+                continue
+            val = int(r.get("value") or 0)
+            key = f"{gender}.{age}"
+            agg["genero_idade"][key] = agg["genero_idade"].get(key, 0) + val
 
 
 def _top_n(items: list, n: int) -> list:
