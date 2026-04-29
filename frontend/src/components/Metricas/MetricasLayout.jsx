@@ -82,21 +82,32 @@ export default function MetricasLayout({ session }) {
         />
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — usa NavLink isActive direto. end=true pra match exato da rota. */}
       <div className="flex items-center gap-1 border-b border-white/10">
         {TABS.map(t => {
           const sp = searchParams.toString()
           const to = `/metricas/${clienteId}/${t.key}${sp ? '?' + sp : ''}`
+          // NavLink isActive funciona via path matching real do React Router.
+          // Aqui forço comparação manual também porque a rota /metricas/:clienteId
+          // (sem /tab) também aponta pra Geral, e NavLink end=true não pegaria isso.
+          const isActive = t.key === tab
           return (
             <NavLink
               key={t.key}
               to={to}
-              end={false}
-              className="px-4 py-2.5 text-xs font-semibold transition-colors border-b-2"
-              style={({ isActive }) =>
-                t.key === tab
-                  ? { color: platConfig.color, borderColor: platConfig.color }
-                  : { color: 'rgba(255,255,255,0.4)', borderColor: 'transparent' }
+              end={true}
+              className="px-4 py-2.5 text-xs font-semibold transition-colors"
+              style={isActive
+                ? {
+                    color: platConfig.color,
+                    borderBottom: `2px solid ${platConfig.color}`,
+                    marginBottom: '-1px',
+                  }
+                : {
+                    color: 'rgba(255,255,255,0.4)',
+                    borderBottom: '2px solid transparent',
+                    marginBottom: '-1px',
+                  }
               }
             >
               {t.label}

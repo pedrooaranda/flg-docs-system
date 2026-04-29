@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { KpiGridSkeleton, PostsGridSkeleton, PostsTable, ViewToggle } from '../MetricasParts'
 import KpiCard from './shared/KpiCard'
+import PostCard from './shared/PostCard'
 import { KPIS_REELS, KPI_WEIGHT } from './shared/constants'
 
 function SectionTitle({ children }) {
@@ -74,6 +75,10 @@ export default function MetricasReels() {
         </div>
         {posts.length === 0 ? (
           <p className="text-white/40 text-xs">Nenhum Reel no período.</p>
+        ) : postsView === 'cards' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {posts.slice(0, 9).map((post, i) => <PostCard key={post.id} post={post} rank={i} platform={platform} />)}
+          </div>
         ) : (
           <PostsTable posts={posts} accent={platConfig.color} />
         )}
