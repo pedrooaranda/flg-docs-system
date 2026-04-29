@@ -1,7 +1,7 @@
 # Métricas V3 — Handoff entre sessões
 
 **Última atualização:** 2026-04-29
-**Status:** Phases 1 e 2 entregues e em produção. Phase 3 pronta pra brainstorm.
+**Status:** Phases 1, 2 e 3 (sub-temas A+C) entregues e validadas em produção. Sub-temas B+D pendentes.
 
 ---
 
@@ -23,44 +23,29 @@ Dashboard reorganizado em sub-rotas (Geral / Posts / Reels / Stories) com URL bo
 1. ViewToggle (Cards / Tabela) só renderizava Tabela — agora respeita `postsView`. Criado `Metricas/shared/PostCard.jsx`.
 2. Tab destacada não batia com conteúdo aberto — `params.tab` era `undefined` porque rotas no `App.jsx` têm path estático (`:clienteId/posts`) em vez de dinâmico (`:clienteId/:tab`). Fix: pega último segmento do `pathname` via `useLocation`.
 
+### Phase 3 — sub-temas A + C (entregues 2026-04-29)
+- **Bug crônico do `genero_idade`** corrigido: backend chamava `breakdown=age` e `breakdown=gender` separados, frontend esperava keys cruzadas `F.18-24`/`M.25-34` que nunca eram geradas. Fix: 5ª chamada com `breakdown=age,gender` (CSV) na Meta API + branch novo em `_merge_breakdown`. Validado com cliente real (João): após `Sincronizar agora` o gráfico Recharts BarChart vertical agrupado preencheu.
+- **Demografia UI** redesenhada em Recharts (rosa F + azul M por faixa etária, valores em label) + top 10 países/cidades com mini-rank `#1 #2 #3` colorido (ouro/prata/bronze) e total formato compacto (`12.4K`).
+- **Filtros de posts** funcionando: `/posts?tipo=feed|reels|story&ordenar=engajamento|recente|curtidas|comentarios|salvamentos|compartilhamentos|alcance|replies|exits` — backend ordena sobre histórico inteiro antes de aplicar limit. Dropdown clássico (`SortDropdown.jsx`) persiste seleção em `?ordenar=` na URL. Defaults: Posts/Reels=engajamento, Stories=recente.
+- **Refactor**: `MetricasPosts/Reels/Stories` (270 linhas duplicadas) viraram wrappers de ~14 linhas cada usando `MetricasTipoView` + `useTipoMetricas` hook compartilhados.
+
+**Spec:** [specs/2026-04-29-metricas-v3-phase3-design.md](specs/2026-04-29-metricas-v3-phase3-design.md)
+**Plan:** [plans/2026-04-29-metricas-v3-phase3.md](plans/2026-04-29-metricas-v3-phase3.md)
+
 ---
 
-## Phase 3 — escopo decidido (a implementar)
-
-### A) Filtros de posts (mais engajados / recentes / curtidos / compartilhados)
-
-Hoje os 3 componentes de aba (`MetricasPosts.jsx`, `MetricasReels.jsx`, `MetricasStories.jsx`) mostram lista simples sem ordenação. Adicionar dropdown/segmented control:
-
-- **Mais engajados** (default — `engagement_rate desc`)
-- **Mais recentes** (`posted_at desc`)
-- **Mais curtidos** (`likes desc`)
-- **Mais compartilhados** (`shares desc`)
-- **Mais salvos** (`saves desc`) — opcional, vale ter pro Feed
-
-Backend pode ordenar via query param `?ordenar=engajamento|recente|curtidas|compartilhamentos|salvamentos` no endpoint `/metricas/{cliente_id}/posts`.
+## Phase 3 — sub-temas B + D (pendentes)
 
 ### B) Sub-página "Todos os posts"
 
 Pedro pediu na Phase 1 brainstorm: "vale a pena criar uma subpágina ali, tipo de todos os posts pra ver tudo. E aí filtra".
 
-Rota nova: `/metricas/:clienteId/:tab/todos` (ex: `/metricas/abc/posts/todos`). Tabela paginada de TODOS os posts daquele tipo (sem limit de 24), com filtros completos. Pra Reels e Posts é onde provavelmente o consultor vai gastar mais tempo.
+Rota nova: `/metricas/:clienteId/:tab/todos` (ex: `/metricas/abc/posts/todos`). Tabela paginada de TODOS os posts daquele tipo (sem limit de 24), com filtros completos. Pra Reels e Posts é onde provavelmente o consultor vai gastar mais tempo. Backend `/posts` já aceita `?ordenar=` e `?tipo=` — só precisa de `?offset=`/cursor + página de UI usando TanStack Table v8 ou similar.
 
-### C) Demografia decente (gênero + idade + países + cidades)
-
-Hoje só existe `DemographicsSection` em `MetricasParts.jsx` que mostra apenas % gênero (53% masculino / 47% feminino) sem cruzamento gênero × idade. Pedro reclamou explícito: "aquele gráfico não tá exibindo assim, só tá mostrando que 53% masculino e 47% feminino, mas não tá mostrando em relação a gênero e idade".
-
-O backend já coleta isso — em `instagram_demografia` tem `genero_idade` (dict tipo `{"F.18-24": 1234, "M.25-34": 2345}`), `paises`, `cidades`, `locales`. Endpoint `/metricas/{cliente_id}/demografia?tipo=follower|engaged_audience` já existe e retorna tudo.
-
-Falta UI decente. Sugestões:
-- **Gráfico de barras horizontais agrupadas por faixa etária** (18-24, 25-34, 35-44, 45-54, 55-64, 65+) com cores diferenciadas pra Masculino vs Feminino
-- **Mapa ou lista top 10 países** (com bandeirinha)
-- **Top 10 cidades**
-- Possível biblioteca: já temos `recharts` em uso — `BarChart` com `stackId` pra empilhar M/F por faixa
-
-### D) Polish UI/UX (originalmente Phase 4, fundir com 3)
+### D) Polish UI/UX
 
 Pedro disse: "traga as melhores bibliotecas também de programação, de desenvolvimento de UI e de UX". Sugestões:
-- **shadcn/ui ou radix-ui** pra dropdowns, popovers, tooltips polidos
+- **shadcn/ui ou radix-ui** pra dropdowns, popovers, tooltips polidos (substituir o `SortDropdown` manual atual)
 - **TanStack Table v8** se a tabela paginada de "Todos os posts" precisar de sorting/filtering complexo
 - Manter visual atual (preto + dourado FLG) — só refinar interações
 
@@ -81,8 +66,8 @@ Pedro disse: "traga as melhores bibliotecas também de programação, de desenvo
 ## Como recomeçar
 
 1. Lê este arquivo.
-2. Lê os 2 specs (Phase 1 e 2) pra contexto histórico.
-3. Pergunta pro Pedro: "Brainstormamos Phase 3 começando por qual sub-tema (A filtros / B sub-página / C demografia / D polish)?" — provavelmente ele vai querer A+C primeiro (mais visíveis no dia a dia), B+D depois.
+2. Lê os 3 specs (Phase 1, 2, 3) pra contexto histórico.
+3. Pergunta pro Pedro: "Brainstormamos B (sub-página Todos os posts) ou D (polish UI shadcn/radix)?"
 4. Invoca `superpowers:brainstorming`. Reusa o Visual Companion server (verifica se está vivo em `.superpowers/brainstorm/<sessão>/state/server-info`; se `server-stopped` existe, reinicia).
 5. Spec → plan → execução inline (já é o padrão dessa repo).
 
