@@ -152,4 +152,4 @@ O colaborador preenche um formulário com os dados do brief e recebe um link par
 
 ---
 
-*FLG · FLG Brazil · Workflow Guide v1.0*
+*FLG · FLG Brasil · Workflow Guide v1.0*

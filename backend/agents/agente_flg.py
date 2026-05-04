@@ -33,7 +33,7 @@ def create_flg_agent(system_prompt: str, session_id: str) -> Agent:
             session_table="conversas_agente",
         ),
         session_id=session_id,
-        description="Assistente estratégico da FLG Brazil para preparação de encontros com founders.",
+        description="Assistente estratégico da FLG Brasil para preparação de encontros com founders.",
         instructions=system_prompt,
         tools=[
             get_client_profile,

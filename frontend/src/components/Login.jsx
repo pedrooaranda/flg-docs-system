@@ -39,7 +39,7 @@ export default function Login() {
             style={{ height: 80, width: 'auto', objectFit: 'contain' }}
           />
           <h1 className="font-display text-2xl font-semibold text-white/85">Jornada System</h1>
-          <p className="text-xs text-white/30 mt-2 tracking-widest uppercase">FLG Brazil</p>
+          <p className="text-xs text-white/30 mt-2 tracking-widest uppercase">FLG Brasil</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card-flg p-8 space-y-5">
@@ -88,7 +88,7 @@ export default function Login() {
         </form>
 
         <p className="text-center text-[10px] text-white/12 mt-6 tracking-wide">
-          Acesso restrito · FLG Brazil
+          Acesso restrito · FLG Brasil
         </p>
       </motion.div>
     </div>

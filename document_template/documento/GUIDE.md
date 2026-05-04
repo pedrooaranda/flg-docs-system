@@ -159,4 +159,4 @@ O **documento estratégico** é o material de leitura complementar à apresenta�
 
 ---
 
-*FLG · FLG Brazil · Guia interno v1.0*
+*FLG · FLG Brasil · Guia interno v1.0*

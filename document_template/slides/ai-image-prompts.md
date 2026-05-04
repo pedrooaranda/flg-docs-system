@@ -207,4 +207,4 @@ Antes de entregar ao cliente, verifique:
 
 ---
 
-*FLG · FLG Brazil · Guia interno de produção*
+*FLG · FLG Brasil · Guia interno de produção*

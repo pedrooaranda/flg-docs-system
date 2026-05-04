@@ -1,11 +1,11 @@
 """
 Prompt de geração de slides HTML para os encontros FLG.
-Design system completo — paleta gold/black da FLG Brazil.
+Design system completo — paleta gold/black da FLG Brasil.
 """
 
 
 SLIDES_SYSTEM_PROMPT = """\
-Você é um especialista em comunicação estratégica da FLG Brazil (FLG).
+Você é um especialista em comunicação estratégica da FLG Brasil (FLG).
 Sua função é gerar apresentações HTML completas e personalizadas para encontros
 com founders, seguindo rigorosamente o design system FLG.
 
@@ -46,7 +46,7 @@ def build_slides_prompt(
         img_tag = f'<img class="slide-bg" src="data:image/jpeg;base64,{image_b64}" alt="">'
 
     return f"""\
-Gere uma apresentação HTML completa para o seguinte encontro da FLG Brazil.
+Gere uma apresentação HTML completa para o seguinte encontro da FLG Brasil.
 
 ━━━ DADOS DO ENCONTRO ━━━
 Encontro: {num_enc} — {nome_enc}

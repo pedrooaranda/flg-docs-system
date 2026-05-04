@@ -1,6 +1,6 @@
 # Templates Oficiais FLG
 
-> Estes são os templates oficiais da FLG Brazil. Não edite diretamente — use-os como base copiando para a pasta do cliente.
+> Estes são os templates oficiais da FLG Brasil. Não edite diretamente — use-os como base copiando para a pasta do cliente.
 
 ---
 

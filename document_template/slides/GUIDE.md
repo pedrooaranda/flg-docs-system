@@ -191,4 +191,4 @@ Para um cliente com cores diferentes (ex: azul em vez de dourado), altere as var
 
 ---
 
-*FLG · FLG Brazil · Guia interno v1.0*
+*FLG · FLG Brasil · Guia interno v1.0*

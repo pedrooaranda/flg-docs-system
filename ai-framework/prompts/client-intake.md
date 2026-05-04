@@ -193,4 +193,4 @@ Comando para gerar com IA:
 
 ---
 
-*FLG · FLG Brazil · Formulário interno v1.0*
+*FLG · FLG Brasil · Formulário interno v1.0*

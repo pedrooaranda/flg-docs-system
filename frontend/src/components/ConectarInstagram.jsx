@@ -63,11 +63,11 @@ export default function ConectarInstagram() {
         <div className="text-center mb-8">
           <img
             src="/logo-flg.png"
-            alt="FLG Brazil"
+            alt="FLG Brasil"
             className="mx-auto mb-3"
             style={{ height: 72, width: 'auto', objectFit: 'contain' }}
           />
-          <p className="text-xs text-white/70 font-semibold tracking-wider uppercase">FLG Brazil</p>
+          <p className="text-xs text-white/70 font-semibold tracking-wider uppercase">FLG Brasil</p>
           <p className="text-[11px] text-white/45 tracking-widest uppercase mt-1">Autorização de acesso</p>
         </div>
 
@@ -305,7 +305,7 @@ export default function ConectarInstagram() {
         </motion.div>
 
         <p className="text-center text-[10px] text-white/25 mt-6">
-          FLG Brazil · FLG Jornada System
+          FLG Brasil · FLG Jornada System
         </p>
       </div>
     </div>
