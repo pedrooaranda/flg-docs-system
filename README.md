@@ -1,12 +1,12 @@
 # FLG Jornada System
 
-> **Founders Led Growth** — Plataforma de gestão estratégica de clientes com IA
+> **FLG Brazil** — Plataforma de gestão estratégica de clientes com IA
 
 ---
 
 ## Sobre
 
-O **FLG Jornada System** é uma plataforma interna que apoia consultores da Founders Led Growth na condução da jornada de 15 encontros com founders. O sistema centraliza o perfil de cada cliente, histórico de conversas, geração de materiais estratégicos e sincronização de dados operacionais.
+O **FLG Jornada System** é uma plataforma interna que apoia consultores da FLG Brazil na condução da jornada de 15 encontros com founders. O sistema centraliza o perfil de cada cliente, histórico de conversas, geração de materiais estratégicos e sincronização de dados operacionais.
 
 ---
 
@@ -98,4 +98,4 @@ Variáveis de ambiente necessárias estão documentadas em `.env.example`.
 
 ---
 
-*Founders Led Growth · São Paulo*
+*FLG Brazil · São Paulo*

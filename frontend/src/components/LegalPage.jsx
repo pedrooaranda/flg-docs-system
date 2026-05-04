@@ -4,7 +4,7 @@ const PRIVACY = `# Política de Privacidade — FLG Jornada System
 
 **Última atualização:** 26 de abril de 2026
 
-A Founders Led Growth ("FLG", "nós") opera a plataforma FLG Jornada System
+A FLG Brazil ("FLG", "nós") opera a plataforma FLG Jornada System
 ("Plataforma") em https://docs.foundersledgrowth.online. Esta Política de
 Privacidade descreve como coletamos, usamos, armazenamos e protegemos
 informações de nossos clientes ("você") e dos perfis sociais conectados.
@@ -129,7 +129,7 @@ de antecedência.
 
 ## 10. Contato
 
-**Founders Led Growth**
+**FLG Brazil**
 E-mail: presidencia@grupoguglielmi.com
 Site: https://foundersledgrowth.com.br
 Plataforma: https://docs.foundersledgrowth.online
@@ -143,7 +143,7 @@ const TERMS = `# Termos de Serviço — FLG Jornada System
 **Última atualização:** 26 de abril de 2026
 
 Bem-vindo ao FLG Jornada System. Estes Termos de Serviço ("Termos") regem
-seu uso da plataforma operada pela Founders Led Growth ("FLG", "nós").
+seu uso da plataforma operada pela FLG Brazil ("FLG", "nós").
 
 Ao acessar ou usar a Plataforma, você concorda integralmente com estes Termos.
 
@@ -197,7 +197,7 @@ Ao conectar sua conta Instagram Business à nossa plataforma:
 ## 5. Propriedade intelectual
 
 - Todo conteúdo da plataforma (código, design, metodologia) é propriedade
-  exclusiva da Founders Led Growth
+  exclusiva da FLG Brazil
 - A metodologia FLG, frameworks e análises proprietárias estão protegidos
   por direitos autorais
 - Materiais gerados com auxílio dos agentes IA pertencem ao cliente, mas
@@ -253,7 +253,7 @@ com renúncia expressa a qualquer outro, por mais privilegiado que seja.
 
 ## 11. Contato
 
-**Founders Led Growth**
+**FLG Brazil**
 E-mail: presidencia@grupoguglielmi.com
 Site: https://foundersledgrowth.com.br
 Plataforma: https://docs.foundersledgrowth.online
@@ -264,7 +264,7 @@ const DATA_DELETION = `# Exclusão de Dados — FLG Jornada System
 **Última atualização:** 26 de abril de 2026
 
 Esta página descreve como solicitar a **exclusão de seus dados** mantidos
-pela Founders Led Growth ("FLG") em nossa plataforma e em integrações com
+pela FLG Brazil ("FLG") em nossa plataforma e em integrações com
 serviços terceiros como o Meta (Instagram).
 
 ---
@@ -350,7 +350,7 @@ Veja a [Política de Privacidade](/legal/privacy) completa para mais detalhes.
 
 ## 6. Contato
 
-**Founders Led Growth**
+**FLG Brazil**
 E-mail (DPO): presidencia@grupoguglielmi.com
 Site: https://foundersledgrowth.com.br
 `
@@ -443,7 +443,7 @@ export default function LegalPage() {
 
         {/* Footer */}
         <div className="mt-8 flex items-center justify-between text-xs text-white/30">
-          <p>Founders Led Growth</p>
+          <p>FLG Brazil</p>
           <div className="flex gap-4">
             <Link to="/legal/privacy" className="hover:text-gold-mid">Privacidade</Link>
             <Link to="/legal/terms" className="hover:text-gold-mid">Termos</Link>

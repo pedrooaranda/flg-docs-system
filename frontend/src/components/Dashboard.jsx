@@ -123,7 +123,7 @@ export default function Dashboard({ session }) {
           <h2 className="font-display text-xl font-bold text-white">
             Jornada System
           </h2>
-          <p className="text-xs text-white/30">Founders Led Growth · visão geral</p>
+          <p className="text-xs text-white/30">FLG Brazil · visão geral</p>
         </div>
       </motion.div>
 

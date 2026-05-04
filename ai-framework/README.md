@@ -85,4 +85,4 @@ Para entregas a clientes: use `claude-opus-4-6` (melhor qualidade).
 
 ---
 
-*FLG · Founders Led Growth · AI Framework v1.0*
+*FLG · FLG Brazil · AI Framework v1.0*

@@ -19,7 +19,7 @@ logger = logging.getLogger("flg.rotina")
 _supabase = create_client(settings.supabase_url, settings.supabase_key)
 
 ROTINA_SYSTEM_PROMPT = """\
-Você é um assistente de CRM da Founders Led Growth.
+Você é um assistente de CRM da FLG Brazil.
 Sua função é ler os comentários recentes de uma task do ClickUp sobre um cliente
 e atualizar os campos relevantes do perfil desse cliente.
 

@@ -207,4 +207,4 @@ Antes de entregar ao cliente, verifique:
 
 ---
 
-*FLG · Founders Led Growth · Guia interno de produção*
+*FLG · FLG Brazil · Guia interno de produção*
