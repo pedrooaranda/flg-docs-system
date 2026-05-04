@@ -1,7 +1,7 @@
 // Constantes compartilhadas pelo Dashboard de Métricas.
 // Extraídas do Metricas.jsx original.
 
-import { Users, UserPlus, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Play, Share2, Target, Clock, Film, Camera } from 'lucide-react'
+import { Users, UserPlus, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Play, Share2, Target, Clock, Film, Camera, Award, Globe, Zap, ThumbsUp, FileText } from 'lucide-react'
 
 export const GOLD = '#C9A84C'
 
@@ -99,4 +99,128 @@ export const ORDER_OPTIONS_STORIES = [
   { key: 'alcance', label: 'Maior alcance' },
   { key: 'replies', label: 'Mais replies' },
   { key: 'exits', label: 'Mais exits' },
+]
+
+// Order options pras novas plataformas (mock-only)
+export const ORDER_OPTIONS_GENERIC = [
+  { key: 'engajamento', label: 'Mais engajados' },
+  { key: 'recente', label: 'Mais recentes' },
+]
+
+// Tabs por plataforma — renderizadas dinamicamente em MetricasLayout
+export const PLATFORM_TABS = {
+  instagram: [
+    { key: 'geral', label: 'Geral' },
+    { key: 'posts', label: 'Posts' },
+    { key: 'reels', label: 'Reels' },
+    { key: 'stories', label: 'Stories' },
+  ],
+  youtube: [
+    { key: 'geral', label: 'Geral' },
+    { key: 'videos', label: 'Vídeos' },
+    { key: 'shorts', label: 'Shorts' },
+  ],
+  linkedin: [
+    { key: 'geral', label: 'Geral' },
+    { key: 'posts', label: 'Posts' },
+    { key: 'artigos', label: 'Artigos' },
+  ],
+  tiktok: [
+    { key: 'geral', label: 'Geral' },
+    { key: 'videos', label: 'Vídeos' },
+  ],
+}
+
+// Plataformas com badge "Mock" (todas exceto Instagram que tem flow real)
+export const PLATFORMS_MOCK = new Set(['youtube', 'linkedin', 'tiktok'])
+
+// ───── KPIs por plataforma ─────
+
+// YouTube
+export const KPIS_YT_GERAL = [
+  { key: 'inscritos', label: 'Inscritos', icon: Users, histKey: 'inscritos' },
+  { key: 'visualizacoes', label: 'Visualizações', icon: Eye, histKey: 'visualizacoes' },
+  { key: 'watch_time_horas', label: 'Watch time (h)', icon: Clock, decimals: 1, histKey: 'watch_time_horas' },
+  { key: 'ctr_pct', label: 'CTR', icon: Target, decimals: 1, suffix: '%' },
+  { key: 'taxa_retencao_pct', label: 'Retenção', icon: TrendingUp, decimals: 1, suffix: '%' },
+  { key: 'likes_total', label: 'Likes', icon: ThumbsUp, histKey: 'likes_total' },
+  { key: 'comentarios_total', label: 'Comentários', icon: MessageCircle, histKey: 'comentarios_total' },
+  { key: 'videos_publicados', label: 'Vídeos', icon: Film, noDelta: true, histKey: 'videos_publicados' },
+  { key: 'shorts_publicados', label: 'Shorts', icon: Zap, noDelta: true, histKey: 'shorts_publicados' },
+]
+
+export const KPIS_YT_VIDEOS = [
+  { key: 'videos_publicados', label: 'Vídeos publicados', icon: Film, noDelta: true },
+  { key: 'visualizacoes', label: 'Visualizações', icon: Eye },
+  { key: 'watch_time_horas', label: 'Watch time (h)', icon: Clock, decimals: 1 },
+  { key: 'duracao_media_min', label: 'Duração média', icon: Clock, decimals: 1, suffix: 'min' },
+  { key: 'taxa_retencao_pct', label: 'Retenção média', icon: TrendingUp, decimals: 1, suffix: '%' },
+  { key: 'ctr_pct', label: 'CTR', icon: Target, decimals: 1, suffix: '%' },
+  { key: 'likes_total', label: 'Likes', icon: ThumbsUp },
+  { key: 'comentarios_total', label: 'Comentários', icon: MessageCircle },
+]
+
+export const KPIS_YT_SHORTS = [
+  { key: 'shorts_publicados', label: 'Shorts publicados', icon: Zap, noDelta: true },
+  { key: 'visualizacoes', label: 'Visualizações', icon: Eye },
+  { key: 'taxa_retencao_pct', label: 'Retenção', icon: TrendingUp, decimals: 1, suffix: '%' },
+  { key: 'likes_total', label: 'Likes', icon: ThumbsUp },
+  { key: 'comentarios_total', label: 'Comentários', icon: MessageCircle },
+  { key: 'compartilhamentos_total', label: 'Compartilhamentos', icon: Share2 },
+]
+
+// LinkedIn
+export const KPIS_LI_GERAL = [
+  { key: 'seguidores', label: 'Seguidores', icon: Users, histKey: 'seguidores' },
+  { key: 'conexoes', label: 'Conexões', icon: UserPlus, histKey: 'conexoes' },
+  { key: 'ssi_score', label: 'SSI Score', icon: Award, decimals: 1 },
+  { key: 'taxa_engajamento', label: 'Engajamento', icon: TrendingUp, decimals: 2, suffix: '%' },
+  { key: 'impressoes_posts', label: 'Impressões médias', icon: Eye },
+  { key: 'visualizacoes_perfil', label: 'Visualizações do perfil', icon: Eye, histKey: 'visualizacoes_perfil' },
+  { key: 'reacoes_total', label: 'Reações', icon: ThumbsUp, histKey: 'reacoes_total' },
+  { key: 'comentarios_total', label: 'Comentários', icon: MessageCircle, histKey: 'comentarios_total' },
+  { key: 'posts_publicados', label: 'Posts', icon: BarChart2, noDelta: true, histKey: 'posts_publicados' },
+  { key: 'artigos_publicados', label: 'Artigos', icon: FileText, noDelta: true, histKey: 'artigos_publicados' },
+]
+
+export const KPIS_LI_POSTS = [
+  { key: 'posts_publicados', label: 'Posts publicados', icon: BarChart2, noDelta: true },
+  { key: 'impressoes_posts', label: 'Impressões médias', icon: Eye },
+  { key: 'taxa_engajamento', label: 'Engajamento', icon: TrendingUp, decimals: 2, suffix: '%' },
+  { key: 'reacoes_total', label: 'Reações', icon: ThumbsUp },
+  { key: 'comentarios_total', label: 'Comentários', icon: MessageCircle },
+  { key: 'compartilhamentos_total', label: 'Compartilhamentos', icon: Share2 },
+]
+
+export const KPIS_LI_ARTIGOS = [
+  { key: 'artigos_publicados', label: 'Artigos publicados', icon: FileText, noDelta: true },
+  { key: 'impressoes_posts', label: 'Impressões médias', icon: Eye },
+  { key: 'taxa_engajamento', label: 'Engajamento', icon: TrendingUp, decimals: 2, suffix: '%' },
+  { key: 'visualizacoes_perfil', label: 'Visualizações do perfil', icon: Eye },
+  { key: 'reacoes_total', label: 'Reações', icon: ThumbsUp },
+  { key: 'comentarios_total', label: 'Comentários', icon: MessageCircle },
+]
+
+// TikTok
+export const KPIS_TT_GERAL = [
+  { key: 'seguidores', label: 'Seguidores', icon: Users, histKey: 'seguidores' },
+  { key: 'visualizacoes_video', label: 'Visualizações', icon: Eye, histKey: 'visualizacoes_video' },
+  { key: 'taxa_engajamento', label: 'Engajamento', icon: TrendingUp, decimals: 2, suffix: '%' },
+  { key: 'taxa_conclusao', label: 'Taxa de conclusão', icon: TrendingUp, decimals: 1, suffix: '%' },
+  { key: 'fyp_pct', label: 'For You %', icon: Globe, decimals: 1, suffix: '%' },
+  { key: 'curtidas_total', label: 'Curtidas', icon: Heart, histKey: 'curtidas_total' },
+  { key: 'comentarios_total', label: 'Comentários', icon: MessageCircle, histKey: 'comentarios_total' },
+  { key: 'compartilhamentos_total', label: 'Compartilhamentos', icon: Share2, histKey: 'compartilhamentos_total' },
+  { key: 'videos_publicados', label: 'Vídeos', icon: Film, noDelta: true, histKey: 'videos_publicados' },
+]
+
+export const KPIS_TT_VIDEOS = [
+  { key: 'videos_publicados', label: 'Vídeos publicados', icon: Film, noDelta: true },
+  { key: 'visualizacoes_video', label: 'Visualizações', icon: Eye },
+  { key: 'taxa_conclusao', label: 'Taxa de conclusão', icon: TrendingUp, decimals: 1, suffix: '%' },
+  { key: 'fyp_pct', label: 'For You %', icon: Globe, decimals: 1, suffix: '%' },
+  { key: 'taxa_engajamento', label: 'Engajamento', icon: TrendingUp, decimals: 2, suffix: '%' },
+  { key: 'curtidas_total', label: 'Curtidas', icon: Heart },
+  { key: 'comentarios_total', label: 'Comentários', icon: MessageCircle },
+  { key: 'compartilhamentos_total', label: 'Compartilhamentos', icon: Share2 },
 ]

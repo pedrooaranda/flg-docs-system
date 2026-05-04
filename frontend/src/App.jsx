@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { ToastProvider } from './lib/toast'
 import { AppProvider } from './contexts/AppContext'
@@ -25,9 +25,24 @@ const MetricasGeral    = lazy(() => import('./components/Metricas/MetricasGeral'
 const MetricasPosts    = lazy(() => import('./components/Metricas/MetricasPosts'))
 const MetricasReels    = lazy(() => import('./components/Metricas/MetricasReels'))
 const MetricasStories  = lazy(() => import('./components/Metricas/MetricasStories'))
+const MetricasYTVideos  = lazy(() => import('./components/Metricas/MetricasYTVideos'))
+const MetricasYTShorts  = lazy(() => import('./components/Metricas/MetricasYTShorts'))
+const MetricasLIPosts   = lazy(() => import('./components/Metricas/MetricasLIPosts'))
+const MetricasLIArtigos = lazy(() => import('./components/Metricas/MetricasLIArtigos'))
+const MetricasTTVideos  = lazy(() => import('./components/Metricas/MetricasTTVideos'))
 const Ranking          = lazy(() => import('./components/Ranking'))
 const LegalPage        = lazy(() => import('./components/LegalPage'))
 const ConectarInstagram = lazy(() => import('./components/ConectarInstagram'))
+
+// Resolve qual componente renderizar baseado em ?plataforma= da URL.
+// Mesma rota (ex: /metricas/:id/posts) serve Instagram E LinkedIn — distingue por query param.
+function RouteByPlatform({ ig, li, yt, tt, fallback }) {
+  const [params] = useSearchParams()
+  const platform = params.get('plataforma') || 'instagram'
+  const map = { instagram: ig, linkedin: li, youtube: yt, tiktok: tt }
+  const Comp = map[platform] || fallback || ig
+  return Comp ? <Comp /> : null
+}
 
 function AuthGuard({ session, children, title, subtitle }) {
   if (!session) return <Navigate to="/login" replace />
@@ -116,9 +131,12 @@ export default function App() {
             <Route index element={<Suspense fallback={<PageSpinner />}><MetricasGeral /></Suspense>} />
             <Route path=":clienteId" element={<Suspense fallback={<PageSpinner />}><MetricasGeral /></Suspense>} />
             <Route path=":clienteId/geral" element={<Suspense fallback={<PageSpinner />}><MetricasGeral /></Suspense>} />
-            <Route path=":clienteId/posts" element={<Suspense fallback={<PageSpinner />}><MetricasPosts /></Suspense>} />
+            <Route path=":clienteId/posts" element={<Suspense fallback={<PageSpinner />}><RouteByPlatform ig={MetricasPosts} li={MetricasLIPosts} /></Suspense>} />
             <Route path=":clienteId/reels" element={<Suspense fallback={<PageSpinner />}><MetricasReels /></Suspense>} />
             <Route path=":clienteId/stories" element={<Suspense fallback={<PageSpinner />}><MetricasStories /></Suspense>} />
+            <Route path=":clienteId/videos" element={<Suspense fallback={<PageSpinner />}><RouteByPlatform yt={MetricasYTVideos} tt={MetricasTTVideos} fallback={MetricasYTVideos} /></Suspense>} />
+            <Route path=":clienteId/shorts" element={<Suspense fallback={<PageSpinner />}><MetricasYTShorts /></Suspense>} />
+            <Route path=":clienteId/artigos" element={<Suspense fallback={<PageSpinner />}><MetricasLIArtigos /></Suspense>} />
           </Route>
 
           <Route path="/ranking" element={

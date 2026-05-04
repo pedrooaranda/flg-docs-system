@@ -6,14 +6,9 @@ import { DateRangePicker } from '../MetricasParts'
 import { IGProfileBadge } from './shared/banners'
 import SyncButton from './shared/SyncButton'
 import ClienteCombobox from './shared/ClienteCombobox'
-import { PLATFORMS } from './shared/constants'
-
-const TABS = [
-  { key: 'geral', label: 'Geral' },
-  { key: 'posts', label: 'Posts' },
-  { key: 'reels', label: 'Reels' },
-  { key: 'stories', label: 'Stories' },
-]
+import PlatformSelector from './shared/PlatformSelector'
+import MockPlatformBanner from './shared/MockPlatformBanner'
+import { PLATFORMS, PLATFORM_TABS, PLATFORMS_MOCK } from './shared/constants'
 
 export default function MetricasLayout({ session }) {
   const navigate = useNavigate()
@@ -27,23 +22,32 @@ export default function MetricasLayout({ session }) {
     ? allClientes
     : allClientes.filter(c => c.consultor_responsavel?.toLowerCase().includes(user?.email?.split('@')[0] || ''))
 
-  const platform = 'instagram'
-  const platConfig = PLATFORMS[platform]
+  const platform = searchParams.get('plataforma') || 'instagram'
+  const platConfig = PLATFORMS[platform] || PLATFORMS.instagram
+  const tabs = PLATFORM_TABS[platform] || PLATFORM_TABS.instagram
   const periodo = parseInt(searchParams.get('dias') || '30', 10)
   const clienteId = params.clienteId
-  // Detecta a tab pela URL (params.tab não funciona — rotas do App.jsx têm path
-  // estático tipo "/metricas/:clienteId/posts" em vez de ":clienteId/:tab").
-  // Pega o último segmento e valida contra a lista de tabs.
+  const isMock = PLATFORMS_MOCK.has(platform)
+
+  // Detecta tab pela URL — pega último segmento e valida contra tabs da plataforma
+  const validTabKeys = tabs.map(t => t.key)
   const segments = location.pathname.split('/').filter(Boolean)
   const lastSegment = segments[segments.length - 1]
-  const tab = ['geral', 'posts', 'reels', 'stories'].includes(lastSegment) ? lastSegment : 'geral'
+  const tab = validTabKeys.includes(lastSegment) ? lastSegment : 'geral'
 
-  // Redirect: sem cliente na URL → escolhe o primeiro
   useEffect(() => {
     if (!clienteId && clientes.length > 0) {
-      navigate(`/metricas/${clientes[0].id}/geral`, { replace: true })
+      const sp = searchParams.toString()
+      navigate(`/metricas/${clientes[0].id}/geral${sp ? '?' + sp : ''}`, { replace: true })
     }
-  }, [clienteId, clientes, navigate])
+  }, [clienteId, clientes, navigate, searchParams])
+
+  // Quando muda de plataforma, redireciona pra geral (tab pode não existir na plataforma nova)
+  function setPlatform(newPlatform) {
+    const sp = new URLSearchParams(searchParams)
+    sp.set('plataforma', newPlatform)
+    navigate(`/metricas/${clienteId}/geral?${sp.toString()}`)
+  }
 
   function setCliente(id) {
     const sp = searchParams.toString()
@@ -66,9 +70,9 @@ export default function MetricasLayout({ session }) {
 
   return (
     <div className="p-6 max-w-[1400px] mx-auto space-y-6">
-      {/* Header: combo + badge IG + sync + filtro período */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
         <div className="flex items-center gap-3 flex-wrap">
+          <PlatformSelector value={platform} onChange={setPlatform} />
           <ClienteCombobox
             clientes={clientes}
             value={clienteId}
@@ -88,14 +92,12 @@ export default function MetricasLayout({ session }) {
         />
       </div>
 
-      {/* Tabs — usa NavLink isActive direto. end=true pra match exato da rota. */}
+      {isMock && <MockPlatformBanner platform={platform} />}
+
       <div className="flex items-center gap-1 border-b border-white/10">
-        {TABS.map(t => {
+        {tabs.map(t => {
           const sp = searchParams.toString()
           const to = `/metricas/${clienteId}/${t.key}${sp ? '?' + sp : ''}`
-          // NavLink isActive funciona via path matching real do React Router.
-          // Aqui forço comparação manual também porque a rota /metricas/:clienteId
-          // (sem /tab) também aponta pra Geral, e NavLink end=true não pegaria isso.
           const isActive = t.key === tab
           return (
             <NavLink
@@ -104,16 +106,8 @@ export default function MetricasLayout({ session }) {
               end={true}
               className="px-4 py-2.5 text-xs font-semibold transition-colors"
               style={isActive
-                ? {
-                    color: platConfig.color,
-                    borderBottom: `2px solid ${platConfig.color}`,
-                    marginBottom: '-1px',
-                  }
-                : {
-                    color: 'rgba(255,255,255,0.4)',
-                    borderBottom: '2px solid transparent',
-                    marginBottom: '-1px',
-                  }
+                ? { color: platConfig.color, borderBottom: `2px solid ${platConfig.color}`, marginBottom: '-1px' }
+                : { color: 'rgba(255,255,255,0.4)', borderBottom: '2px solid transparent', marginBottom: '-1px' }
               }
             >
               {t.label}
@@ -122,7 +116,6 @@ export default function MetricasLayout({ session }) {
         })}
       </div>
 
-      {/* Conteúdo da aba (Outlet renderiza Geral/Posts/Reels/Stories) */}
       <Outlet context={{ clienteId, periodo, platform, platConfig }} />
     </div>
   )

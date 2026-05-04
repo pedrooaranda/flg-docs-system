@@ -5,7 +5,14 @@ import { api } from '../../lib/api'
 import { ChartSkeleton, KpiGridSkeleton, HeatmapSkeleton, PostsGridSkeleton, DemographicsSection } from '../MetricasParts'
 import KpiCard from './shared/KpiCard'
 import { DadosZeradosBanner, AguardandoSyncBanner, MockDataBanner } from './shared/banners'
-import { KPIS_GERAL, KPI_WEIGHT, GOLD } from './shared/constants'
+import { KPIS_GERAL, KPIS_YT_GERAL, KPIS_LI_GERAL, KPIS_TT_GERAL, KPI_WEIGHT, GOLD } from './shared/constants'
+
+const KPIS_BY_PLATFORM = {
+  instagram: KPIS_GERAL,
+  youtube: KPIS_YT_GERAL,
+  linkedin: KPIS_LI_GERAL,
+  tiktok: KPIS_TT_GERAL,
+}
 
 function SectionTitle({ children }) {
   return <h2 className="text-sm font-semibold text-white/60 uppercase tracking-widest mb-3">{children}</h2>
@@ -34,6 +41,7 @@ function fmtDate(d) {
 export default function MetricasGeral() {
   const navigate = useNavigate()
   const { clienteId, periodo, platform, platConfig } = useOutletContext()
+  const kpisDef = KPIS_BY_PLATFORM[platform] || KPIS_GERAL
   const [loading, setLoading] = useState(false)
   const [overview, setOverview] = useState(null)
   const [historico, setHistorico] = useState([])
@@ -122,7 +130,7 @@ export default function MetricasGeral() {
             <SectionTitle>Visão Geral — {platConfig.label} — últimos {periodo} dias</SectionTitle>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {(() => {
-                const winner = KPIS_GERAL.reduce((best, d) => {
+                const winner = kpisDef.reduce((best, d) => {
                   if (d.noDelta) return best
                   const dl = kpis[d.key]?.delta_pct
                   if (dl == null || dl <= 0) return best
@@ -130,7 +138,7 @@ export default function MetricasGeral() {
                   if (!best || score > best.score) return { key: d.key, delta: dl, score }
                   return best
                 }, null)
-                return KPIS_GERAL.map((def) => {
+                return kpisDef.map((def) => {
                   const kpi = kpis[def.key]
                   if (!kpi) return null
                   const series = def.histKey

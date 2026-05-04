@@ -26,7 +26,7 @@ router = APIRouter(prefix="/metricas", tags=["metricas"])
 
 VALID_ORDENAR = {"engajamento", "recente", "curtidas", "comentarios", "salvamentos",
                  "compartilhamentos", "alcance", "replies", "exits"}
-VALID_TIPO = {"all", "feed", "reels", "story"}
+VALID_TIPO = {"all", "feed", "reels", "story", "videos", "shorts", "posts", "artigos"}
 _supabase = supabase_client
 
 
@@ -137,7 +137,7 @@ def _build_kpis_stories(atual, anterior):
         "compartilhamentos_total": {"valor": _sum(atual, "compartilhamentos_total"), "delta_pct": _delta_pct(_sum(atual, "compartilhamentos_total"), _sum(anterior, "compartilhamentos_total"))},
     }
 
-def _build_kpis_linkedin(atual, anterior):
+def _build_kpis_linkedin_geral(atual, anterior):
     return {
         "seguidores": {"valor": _last(atual, "seguidores"), "delta_pct": _delta_pct(_last(atual, "seguidores"), _last(anterior, "seguidores"))},
         "conexoes": {"valor": _last(atual, "conexoes"), "delta_pct": _delta_pct(_last(atual, "conexoes"), _last(anterior, "conexoes"))},
@@ -151,7 +151,30 @@ def _build_kpis_linkedin(atual, anterior):
         "artigos_publicados": {"valor": _sum(atual, "artigos_publicados")},
     }
 
-def _build_kpis_youtube(atual, anterior):
+
+def _build_kpis_linkedin_posts(atual, anterior):
+    return {
+        "posts_publicados": {"valor": _sum(atual, "posts_publicados")},
+        "impressoes_posts": {"valor": int(_avg(atual, "impressoes_posts")), "delta_pct": _delta_pct(_avg(atual, "impressoes_posts"), _avg(anterior, "impressoes_posts"))},
+        "taxa_engajamento": {"valor": _avg(atual, "taxa_engajamento"), "delta_pct": _delta_pct(_avg(atual, "taxa_engajamento"), _avg(anterior, "taxa_engajamento"))},
+        "reacoes_total": {"valor": _sum(atual, "reacoes_total"), "delta_pct": _delta_pct(_sum(atual, "reacoes_total"), _sum(anterior, "reacoes_total"))},
+        "comentarios_total": {"valor": _sum(atual, "comentarios_total"), "delta_pct": _delta_pct(_sum(atual, "comentarios_total"), _sum(anterior, "comentarios_total"))},
+        "compartilhamentos_total": {"valor": _sum(atual, "compartilhamentos_total"), "delta_pct": _delta_pct(_sum(atual, "compartilhamentos_total"), _sum(anterior, "compartilhamentos_total"))},
+    }
+
+
+def _build_kpis_linkedin_artigos(atual, anterior):
+    return {
+        "artigos_publicados": {"valor": _sum(atual, "artigos_publicados")},
+        "impressoes_posts": {"valor": int(_avg(atual, "impressoes_posts")), "delta_pct": _delta_pct(_avg(atual, "impressoes_posts"), _avg(anterior, "impressoes_posts"))},
+        "taxa_engajamento": {"valor": _avg(atual, "taxa_engajamento"), "delta_pct": _delta_pct(_avg(atual, "taxa_engajamento"), _avg(anterior, "taxa_engajamento"))},
+        "visualizacoes_perfil": {"valor": _sum(atual, "visualizacoes_perfil"), "delta_pct": _delta_pct(_sum(atual, "visualizacoes_perfil"), _sum(anterior, "visualizacoes_perfil"))},
+        "reacoes_total": {"valor": _sum(atual, "reacoes_total"), "delta_pct": _delta_pct(_sum(atual, "reacoes_total"), _sum(anterior, "reacoes_total"))},
+        "comentarios_total": {"valor": _sum(atual, "comentarios_total"), "delta_pct": _delta_pct(_sum(atual, "comentarios_total"), _sum(anterior, "comentarios_total"))},
+    }
+
+
+def _build_kpis_youtube_geral(atual, anterior):
     return {
         "inscritos": {"valor": _last(atual, "inscritos"), "delta_pct": _delta_pct(_last(atual, "inscritos"), _last(anterior, "inscritos"))},
         "visualizacoes": {"valor": _sum(atual, "visualizacoes"), "delta_pct": _delta_pct(_sum(atual, "visualizacoes"), _sum(anterior, "visualizacoes"))},
@@ -164,7 +187,32 @@ def _build_kpis_youtube(atual, anterior):
         "shorts_publicados": {"valor": _sum(atual, "shorts_publicados")},
     }
 
-def _build_kpis_tiktok(atual, anterior):
+
+def _build_kpis_youtube_videos(atual, anterior):
+    return {
+        "videos_publicados": {"valor": _sum(atual, "videos_publicados")},
+        "visualizacoes": {"valor": _sum(atual, "visualizacoes"), "delta_pct": _delta_pct(_sum(atual, "visualizacoes"), _sum(anterior, "visualizacoes"))},
+        "watch_time_horas": {"valor": round(_sum(atual, "watch_time_horas"), 1), "delta_pct": _delta_pct(_sum(atual, "watch_time_horas"), _sum(anterior, "watch_time_horas"))},
+        "duracao_media_min": {"valor": _avg(atual, "duracao_media_min"), "delta_pct": _delta_pct(_avg(atual, "duracao_media_min"), _avg(anterior, "duracao_media_min"))},
+        "taxa_retencao_pct": {"valor": _avg(atual, "taxa_retencao_pct"), "delta_pct": _delta_pct(_avg(atual, "taxa_retencao_pct"), _avg(anterior, "taxa_retencao_pct"))},
+        "ctr_pct": {"valor": _avg(atual, "ctr_pct"), "delta_pct": _delta_pct(_avg(atual, "ctr_pct"), _avg(anterior, "ctr_pct"))},
+        "likes_total": {"valor": _sum(atual, "likes_total"), "delta_pct": _delta_pct(_sum(atual, "likes_total"), _sum(anterior, "likes_total"))},
+        "comentarios_total": {"valor": _sum(atual, "comentarios_total"), "delta_pct": _delta_pct(_sum(atual, "comentarios_total"), _sum(anterior, "comentarios_total"))},
+    }
+
+
+def _build_kpis_youtube_shorts(atual, anterior):
+    return {
+        "shorts_publicados": {"valor": _sum(atual, "shorts_publicados")},
+        "visualizacoes": {"valor": _sum(atual, "visualizacoes"), "delta_pct": _delta_pct(_sum(atual, "visualizacoes"), _sum(anterior, "visualizacoes"))},
+        "taxa_retencao_pct": {"valor": _avg(atual, "taxa_retencao_pct"), "delta_pct": _delta_pct(_avg(atual, "taxa_retencao_pct"), _avg(anterior, "taxa_retencao_pct"))},
+        "likes_total": {"valor": _sum(atual, "likes_total"), "delta_pct": _delta_pct(_sum(atual, "likes_total"), _sum(anterior, "likes_total"))},
+        "comentarios_total": {"valor": _sum(atual, "comentarios_total"), "delta_pct": _delta_pct(_sum(atual, "comentarios_total"), _sum(anterior, "comentarios_total"))},
+        "compartilhamentos_total": {"valor": _sum(atual, "compartilhamentos_total"), "delta_pct": _delta_pct(_sum(atual, "compartilhamentos_total"), _sum(anterior, "compartilhamentos_total"))},
+    }
+
+
+def _build_kpis_tiktok_geral(atual, anterior):
     return {
         "seguidores": {"valor": _last(atual, "seguidores"), "delta_pct": _delta_pct(_last(atual, "seguidores"), _last(anterior, "seguidores"))},
         "visualizacoes_video": {"valor": _sum(atual, "visualizacoes_video"), "delta_pct": _delta_pct(_sum(atual, "visualizacoes_video"), _sum(anterior, "visualizacoes_video"))},
@@ -177,8 +225,21 @@ def _build_kpis_tiktok(atual, anterior):
         "videos_publicados": {"valor": _sum(atual, "videos_publicados")},
     }
 
-# Mapping de builders por (plataforma, tipo). Tipo só aplica pra Instagram —
-# outras plataformas usam 'all' fixo.
+
+def _build_kpis_tiktok_videos(atual, anterior):
+    return {
+        "videos_publicados": {"valor": _sum(atual, "videos_publicados")},
+        "visualizacoes_video": {"valor": _sum(atual, "visualizacoes_video"), "delta_pct": _delta_pct(_sum(atual, "visualizacoes_video"), _sum(anterior, "visualizacoes_video"))},
+        "taxa_conclusao": {"valor": _avg(atual, "taxa_conclusao"), "delta_pct": _delta_pct(_avg(atual, "taxa_conclusao"), _avg(anterior, "taxa_conclusao"))},
+        "fyp_pct": {"valor": _avg(atual, "fyp_pct"), "delta_pct": _delta_pct(_avg(atual, "fyp_pct"), _avg(anterior, "fyp_pct"))},
+        "taxa_engajamento": {"valor": _avg(atual, "taxa_engajamento"), "delta_pct": _delta_pct(_avg(atual, "taxa_engajamento"), _avg(anterior, "taxa_engajamento"))},
+        "curtidas_total": {"valor": _sum(atual, "curtidas_total"), "delta_pct": _delta_pct(_sum(atual, "curtidas_total"), _sum(anterior, "curtidas_total"))},
+        "comentarios_total": {"valor": _sum(atual, "comentarios_total"), "delta_pct": _delta_pct(_sum(atual, "comentarios_total"), _sum(anterior, "comentarios_total"))},
+        "compartilhamentos_total": {"valor": _sum(atual, "compartilhamentos_total"), "delta_pct": _delta_pct(_sum(atual, "compartilhamentos_total"), _sum(anterior, "compartilhamentos_total"))},
+    }
+
+
+# Mapping de builders por (plataforma, tipo)
 _KPI_BUILDERS = {
     "instagram": {
         "all": _build_kpis_geral,
@@ -186,18 +247,27 @@ _KPI_BUILDERS = {
         "reels": _build_kpis_reels,
         "story": _build_kpis_stories,
     },
-    "linkedin": _build_kpis_linkedin,
-    "youtube": _build_kpis_youtube,
-    "tiktok": _build_kpis_tiktok,
+    "linkedin": {
+        "all": _build_kpis_linkedin_geral,
+        "posts": _build_kpis_linkedin_posts,
+        "artigos": _build_kpis_linkedin_artigos,
+    },
+    "youtube": {
+        "all": _build_kpis_youtube_geral,
+        "videos": _build_kpis_youtube_videos,
+        "shorts": _build_kpis_youtube_shorts,
+    },
+    "tiktok": {
+        "all": _build_kpis_tiktok_geral,
+        "videos": _build_kpis_tiktok_videos,
+    },
 }
 
 
 def _resolve_builder(plataforma: str, tipo: str):
-    """Retorna o builder correto. Plataformas não-IG ignoram tipo."""
-    cfg = _KPI_BUILDERS.get(plataforma, _build_kpis_geral)
-    if isinstance(cfg, dict):
-        return cfg.get(tipo.lower(), cfg["all"])
-    return cfg
+    """Retorna o builder correto pra (plataforma, tipo)."""
+    cfg = _KPI_BUILDERS.get(plataforma, _KPI_BUILDERS["instagram"])
+    return cfg.get(tipo.lower(), cfg["all"])
 
 # Sparkline fields per platform
 _SPARKLINE_FIELDS = {
