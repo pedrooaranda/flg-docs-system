@@ -314,7 +314,9 @@ function exportCSV(rows, filename = 'top-posts.csv') {
 }
 
 export function PostsTable({ posts, accent = '#E4405F' }) {
-  const [sorting, setSorting] = useState([{ id: 'taxa_engajamento', desc: true }])
+  // Sem sort default — preserva ordem que veio do backend (que respeita o ?ordenar= do dropdown).
+  // Headers continuam clicáveis pra usuário re-ordenar manualmente.
+  const [sorting, setSorting] = useState([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [tipoFilter, setTipoFilter] = useState('all')
 
