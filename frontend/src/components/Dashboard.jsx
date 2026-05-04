@@ -21,7 +21,7 @@ import { useApp } from '../contexts/AppContext'
 import { Avatar } from './ui/Avatar'
 import { StatusBadge } from './ui/Badge'
 import { SkeletonCard } from './ui/Skeleton'
-import { progressPercent, formatDate, isAdmin as checkAdmin } from '../lib/utils'
+import { progressPercent } from '../lib/utils'
 
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -300,16 +300,18 @@ export default function Dashboard({ session }) {
   const { clientes: allClientes, loading } = useApp()
   const navigate = useNavigate()
 
-  const isAdmin = checkAdmin(session?.user)
   const userEmail = session?.user?.email
   const firstName = getFirstName(userEmail)
   const greeting = getGreeting()
 
-  // Consultor vê só seus clientes; admin vê todos
-  const myClientes = useMemo(() => allClientes.filter(c => {
-    if (isAdmin) return true
-    return c.consultor_responsavel?.toLowerCase().includes(userEmail?.split('@')[0] || '')
-  }), [allClientes, isAdmin, userEmail])
+  // Home é SEMPRE a view do consultor logado (mesmo admin) — admin pra ver
+  // tudo vai em "Clientes" no menu lateral.
+  const myClientes = useMemo(() => {
+    const handle = userEmail?.split('@')[0]?.toLowerCase() || ''
+    return allClientes.filter(c =>
+      c.consultor_responsavel?.toLowerCase().includes(handle)
+    )
+  }, [allClientes, userEmail])
 
   // Métricas
   const ativos = myClientes.filter(c => (c.status || 'ativo') === 'ativo').length
