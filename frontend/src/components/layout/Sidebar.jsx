@@ -133,9 +133,12 @@ export default function Sidebar({ user, isAdmin }) {
         className={cn('flex items-center h-16 px-4 flex-shrink-0', collapsed ? 'justify-center' : 'gap-3')}
         style={{ borderBottom: '1px solid var(--flg-bg-card-border)' }}
       >
-        <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 gold-gradient font-display font-bold text-xs text-[#080808]">
-          FLG
-        </div>
+        <img
+          src="/logo-flg.png"
+          alt="FLG"
+          className="flex-shrink-0 object-contain"
+          style={{ height: collapsed ? 22 : 28, width: 'auto' }}
+        />
         <AnimatePresence>
           {!collapsed && (
             <motion.span
@@ -143,7 +146,7 @@ export default function Sidebar({ user, isAdmin }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="font-display text-sm font-semibold gold-text whitespace-nowrap"
+              className="font-display text-[11px] font-medium text-white/45 tracking-wider whitespace-nowrap"
             >
               Jornada System
             </motion.span>

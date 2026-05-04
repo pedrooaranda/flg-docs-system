@@ -61,16 +61,13 @@ export default function ConectarInstagram() {
       <div className="w-full max-w-md">
         {/* Logo / brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-3"
-            style={{
-              background: 'linear-gradient(135deg, #F5D68A, #C9A84C, #8B6914)',
-              boxShadow: '0 8px 24px rgba(201,168,76,0.35)',
-            }}
-          >
-            <span className="font-display font-bold text-base" style={{ color: '#1a1300' }}>FLG</span>
-          </div>
-          <h1 className="font-display text-2xl font-bold text-white">Founders Led Growth</h1>
-          <p className="text-[11px] text-white/55 mt-1 tracking-widest uppercase">Autorização de acesso</p>
+          <img
+            src="/logo-flg.png"
+            alt="FLG · Founders Led Growth"
+            className="mx-auto mb-4"
+            style={{ height: 72, width: 'auto', objectFit: 'contain' }}
+          />
+          <p className="text-[11px] text-white/55 tracking-widest uppercase">Autorização de acesso</p>
         </div>
 
         <motion.div

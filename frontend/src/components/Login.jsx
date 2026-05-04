@@ -32,11 +32,14 @@ export default function Login() {
         className="w-full max-w-sm relative z-10"
       >
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl gold-gradient mb-5">
-            <span className="font-display font-bold text-2xl text-[#080808]">F</span>
-          </div>
-          <h1 className="font-display text-3xl font-bold gold-text">Jornada System</h1>
-          <p className="text-xs text-white/25 mt-2 tracking-widest uppercase">Founders Led Growth</p>
+          <img
+            src="/logo-flg.png"
+            alt="FLG"
+            className="mx-auto mb-5"
+            style={{ height: 80, width: 'auto', objectFit: 'contain' }}
+          />
+          <h1 className="font-display text-2xl font-semibold text-white/85">Jornada System</h1>
+          <p className="text-xs text-white/30 mt-2 tracking-widest uppercase">Founders Led Growth</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card-flg p-8 space-y-5">
