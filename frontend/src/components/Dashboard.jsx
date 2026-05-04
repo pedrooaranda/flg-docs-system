@@ -10,18 +10,29 @@
  *  6. Meus clientes (priorizando os da semana, depois os outros)
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, TrendingUp, PauseCircle, UserCheck, ArrowRight, AlertTriangle,
-  Calendar, CheckCircle2, Clock, Sparkles,
+  Calendar, CheckCircle2, Clock, Sparkles, Send, Search, FileText, Layers,
+  ChevronDown,
 } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
+import { api } from '../lib/api'
 import { Avatar } from './ui/Avatar'
 import { StatusBadge } from './ui/Badge'
 import { SkeletonCard } from './ui/Skeleton'
 import { progressPercent } from '../lib/utils'
+
+const TIPOS_NOTA = [
+  { value: 'geral',     label: 'Geral',      color: '#C9A84C' },
+  { value: 'percepcao', label: 'Percepção',  color: '#60A5FA' },
+  { value: 'trava',     label: 'Trava',      color: '#F87171' },
+  { value: 'evolucao',  label: 'Evolução',   color: '#34D399' },
+  { value: 'alerta',    label: 'Alerta',     color: '#FBBF24' },
+  { value: 'tarefa',    label: 'Tarefa',     color: '#A78BFA' },
+]
 
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -314,6 +325,264 @@ function SectionTitle({ icon: Icon, children, count, action }) {
   )
 }
 
+// ── Quick Note (estilo Twitter) ──────────────────────────────────────────────
+
+function ClientePicker({ clientes, value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const ref = useRef(null)
+  const selected = clientes.find(c => c.id === value)
+  const filtered = clientes.filter(c => !q || c.nome?.toLowerCase().includes(q.toLowerCase()))
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs cursor-pointer transition-colors"
+        style={{
+          background: 'var(--flg-bg-raised)',
+          border: '1px solid rgba(201,168,76,0.25)',
+          color: selected ? '#FAFAF8' : 'rgba(255,255,255,0.45)',
+          minWidth: 200,
+        }}
+      >
+        {selected ? (
+          <>
+            <Avatar name={selected.nome} size="sm" />
+            <span className="flex-1 text-left truncate text-xs">{selected.nome}</span>
+          </>
+        ) : (
+          <span className="flex-1 text-left">Pra qual cliente?</span>
+        )}
+        <ChevronDown size={12} className="opacity-50 shrink-0" />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="absolute top-full mt-1 left-0 z-50 w-72 rounded-lg overflow-hidden shadow-2xl"
+            style={{ background: 'var(--flg-bg-raised)', border: '1px solid rgba(201,168,76,0.2)' }}
+          >
+            <div className="p-2 border-b" style={{ borderColor: 'var(--flg-border)' }}>
+              <div className="relative">
+                <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
+                <input
+                  autoFocus
+                  value={q}
+                  onChange={e => setQ(e.target.value)}
+                  placeholder="Buscar cliente…"
+                  className="w-full pl-7 pr-3 py-1.5 text-xs rounded bg-white/5 border border-white/8 text-white/80 outline-none focus:border-gold-mid/40"
+                />
+              </div>
+            </div>
+            <div className="max-h-60 overflow-y-auto">
+              {filtered.length === 0 ? (
+                <p className="px-3 py-4 text-xs text-white/30 text-center">Nenhum cliente</p>
+              ) : filtered.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => { onChange(c.id); setOpen(false); setQ('') }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/75 hover:bg-white/5 transition-colors cursor-pointer text-left"
+                >
+                  <Avatar name={c.nome} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate">{c.nome}</p>
+                    <p className="text-[10px] text-white/30 truncate">{c.empresa}</p>
+                  </div>
+                  <span className="text-[10px] text-gold-mid shrink-0">E{c.encontro_atual || 1}</span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function QuickNote({ clientes }) {
+  const navigate = useNavigate()
+  const [texto, setTexto] = useState('')
+  const [tipo, setTipo] = useState('geral')
+  const [clienteId, setClienteId] = useState('')
+  const [sending, setSending] = useState(false)
+  const [feedback, setFeedback] = useState(null)
+  const inputRef = useRef(null)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!texto.trim() || !clienteId) {
+      setFeedback({ kind: 'error', msg: !clienteId ? 'Escolha o cliente.' : 'Escreva uma nota.' })
+      return
+    }
+    setSending(true)
+    setFeedback(null)
+    try {
+      await api(`/notas/${clienteId}`, {
+        method: 'POST',
+        body: JSON.stringify({ conteudo: texto.trim(), tipo }),
+      })
+      const cliente = clientes.find(c => c.id === clienteId)
+      setFeedback({ kind: 'ok', msg: `Nota salva em ${cliente?.nome || 'cliente'}.`, clienteId })
+      setTexto('')
+      setTipo('geral')
+      // não reseta clienteId — provavelmente vai escrever várias notas pro mesmo
+      inputRef.current?.focus()
+      setTimeout(() => setFeedback(null), 4000)
+    } catch (err) {
+      setFeedback({ kind: 'error', msg: err.message || 'Erro ao salvar nota' })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="card-flg p-4 space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-white/40 font-medium">Nova nota</span>
+        <span className="text-[10px] text-white/25">· cai direto na timeline do cliente</span>
+      </div>
+
+      <textarea
+        ref={inputRef}
+        rows={3}
+        value={texto}
+        onChange={e => setTexto(e.target.value)}
+        placeholder="Anotação rápida sobre um cliente — percepção, trava, evolução, alerta…"
+        className="w-full bg-transparent text-sm text-white/85 placeholder:text-white/25 outline-none resize-none leading-relaxed"
+        disabled={sending}
+      />
+
+      <div className="flex items-center gap-2 flex-wrap">
+        {TIPOS_NOTA.map(t => (
+          <button
+            type="button"
+            key={t.value}
+            onClick={() => setTipo(t.value)}
+            className="text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all cursor-pointer"
+            style={tipo === t.value
+              ? { background: `${t.color}20`, color: t.color, border: `1px solid ${t.color}40` }
+              : { color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.06)' }
+            }
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between gap-2 pt-2" style={{ borderTop: '1px solid var(--flg-border)' }}>
+        <ClientePicker clientes={clientes} value={clienteId} onChange={setClienteId} />
+        <button
+          type="submit"
+          disabled={sending || !texto.trim() || !clienteId}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+          style={{ background: 'rgba(201,168,76,0.18)', color: '#C9A84C', border: '1px solid rgba(201,168,76,0.4)' }}
+        >
+          <Send size={12} />
+          {sending ? 'Salvando…' : 'Postar'}
+        </button>
+      </div>
+
+      {feedback && (
+        <div className="flex items-center justify-between gap-2 text-[11px] pt-1">
+          <span style={{ color: feedback.kind === 'ok' ? '#34D399' : '#F87171' }}>
+            {feedback.kind === 'ok' ? '✓' : '⚠'} {feedback.msg}
+          </span>
+          {feedback.kind === 'ok' && feedback.clienteId && (
+            <button
+              type="button"
+              onClick={() => navigate(`/clientes/${feedback.clienteId}`)}
+              className="text-gold-mid/80 hover:text-gold-mid transition-colors cursor-pointer"
+            >
+              Ver no perfil →
+            </button>
+          )}
+        </div>
+      )}
+    </form>
+  )
+}
+
+// ── Materiais a Preparar ─────────────────────────────────────────────────────
+
+function MateriaisAPreparar({ clientes }) {
+  const navigate = useNavigate()
+
+  // Heurística: pra cada cliente do consultor, sugere preparar materiais do
+  // próximo encontro. Prioriza:
+  //   1. Clientes com encontro_atual <15 (ainda na jornada)
+  //   2. Ordenados por updated_at desc (mais recente primeiro = continuar embalo)
+  // Pega top 6.
+  const itens = useMemo(() => {
+    return [...clientes]
+      .filter(c => (c.encontro_atual || 0) < 15 && (c.status || 'ativo') !== 'pausado')
+      .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))
+      .slice(0, 6)
+      .map(c => {
+        const proximoNum = (c.encontro_atual || 0) + 1
+        // Sugestão de materiais por fase da jornada
+        const materiais = []
+        if (proximoNum <= 5) materiais.push('Slides do encontro', 'Diagnóstico')
+        else if (proximoNum >= 6 && proximoNum <= 8) materiais.push('Slides de campanha', 'Copy + roteiros', 'Materiais de apoio')
+        else if (proximoNum >= 13) materiais.push('Slides de fechamento', 'Documento estratégico')
+        else materiais.push('Slides do encontro', 'Copy semanal')
+        return { cliente: c, proximoNum, materiais }
+      })
+  }, [clientes])
+
+  if (itens.length === 0) {
+    return (
+      <p className="text-xs text-white/30 text-center py-6">
+        Nenhum material pendente · todos os clientes em pausa ou jornada concluída
+      </p>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      {itens.map((item, i) => (
+        <motion.div
+          key={item.cliente.id}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.04 }}
+          className="rounded-xl p-4 cursor-pointer transition-transform hover:scale-[1.01]"
+          style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}
+          onClick={() => navigate(`/clientes/${item.cliente.id}/encontro/${item.proximoNum}`)}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.4)' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--flg-border)' }}
+        >
+          <div className="flex items-center gap-2.5 mb-3">
+            <Avatar name={item.cliente.nome} size="sm" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white/90 truncate">{item.cliente.nome}</p>
+              <p className="text-[10px] text-white/40">Próximo: <span className="text-gold-mid font-semibold">Encontro {item.proximoNum}/15</span></p>
+            </div>
+          </div>
+          <div className="space-y-1 mb-3">
+            {item.materiais.map((m, j) => (
+              <div key={j} className="flex items-center gap-2 text-[11px] text-white/55">
+                <Layers size={10} className="text-gold-mid/70" />
+                {m}
+              </div>
+            ))}
+          </div>
+          <button
+            className="w-full text-[11px] font-semibold py-2 rounded-lg transition-all cursor-pointer"
+            style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C', border: '1px solid rgba(201,168,76,0.3)' }}
+          >
+            Preparar agora →
+          </button>
+        </motion.div>
+      ))}
+    </div>
+  )
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 
 export default function Dashboard({ session }) {
@@ -447,7 +716,23 @@ export default function Dashboard({ session }) {
         </div>
       </div>
 
-      {/* ── 4. Tarefas pendentes (mock ClickUp) ── */}
+      {/* ── 4. Quick Note + Materiais a preparar ── */}
+      {myClientes.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-2">
+            <SectionTitle icon={Send}>Anotação rápida</SectionTitle>
+            <QuickNote clientes={myClientes} />
+          </div>
+          <div className="lg:col-span-3">
+            <SectionTitle icon={FileText} count={Math.min(myClientes.filter(c => (c.encontro_atual || 0) < 15).length, 6)}>
+              Materiais a preparar
+            </SectionTitle>
+            <MateriaisAPreparar clientes={myClientes} />
+          </div>
+        </div>
+      )}
+
+      {/* ── 5. Tarefas pendentes (mock ClickUp) ── */}
       {tarefas.length > 0 && (
         <div>
           <SectionTitle icon={CheckCircle2} count={tarefas.length} action={
