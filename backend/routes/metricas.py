@@ -307,17 +307,35 @@ async def get_ranking(
             hist = repo.get_historico(c["id"], 30)
             if not hist:
                 continue
+            # Audiência atual + crescimento absoluto no período
+            seg_atual = hist[-1].get("seguidores") or hist[-1].get("inscritos", 0)
+            seg_inicio = hist[0].get("seguidores") or hist[0].get("inscritos", 0)
+            crescimento = seg_atual - seg_inicio
+            crescimento_pct = round((crescimento / seg_inicio * 100), 2) if seg_inicio else 0
+            # Alcance médio do período (Instagram: alcance_total; outros: visualizacoes/visualizacoes_video)
+            alcance_medio = int(_avg(hist, "alcance_total")) or int(_avg(hist, "visualizacoes")) or int(_avg(hist, "visualizacoes_video"))
+            # Posts totais (cobre todas plataformas)
+            posts_total = sum(
+                (d.get("posts_publicados") or 0) +
+                (d.get("reels_publicados") or 0) +
+                (d.get("stories_publicados") or 0) +
+                (d.get("videos_publicados") or 0) +
+                (d.get("shorts_publicados") or 0) +
+                (d.get("artigos_publicados") or 0)
+                for d in hist
+            )
             ranking.append({
                 "cliente_id": c["id"],
                 "nome": c["nome"],
                 "empresa": c["empresa"],
                 "consultor": c.get("consultor_responsavel"),
                 "encontro_atual": c.get("encontro_atual", 1),
-                "audiencia": hist[-1].get("seguidores") or hist[-1].get("inscritos", 0),
+                "audiencia": seg_atual,
+                "crescimento": crescimento,
+                "crescimento_pct": crescimento_pct,
                 "taxa_engajamento": _avg(hist, "taxa_engajamento"),
-                "posts_mes": sum(
-                    d.get("posts_publicados", 0) + d.get("videos_publicados", 0) for d in hist
-                ),
+                "alcance_medio": alcance_medio,
+                "posts_mes": posts_total,
             })
         except Exception:
             pass

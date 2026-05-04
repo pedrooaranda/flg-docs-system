@@ -8,7 +8,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Crown, Trophy, Medal, ExternalLink, TrendingUp, Award, Users, Sparkles } from 'lucide-react'
+import {
+  Crown, Trophy, Medal, ExternalLink, TrendingUp, Award, Users, Sparkles,
+  Flame, Zap, Eye, Camera,
+} from 'lucide-react'
 import { api } from '../lib/api'
 import { Avatar } from './ui/Avatar'
 
@@ -17,6 +20,163 @@ function formatCompact(n) {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace('.0', '') + 'M'
   if (num >= 1_000) return (num / 1_000).toFixed(1).replace('.0', '') + 'K'
   return num.toLocaleString('pt-BR')
+}
+
+// ── Categorias de destaque (troféus por métrica) ─────────────────────────────
+
+const CATEGORIAS = [
+  {
+    key: 'engajamento',
+    label: 'Maior Engajamento',
+    sortKey: 'taxa_engajamento',
+    icon: Flame,
+    color: '#EC4899',
+    glow: 'rgba(236,72,153,0.30)',
+    formatValue: v => `${(v || 0).toFixed(2)}%`,
+    legendaUnidade: 'taxa média',
+  },
+  {
+    key: 'crescimento',
+    label: 'Maior Crescimento',
+    sortKey: 'crescimento',
+    icon: TrendingUp,
+    color: '#34D399',
+    glow: 'rgba(52,211,153,0.30)',
+    formatValue: v => v >= 0 ? `+${v.toLocaleString('pt-BR')}` : v.toLocaleString('pt-BR'),
+    legendaUnidade: 'novos seguidores em 30d',
+    extraKey: 'crescimento_pct',
+    extraFormat: v => `${v >= 0 ? '+' : ''}${(v || 0).toFixed(1)}%`,
+  },
+  {
+    key: 'alcance',
+    label: 'Maior Alcance',
+    sortKey: 'alcance_medio',
+    icon: Eye,
+    color: '#60A5FA',
+    glow: 'rgba(96,165,250,0.30)',
+    formatValue: v => formatCompact(v),
+    legendaUnidade: 'alcance médio diário',
+  },
+  {
+    key: 'postagens',
+    label: 'Mais Produtivo',
+    sortKey: 'posts_mes',
+    icon: Camera,
+    color: '#A78BFA',
+    glow: 'rgba(167,139,250,0.30)',
+    formatValue: v => `${v || 0}`,
+    legendaUnidade: 'posts no mês',
+  },
+]
+
+// Card de destaque por categoria — top 3 com #1 grande no topo + #2/#3 abaixo
+function DestaqueCard({ categoria, ranking, onClick }) {
+  const Icon = categoria.icon
+  const sorted = [...ranking].sort((a, b) => (b[categoria.sortKey] || 0) - (a[categoria.sortKey] || 0)).slice(0, 3)
+  if (sorted.length === 0) return null
+  const winner = sorted[0]
+  const others = sorted.slice(1)
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.3 }}
+      className="rounded-2xl p-5 cursor-pointer relative overflow-hidden"
+      style={{
+        background: `linear-gradient(135deg, ${categoria.color}10 0%, rgba(0,0,0,0.3) 60%)`,
+        border: `1px solid ${categoria.color}40`,
+        boxShadow: `0 0 32px ${categoria.glow}`,
+      }}
+      onClick={() => onClick(winner.cliente_id)}
+    >
+      {/* Glow circular no canto */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: -40,
+          right: -40,
+          width: 120,
+          height: 120,
+          background: `radial-gradient(circle, ${categoria.color}30 0%, transparent 70%)`,
+        }}
+      />
+      <div className="relative">
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-4">
+          <div
+            className="rounded-xl flex items-center justify-center shrink-0"
+            style={{
+              width: 36, height: 36,
+              background: `${categoria.color}25`,
+              border: `1px solid ${categoria.color}50`,
+            }}
+          >
+            <Icon size={18} style={{ color: categoria.color }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] font-bold tracking-widest uppercase" style={{ color: categoria.color }}>
+              Troféu
+            </p>
+            <p className="text-xs font-semibold text-white/85">{categoria.label}</p>
+          </div>
+          <Trophy size={14} style={{ color: categoria.color, opacity: 0.45 }} />
+        </div>
+
+        {/* Winner #1 — destaque grande */}
+        <div className="mb-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="relative">
+              <Avatar name={winner.nome} size="md" />
+              <div
+                className="absolute -bottom-1 -right-1 rounded-full flex items-center justify-center"
+                style={{
+                  width: 18, height: 18,
+                  background: categoria.color,
+                  border: '2px solid var(--flg-bg-secondary)',
+                }}
+              >
+                <Crown size={9} className="text-[#080808]" />
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white truncate">{winner.nome}</p>
+              <p className="text-[10px] text-white/40 truncate">{winner.empresa || '—'}</p>
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold tabular-nums" style={{ color: categoria.color }}>
+              {categoria.formatValue(winner[categoria.sortKey])}
+            </span>
+            {categoria.extraKey && winner[categoria.extraKey] != null && (
+              <span className="text-xs font-semibold" style={{ color: categoria.color, opacity: 0.7 }}>
+                {categoria.extraFormat(winner[categoria.extraKey])}
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] text-white/35 mt-0.5">{categoria.legendaUnidade}</p>
+        </div>
+
+        {/* Others #2, #3 — compactos */}
+        {others.length > 0 && (
+          <div className="space-y-2 pt-3" style={{ borderTop: `1px solid ${categoria.color}20` }}>
+            {others.map((c, i) => (
+              <div key={c.cliente_id} className="flex items-center gap-2">
+                <span className="text-[10px] font-bold w-4 text-center" style={{ color: i === 0 ? '#CBD5E1' : '#D97706' }}>
+                  #{i + 2}
+                </span>
+                <Avatar name={c.nome} size="sm" />
+                <p className="flex-1 text-[11px] text-white/65 truncate">{c.nome}</p>
+                <span className="text-[11px] font-semibold tabular-nums" style={{ color: categoria.color, opacity: 0.85 }}>
+                  {categoria.formatValue(c[categoria.sortKey])}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  )
 }
 
 // Pódio: card grande pros 3 primeiros
@@ -274,11 +434,28 @@ export default function Ranking() {
         </div>
       ) : (
         <>
-          {/* Pódio top 3 */}
+          {/* Destaques (troféus por categoria) */}
+          <section>
+            <h2 className="text-xs font-semibold text-white/65 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Trophy size={13} className="text-amber-400" /> Sala dos Troféus · destaques por categoria
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {CATEGORIAS.map(cat => (
+                <DestaqueCard
+                  key={cat.key}
+                  categoria={cat}
+                  ranking={ranking}
+                  onClick={(id) => navigate(`/metricas/${id}/geral`)}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* Pódio top 3 (geral por engajamento) */}
           {top3.length > 0 && (
             <section>
               <h2 className="text-xs font-semibold text-white/65 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Crown size={13} className="text-amber-400" /> Pódio
+                <Crown size={13} className="text-amber-400" /> Pódio Geral
               </h2>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 {/* Reorder visual: 2nd, 1st, 3rd no desktop */}
