@@ -77,18 +77,18 @@ function mockDiasSemPostar(clienteId) {
   return seed % 14 // 0-13 dias
 }
 
-// Mock determinístico de próximos encontros da semana
-function mockProximosEncontros(clientes) {
-  return clientes.slice(0, 4).map((c, i) => {
-    const hoje = new Date()
-    const dia = new Date(hoje.getTime() + i * 24 * 60 * 60 * 1000)
-    return {
+// Próximos a preparar — lista REAL baseada em updated_at desc (sem inventar data,
+// até integração Google Calendar). Mostra clientes que ele precisa avançar.
+function proximosAPreparar(clientes) {
+  return [...clientes]
+    .filter(c => (c.encontro_atual || 0) < 15)
+    .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))
+    .slice(0, 5)
+    .map(c => ({
       cliente: c,
-      data: dia,
-      hora: ['09:00', '14:30', '11:00', '16:00'][i] || '10:00',
-      encontroNum: c.encontro_atual || 1,
-    }
-  })
+      proximoEncontro: (c.encontro_atual || 0) + 1,
+      ultimaAtualizacao: c.updated_at,
+    }))
 }
 
 // Mock determinístico de tarefas pendentes do ClickUp
@@ -179,11 +179,13 @@ function AlertCard({ cliente, dias, delay }) {
   )
 }
 
-function EncontroCard({ encontro, delay }) {
+function PreparoCard({ item, delay }) {
   const navigate = useNavigate()
-  const { cliente, data, hora, encontroNum } = encontro
-  const diasNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-  const ehHoje = new Date().toDateString() === data.toDateString()
+  const { cliente, proximoEncontro, ultimaAtualizacao } = item
+  const dias = ultimaAtualizacao
+    ? Math.floor((Date.now() - new Date(ultimaAtualizacao).getTime()) / 86400000)
+    : null
+  const ultimaLabel = dias === null ? '—' : dias === 0 ? 'hoje' : dias === 1 ? 'ontem' : `há ${dias}d`
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -191,7 +193,7 @@ function EncontroCard({ encontro, delay }) {
       transition={{ delay }}
       className="rounded-xl p-3 cursor-pointer transition-colors"
       style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}
-      onClick={() => navigate(`/clientes/${cliente.id}/encontro/${encontroNum}`)}
+      onClick={() => navigate(`/clientes/${cliente.id}/encontro/${proximoEncontro}`)}
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,168,76,0.4)' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--flg-border)' }}
     >
@@ -200,28 +202,23 @@ function EncontroCard({ encontro, delay }) {
           className="rounded-lg flex flex-col items-center justify-center shrink-0"
           style={{
             width: 48, height: 48,
-            background: ehHoje ? 'rgba(201,168,76,0.18)' : 'rgba(255,255,255,0.04)',
-            border: ehHoje ? '1px solid rgba(201,168,76,0.4)' : '1px solid var(--flg-border)',
+            background: 'rgba(201,168,76,0.10)',
+            border: '1px solid rgba(201,168,76,0.30)',
           }}
         >
-          <span className="text-[9px] font-bold tracking-wider uppercase" style={{ color: ehHoje ? '#C9A84C' : 'rgba(255,255,255,0.45)' }}>
-            {diasNomes[data.getDay()]}
+          <span className="text-[9px] font-bold tracking-wider uppercase" style={{ color: '#C9A84C' }}>
+            E
           </span>
-          <span className="text-base font-bold leading-none" style={{ color: ehHoje ? '#FACC15' : 'rgba(255,255,255,0.85)' }}>
-            {data.getDate()}
+          <span className="text-base font-bold leading-none" style={{ color: '#FACC15' }}>
+            {proximoEncontro}
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-white/90 truncate">{cliente.nome}</p>
-            {ehHoje && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ background: 'rgba(250,204,21,0.20)', color: '#FACC15' }}>HOJE</span>
-            )}
-          </div>
+          <p className="text-sm font-semibold text-white/90 truncate">{cliente.nome}</p>
           <p className="text-[11px] text-white/45 mt-0.5 flex items-center gap-1.5">
-            <Clock size={10} /> {hora}
+            <Clock size={10} /> Próximo encontro
             <span className="text-white/25">·</span>
-            Encontro {encontroNum}/15
+            atualizado {ultimaLabel}
           </p>
         </div>
       </div>
@@ -358,20 +355,21 @@ export default function Dashboard({ session }) {
       .slice(0, 5)
   }, [myClientes])
 
-  // Encontros da semana (mock)
-  const encontros = useMemo(() => mockProximosEncontros(myClientes), [myClientes])
+  // Próximos a preparar (lista real, ordenada por updated_at — datas exatas
+  // virão quando integrarmos Google Calendar)
+  const proximos = useMemo(() => proximosAPreparar(myClientes), [myClientes])
 
   // Tarefas pendentes (mock)
   const tarefas = useMemo(() => mockTarefasPendentes(myClientes), [myClientes])
 
-  // Clientes ranqueados: prioridade primeiro (alertas + encontros da semana), depois resto
+  // Clientes ranqueados: prioridade primeiro (alertas + próximos a preparar), depois resto
   const clientesPriorizados = useMemo(() => {
     const idsAlerta = new Set(alertas.map(a => a.cliente.id))
-    const idsEncontro = new Set(encontros.map(e => e.cliente.id))
-    const prioridade = myClientes.filter(c => idsAlerta.has(c.id) || idsEncontro.has(c.id))
-    const resto = myClientes.filter(c => !idsAlerta.has(c.id) && !idsEncontro.has(c.id))
+    const idsProximo = new Set(proximos.map(p => p.cliente.id))
+    const prioridade = myClientes.filter(c => idsAlerta.has(c.id) || idsProximo.has(c.id))
+    const resto = myClientes.filter(c => !idsAlerta.has(c.id) && !idsProximo.has(c.id))
     return { prioridade, resto }
-  }, [myClientes, alertas, encontros])
+  }, [myClientes, alertas, proximos])
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
@@ -428,19 +426,21 @@ export default function Dashboard({ session }) {
         </div>
 
         <div>
-          <SectionTitle icon={Calendar} count={encontros.length}>
-            Próximos encontros
+          <SectionTitle icon={Calendar} count={proximos.length} action={
+            <span className="text-[10px] text-white/30 italic">datas via Google Calendar · em breve</span>
+          }>
+            Próximos a preparar
           </SectionTitle>
           {loading ? (
             <div className="space-y-2">
               {[1, 2, 3].map(i => <SkeletonCard key={i} className="h-16" />)}
             </div>
-          ) : encontros.length === 0 ? (
-            <p className="text-xs text-white/30 text-center py-8">Sem encontros agendados</p>
+          ) : proximos.length === 0 ? (
+            <p className="text-xs text-white/30 text-center py-8">Sem próximos encontros</p>
           ) : (
             <div className="space-y-2">
-              {encontros.map((e, i) => (
-                <EncontroCard key={e.cliente.id} encontro={e} delay={i * 0.05} />
+              {proximos.map((p, i) => (
+                <PreparoCard key={p.cliente.id} item={p} delay={i * 0.05} />
               ))}
             </div>
           )}
