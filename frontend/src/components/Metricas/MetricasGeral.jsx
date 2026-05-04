@@ -6,6 +6,10 @@ import { ChartSkeleton, KpiGridSkeleton, HeatmapSkeleton, PostsGridSkeleton, Dem
 import KpiCard from './shared/KpiCard'
 import { DadosZeradosBanner, AguardandoSyncBanner, MockDataBanner } from './shared/banners'
 import { KPIS_GERAL, KPIS_YT_GERAL, KPIS_LI_GERAL, KPIS_TT_GERAL, KPI_WEIGHT, GOLD } from './shared/constants'
+import EngagementFunnel from './shared/charts/EngagementFunnel'
+import RetentionCurve from './shared/charts/RetentionCurve'
+import SSIRadar from './shared/charts/SSIRadar'
+import CompletionGauge from './shared/charts/CompletionGauge'
 
 const KPIS_BY_PLATFORM = {
   instagram: KPIS_GERAL,
@@ -210,7 +214,41 @@ export default function MetricasGeral() {
             </div>
           </div>
 
-          {/* ── Demografia ── */}
+          {/* ── Killer chart por plataforma ── */}
+          {platform === 'instagram' && (
+            <section>
+              <SectionTitle>Funil de Engajamento</SectionTitle>
+              <EngagementFunnel kpis={kpis} accent={platConfig.color} />
+            </section>
+          )}
+          {platform === 'youtube' && (
+            <section>
+              <SectionTitle>Retenção de Audiência</SectionTitle>
+              <RetentionCurve retencaoMedia={kpis?.taxa_retencao_pct?.valor || 50} accent={platConfig.color} />
+            </section>
+          )}
+          {platform === 'linkedin' && (
+            <section>
+              <SectionTitle>Social Selling Index</SectionTitle>
+              <SSIRadar
+                ssiBreakdown={kpis?.ssi_score?.breakdown}
+                ssiTotal={kpis?.ssi_score?.valor}
+                accent={platConfig.color}
+              />
+            </section>
+          )}
+          {platform === 'tiktok' && (
+            <section>
+              <SectionTitle>Performance no Algoritmo</SectionTitle>
+              <CompletionGauge
+                value={kpis?.taxa_conclusao?.valor || 0}
+                fypValue={kpis?.fyp_pct?.valor}
+                subtitle="80%+ é a zona viral · TikTok prioriza conclusão sobre tudo"
+              />
+            </section>
+          )}
+
+          {/* ── Demografia (Instagram only por enquanto) ── */}
           {platform === 'instagram' && conectado && !aguardandoSync && (
             <DemographicsSection clienteId={clienteId} accent={platConfig.color} />
           )}

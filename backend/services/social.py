@@ -245,11 +245,20 @@ class MockLinkedInRepository(BaseMockRepository):
             eng = round(max(0.8, eng_base + dr.uniform(-0.8, 0.8)), 2)
             imp = max(0, imp_base + dr.randint(-400, 600))
             imp_base += dr.randint(-30, 60)
+            # SSI breakdown — 4 pillars somam o SSI total (cada 0-25)
+            ssi_brand = round(min(25, max(5, ssi * 0.27 + dr.uniform(-1, 1))), 1)
+            ssi_find = round(min(25, max(5, ssi * 0.24 + dr.uniform(-1, 1))), 1)
+            ssi_engage = round(min(25, max(5, ssi * 0.26 + dr.uniform(-1, 1))), 1)
+            ssi_build = round(min(25, max(5, ssi * 0.23 + dr.uniform(-1, 1))), 1)
             dados.append({
                 "data": str(date.today() - timedelta(days=dias - i - 1)),
                 "seguidores": seg, "delta_seguidores": cresc,
                 "conexoes": conexoes,
                 "ssi_score": ssi,
+                "ssi_brand": ssi_brand,
+                "ssi_find": ssi_find,
+                "ssi_engage": ssi_engage,
+                "ssi_build": ssi_build,
                 "impressoes_posts": imp,
                 "visualizacoes_perfil": dr.randint(20, 350),
                 "taxa_engajamento": eng,

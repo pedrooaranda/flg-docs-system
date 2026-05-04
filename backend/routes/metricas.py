@@ -138,10 +138,21 @@ def _build_kpis_stories(atual, anterior):
     }
 
 def _build_kpis_linkedin_geral(atual, anterior):
+    # SSI breakdown — pega último ponto (mais recente)
+    ssi_breakdown = None
+    if atual:
+        last = atual[-1]
+        if "ssi_brand" in last:
+            ssi_breakdown = {
+                "brand": last.get("ssi_brand", 0),
+                "find": last.get("ssi_find", 0),
+                "engage": last.get("ssi_engage", 0),
+                "build": last.get("ssi_build", 0),
+            }
     return {
         "seguidores": {"valor": _last(atual, "seguidores"), "delta_pct": _delta_pct(_last(atual, "seguidores"), _last(anterior, "seguidores"))},
         "conexoes": {"valor": _last(atual, "conexoes"), "delta_pct": _delta_pct(_last(atual, "conexoes"), _last(anterior, "conexoes"))},
-        "ssi_score": {"valor": _avg(atual, "ssi_score"), "delta_pct": _delta_pct(_avg(atual, "ssi_score"), _avg(anterior, "ssi_score"))},
+        "ssi_score": {"valor": _avg(atual, "ssi_score"), "delta_pct": _delta_pct(_avg(atual, "ssi_score"), _avg(anterior, "ssi_score")), "breakdown": ssi_breakdown},
         "taxa_engajamento": {"valor": _avg(atual, "taxa_engajamento"), "delta_pct": _delta_pct(_avg(atual, "taxa_engajamento"), _avg(anterior, "taxa_engajamento"))},
         "impressoes_posts": {"valor": int(_avg(atual, "impressoes_posts")), "delta_pct": _delta_pct(_avg(atual, "impressoes_posts"), _avg(anterior, "impressoes_posts"))},
         "visualizacoes_perfil": {"valor": _sum(atual, "visualizacoes_perfil"), "delta_pct": _delta_pct(_sum(atual, "visualizacoes_perfil"), _sum(anterior, "visualizacoes_perfil"))},
