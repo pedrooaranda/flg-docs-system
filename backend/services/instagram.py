@@ -436,6 +436,7 @@ class LiveInstagramRepository(InstagramRepository):
                 "ig_media_id": p.get("ig_media_id"),
                 "tipo": tipo,
                 "publicado_em": (p.get("posted_at") or "")[:10],
+                "publicado_em_iso": p.get("posted_at"),
                 "legenda": p.get("caption") or "",
                 "permalink": p.get("permalink"),
                 "thumbnail_url": p.get("thumbnail_url") or p.get("media_url"),
