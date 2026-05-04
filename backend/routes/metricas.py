@@ -13,7 +13,7 @@ Endpoints:
   POST /metricas/{cliente_id}/manual         — entrada manual
 """
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -301,6 +301,21 @@ async def get_ranking(
         "id, nome, empresa, consultor_responsavel, encontro_atual"
     ).order("nome").execute()
 
+    # Última data de post por cliente (pra calcular dias_sem_postar)
+    # Faz 1 query batch quando possível (Instagram tem tabela; outras plataformas usam mock)
+    ultimas_publicacoes = {}
+    if plataforma == "instagram":
+        try:
+            posts_data = _supabase.table("instagram_posts").select(
+                "cliente_id, posted_at"
+            ).order("posted_at", desc=True).execute()
+            for p in (posts_data.data or []):
+                cid = p.get("cliente_id")
+                if cid and cid not in ultimas_publicacoes:
+                    ultimas_publicacoes[cid] = p.get("posted_at")
+        except Exception:
+            pass
+
     ranking = []
     for c in (clientes.data or []):
         try:
@@ -324,6 +339,19 @@ async def get_ranking(
                 (d.get("artigos_publicados") or 0)
                 for d in hist
             )
+            # Dias sem postar: real se Instagram conectado, mock determinístico caso contrário
+            dias_sem_postar = None
+            ultimo_post = ultimas_publicacoes.get(c["id"])
+            if ultimo_post:
+                try:
+                    last_dt = datetime.fromisoformat(ultimo_post.replace("Z", "+00:00"))
+                    dias_sem_postar = (datetime.now(timezone.utc) - last_dt).days
+                except Exception:
+                    pass
+            if dias_sem_postar is None:
+                # Mock determinístico (mesmo padrão da Home) — 0-13 dias
+                seed = sum(ord(ch) for ch in c["id"])
+                dias_sem_postar = seed % 14
             ranking.append({
                 "cliente_id": c["id"],
                 "nome": c["nome"],
@@ -336,6 +364,7 @@ async def get_ranking(
                 "taxa_engajamento": _avg(hist, "taxa_engajamento"),
                 "alcance_medio": alcance_medio,
                 "posts_mes": posts_total,
+                "dias_sem_postar": dias_sem_postar,
             })
         except Exception:
             pass

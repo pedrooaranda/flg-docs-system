@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Crown, Trophy, Medal, ExternalLink, TrendingUp, Award, Users, Sparkles,
-  Flame, Zap, Eye, Camera,
+  Flame, Zap, Eye, Camera, AlertTriangle, MessageCircle, ShieldAlert,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { Avatar } from './ui/Avatar'
@@ -20,6 +20,95 @@ function formatCompact(n) {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace('.0', '') + 'M'
   if (num >= 1_000) return (num / 1_000).toFixed(1).replace('.0', '') + 'K'
   return num.toLocaleString('pt-BR')
+}
+
+// ── Atenção Master: clientes em crise (muito tempo sem postar) ───────────────
+
+function severidadeAtencao(dias) {
+  if (dias >= 14) return { tier: 'critical', label: 'CRÍTICO', color: '#EF4444', bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.40)', glow: 'rgba(239,68,68,0.25)' }
+  if (dias >= 7)  return { tier: 'high',     label: 'GESTÃO DE CRISE', color: '#F97316', bg: 'rgba(249,115,22,0.10)', border: 'rgba(249,115,22,0.40)', glow: 'rgba(249,115,22,0.20)' }
+  if (dias >= 4)  return { tier: 'med',      label: 'ATENÇÃO',  color: '#FBBF24', bg: 'rgba(251,191,36,0.10)', border: 'rgba(251,191,36,0.35)', glow: 'rgba(251,191,36,0.18)' }
+  return null
+}
+
+function AtencaoMasterCard({ item, onResolve, onWhats, onPerfil, delay }) {
+  const sev = severidadeAtencao(item.dias_sem_postar || 0)
+  if (!sev) return null
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.25 }}
+      className="rounded-xl p-4 relative overflow-hidden"
+      style={{
+        background: `linear-gradient(135deg, ${sev.bg} 0%, rgba(0,0,0,0.25) 70%)`,
+        border: `1px solid ${sev.border}`,
+        boxShadow: `0 0 24px ${sev.glow}`,
+      }}
+    >
+      {/* Stripe de severidade na borda esquerda */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1"
+        style={{ background: sev.color, boxShadow: `0 0 8px ${sev.color}` }}
+      />
+      <div className="flex items-start gap-3 ml-1">
+        <div
+          className="rounded-lg flex items-center justify-center shrink-0"
+          style={{
+            width: 40, height: 40,
+            background: `${sev.color}25`,
+            border: `1px solid ${sev.color}50`,
+          }}
+        >
+          {sev.tier === 'critical' ? <ShieldAlert size={18} style={{ color: sev.color }} /> : <AlertTriangle size={18} style={{ color: sev.color }} />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className="text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded uppercase" style={{ background: `${sev.color}25`, color: sev.color }}>
+              {sev.label}
+            </span>
+            <span className="text-[10px] text-white/30">·</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: sev.color }}>
+              {item.dias_sem_postar} {item.dias_sem_postar === 1 ? 'dia' : 'dias'} sem postar
+            </span>
+          </div>
+          <p className="text-sm font-bold text-white/95 truncate">{item.nome}</p>
+          <div className="flex items-center gap-2 text-[11px] text-white/45 mt-0.5">
+            {item.empresa && <span className="truncate">{item.empresa}</span>}
+            {item.empresa && item.consultor && <span className="text-white/20">·</span>}
+            {item.consultor && (
+              <span className="truncate">
+                Consultor: <span className="text-white/70 font-medium">{item.consultor}</span>
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mt-4">
+        <button
+          onClick={() => onResolve(item)}
+          className="text-[10px] font-bold py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+          style={{ background: sev.color, color: '#080808' }}
+        >
+          <Zap size={11} /> Resolver agora
+        </button>
+        <button
+          onClick={() => onWhats(item)}
+          className="text-[10px] font-semibold py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+          style={{ background: 'rgba(52,211,153,0.18)', color: '#34D399', border: '1px solid rgba(52,211,153,0.35)' }}
+        >
+          <MessageCircle size={11} /> Iniciar tratativa
+        </button>
+        <button
+          onClick={() => onPerfil(item)}
+          className="text-[10px] font-semibold py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+          style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.65)', border: '1px solid var(--flg-border)' }}
+        >
+          <ExternalLink size={11} /> Ver perfil
+        </button>
+      </div>
+    </motion.div>
+  )
 }
 
 // ── Categorias de destaque (troféus por métrica) ─────────────────────────────
@@ -434,6 +523,74 @@ export default function Ranking() {
         </div>
       ) : (
         <>
+          {/* Atenção Master — clientes em crise (>= 4 dias sem postar) */}
+          {(() => {
+            const emCrise = ranking
+              .filter(r => (r.dias_sem_postar || 0) >= 4)
+              .sort((a, b) => (b.dias_sem_postar || 0) - (a.dias_sem_postar || 0))
+              .slice(0, 8)
+            const counts = {
+              critical: emCrise.filter(r => r.dias_sem_postar >= 14).length,
+              high:     emCrise.filter(r => r.dias_sem_postar >= 7 && r.dias_sem_postar < 14).length,
+              med:      emCrise.filter(r => r.dias_sem_postar >= 4 && r.dias_sem_postar < 7).length,
+            }
+            const total = emCrise.length
+            return (
+              <section>
+                <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+                  <h2 className="text-xs font-semibold text-white/85 uppercase tracking-widest flex items-center gap-2">
+                    <ShieldAlert size={14} className="text-red-400" /> Atenção Master · clientes sem produzir conteúdo
+                    {total > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded uppercase ml-1"
+                            style={{ background: 'rgba(239,68,68,0.20)', color: '#F87171', border: '1px solid rgba(239,68,68,0.35)' }}>
+                        {total} em alerta
+                      </span>
+                    )}
+                  </h2>
+                  {total > 0 && (
+                    <div className="flex items-center gap-2 text-[10px]">
+                      {counts.critical > 0 && (
+                        <span className="px-2 py-0.5 rounded font-bold" style={{ background: 'rgba(239,68,68,0.18)', color: '#EF4444' }}>
+                          {counts.critical} CRÍTICO
+                        </span>
+                      )}
+                      {counts.high > 0 && (
+                        <span className="px-2 py-0.5 rounded font-bold" style={{ background: 'rgba(249,115,22,0.18)', color: '#F97316' }}>
+                          {counts.high} CRISE
+                        </span>
+                      )}
+                      {counts.med > 0 && (
+                        <span className="px-2 py-0.5 rounded font-bold" style={{ background: 'rgba(251,191,36,0.18)', color: '#FBBF24' }}>
+                          {counts.med} ATENÇÃO
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {total === 0 ? (
+                  <div className="rounded-xl p-6 text-center" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.20)' }}>
+                    <Sparkles size={24} className="mx-auto mb-2 text-emerald-400" />
+                    <p className="text-sm font-semibold text-white/80">Tudo em dia</p>
+                    <p className="text-xs text-white/45 mt-1">Todos os clientes postaram nos últimos 3 dias.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {emCrise.map((item, i) => (
+                      <AtencaoMasterCard
+                        key={item.cliente_id}
+                        item={item}
+                        delay={i * 0.04}
+                        onResolve={(r) => navigate(`/clientes/${r.cliente_id}`)}
+                        onWhats={(r) => alert(`Iniciar tratativa com ${r.nome} — integração WhatsApp/email em breve`)}
+                        onPerfil={(r) => navigate(`/metricas/${r.cliente_id}/geral`)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )
+          })()}
+
           {/* Destaques (troféus por categoria) */}
           <section>
             <h2 className="text-xs font-semibold text-white/65 uppercase tracking-widest mb-4 flex items-center gap-2">
