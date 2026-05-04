@@ -32,10 +32,33 @@ function getGreeting() {
   return 'Boa noite'
 }
 
-function getFirstName(email) {
+// Normaliza string pra match: lowercase + só alfanuméricos.
+// "Pedro Aranda" → "pedroaranda" · "pedro_aranda" → "pedroaranda"
+function normalize(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '')
+}
+
+// Acha o nome canônico do consultor logado na lista de clientes (tabela é fonte da verdade).
+// Email "pedroaranda@..." → procura cliente cujo consultor_responsavel normaliza pra "pedroaranda".
+function findMyConsultorName(allClientes, email) {
+  if (!email) return null
+  const handle = normalize(email.split('@')[0])
+  if (!handle) return null
+  for (const c of allClientes) {
+    const nome = c.consultor_responsavel
+    if (!nome) continue
+    const norm = normalize(nome)
+    if (norm === handle || norm.includes(handle) || handle.includes(norm)) {
+      return nome
+    }
+  }
+  return null
+}
+
+// Fallback: capitaliza handle bruto "pedroaranda" → "Pedroaranda" (feio, mas evita string vazia)
+function fallbackName(email) {
   if (!email) return ''
   const local = email.split('@')[0]
-  // Capitaliza primeira letra
   return local.charAt(0).toUpperCase() + local.slice(1)
 }
 
@@ -301,17 +324,24 @@ export default function Dashboard({ session }) {
   const navigate = useNavigate()
 
   const userEmail = session?.user?.email
-  const firstName = getFirstName(userEmail)
   const greeting = getGreeting()
+
+  // Acha o nome canônico do consultor (puxa do consultor_responsavel real)
+  // pra usar tanto no greeting quanto pro filtro — uma fonte da verdade.
+  const myConsultorNome = useMemo(
+    () => findMyConsultorName(allClientes, userEmail),
+    [allClientes, userEmail]
+  )
+  const displayName = myConsultorNome || fallbackName(userEmail)
 
   // Home é SEMPRE a view do consultor logado (mesmo admin) — admin pra ver
   // tudo vai em "Clientes" no menu lateral.
+  // Compara consultor_responsavel === nome canônico encontrado (match exato,
+  // mesmo padrão usado na aba Clientes quando filtra por consultor).
   const myClientes = useMemo(() => {
-    const handle = userEmail?.split('@')[0]?.toLowerCase() || ''
-    return allClientes.filter(c =>
-      c.consultor_responsavel?.toLowerCase().includes(handle)
-    )
-  }, [allClientes, userEmail])
+    if (!myConsultorNome) return []
+    return allClientes.filter(c => c.consultor_responsavel === myConsultorNome)
+  }, [allClientes, myConsultorNome])
 
   // Métricas
   const ativos = myClientes.filter(c => (c.status || 'ativo') === 'ativo').length
@@ -356,7 +386,7 @@ export default function Dashboard({ session }) {
         </div>
         <div>
           <h1 className="font-display text-2xl font-bold text-white">
-            {greeting}{firstName && `, ${firstName}`}.
+            {greeting}{displayName && `, ${displayName}`}.
           </h1>
           <p className="text-xs text-white/35 mt-0.5">
             Você tem <strong className="text-white/65">{myClientes.length} clientes</strong> ativos
