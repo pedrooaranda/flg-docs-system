@@ -89,7 +89,7 @@ export default function App() {
           } />
 
           <Route path="/" element={
-            <AuthGuard session={session} title="Dashboard">
+            <AuthGuard session={session} title="Home">
               <Dashboard session={session} />
             </AuthGuard>
           } />

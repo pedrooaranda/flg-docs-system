@@ -10,6 +10,8 @@ import EngagementFunnel from './shared/charts/EngagementFunnel'
 import RetentionCurve from './shared/charts/RetentionCurve'
 import SSIRadar from './shared/charts/SSIRadar'
 import CompletionGauge from './shared/charts/CompletionGauge'
+import EngagementHeatmap from './shared/charts/EngagementHeatmap'
+import AiRecommendations from './shared/charts/AiRecommendations'
 
 const KPIS_BY_PLATFORM = {
   instagram: KPIS_GERAL,
@@ -49,6 +51,8 @@ export default function MetricasGeral() {
   const [loading, setLoading] = useState(false)
   const [overview, setOverview] = useState(null)
   const [historico, setHistorico] = useState([])
+  const [horarios, setHorarios] = useState([])
+  const [topPosts, setTopPosts] = useState([])
 
   useEffect(() => {
     if (!clienteId) return
@@ -57,9 +61,13 @@ export default function MetricasGeral() {
     Promise.all([
       api(`/metricas/${clienteId}/overview?plataforma=${platform}&dias=${periodo}&tipo=all`),
       api(`/metricas/${clienteId}/historico?plataforma=${platform}&dias=${periodo}`),
-    ]).then(([ov, hist]) => {
+      api(`/metricas/${clienteId}/horarios?plataforma=${platform}`).catch(() => ({ horarios: [] })),
+      api(`/metricas/${clienteId}/posts?plataforma=${platform}&limit=12&ordenar=engajamento`).catch(() => ({ posts: [] })),
+    ]).then(([ov, hist, hor, po]) => {
       setOverview(ov)
       setHistorico(hist.dados || [])
+      setHorarios(hor.horarios || hor.dados || [])
+      setTopPosts(po.posts || [])
     }).catch(console.error).finally(() => setLoading(false))
   }, [clienteId, periodo, platform])
 
@@ -252,6 +260,31 @@ export default function MetricasGeral() {
           {platform === 'instagram' && conectado && !aguardandoSync && (
             <DemographicsSection clienteId={clienteId} accent={platConfig.color} />
           )}
+
+          {/* ── Heatmap de horários (todas plataformas) ── */}
+          <section>
+            <SectionTitle>Quando postar — heatmap dia × horário</SectionTitle>
+            <EngagementHeatmap data={horarios} accent={platConfig.color} />
+          </section>
+
+          {/* ── Recomendações IA ── */}
+          {(() => {
+            const recsExist = (
+              (horarios?.length > 0) ||
+              (kpis?.taxa_engajamento?.valor > 0) ||
+              (topPosts?.length > 0) ||
+              (platform === 'tiktok' && kpis?.fyp_pct?.valor > 80) ||
+              (platform === 'linkedin' && kpis?.ssi_score?.valor < 60) ||
+              (platform === 'youtube' && kpis?.ctr_pct?.valor < 4)
+            )
+            if (!recsExist) return null
+            return (
+              <section>
+                <SectionTitle>Recomendações IA — {platConfig.label}</SectionTitle>
+                <AiRecommendations overview={overview} horarios={horarios} posts={topPosts} platform={platform} />
+              </section>
+            )
+          })()}
         </>
       )}
     </>

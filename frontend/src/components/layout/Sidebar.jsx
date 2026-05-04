@@ -13,7 +13,7 @@ import { cn, getUserDisplayName } from '../../lib/utils'
 // matchPrefix: true → usa startsWith (para rotas com sub-rotas como /clientes/:id)
 // matchPrefix: false (default) → match exato
 const consultantNav = [
-  { icon: LayoutDashboard, label: 'Dashboard',    path: '/' },
+  { icon: LayoutDashboard, label: 'Home',    path: '/' },
   { icon: Users,          label: 'Meus Clientes', path: '/clientes', matchPrefix: true },
   { icon: BarChart2,      label: 'Métricas',       path: '/metricas', matchPrefix: true },
   { icon: Trophy,         label: 'Ranking',        path: '/ranking' },
@@ -22,7 +22,7 @@ const consultantNav = [
 ]
 
 const adminNav = [
-  { icon: LayoutDashboard, label: 'Dashboard',  path: '/' },
+  { icon: LayoutDashboard, label: 'Home',  path: '/' },
   { icon: Users,          label: 'Clientes',     path: '/clientes', matchPrefix: true },
   { icon: BarChart2,      label: 'Métricas',      path: '/metricas', matchPrefix: true },
   { icon: Trophy,         label: 'Ranking',       path: '/ranking' },

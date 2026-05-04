@@ -4,6 +4,8 @@
 import { Users, UserPlus, TrendingUp, Eye, Heart, Bookmark, MessageCircle, BarChart2, Play, Share2, Target, Clock, Film, Camera, Award, Globe, Zap, ThumbsUp, FileText } from 'lucide-react'
 
 export const GOLD = '#C9A84C'
+export const GOLD_FAINT = 'rgba(201,168,76,0.06)'
+export const GOLD_DIM = 'rgba(201,168,76,0.20)'
 
 export const PLATFORMS = {
   instagram: { label: 'Instagram', color: '#E4405F' },
