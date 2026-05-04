@@ -339,7 +339,10 @@ async def get_ranking(
                 (d.get("artigos_publicados") or 0)
                 for d in hist
             )
-            # Dias sem postar: real se Instagram conectado, mock determinístico caso contrário
+            # Dias sem postar: real se Instagram conectado, mock determinístico caso contrário.
+            # Lista DIAS_DEMO garante distribuição rica (pelo menos 1 de cada tier
+            # CRÍTICO/CRISE/ATENÇÃO pra demonstração no all-hands).
+            DIAS_DEMO = [18, 9, 5, 2, 14, 7, 6, 1, 16, 11, 4, 0, 12, 8, 3, 0, 21, 10, 5, 2]
             dias_sem_postar = None
             ultimo_post = ultimas_publicacoes.get(c["id"])
             if ultimo_post:
@@ -349,9 +352,8 @@ async def get_ranking(
                 except Exception:
                     pass
             if dias_sem_postar is None:
-                # Mock determinístico (mesmo padrão da Home) — 0-13 dias
                 seed = sum(ord(ch) for ch in c["id"])
-                dias_sem_postar = seed % 14
+                dias_sem_postar = DIAS_DEMO[seed % len(DIAS_DEMO)]
             ranking.append({
                 "cliente_id": c["id"],
                 "nome": c["nome"],

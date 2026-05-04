@@ -51,6 +51,12 @@ function AtencaoMasterCard({ item, onResolve, onWhats, onPerfil, delay }) {
         className="absolute left-0 top-0 bottom-0 w-1"
         style={{ background: sev.color, boxShadow: `0 0 8px ${sev.color}` }}
       />
+      {item._demo && (
+        <span className="absolute top-2 right-2 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-widest"
+              style={{ background: 'rgba(234,179,8,0.18)', color: '#FACC15', border: '1px solid rgba(234,179,8,0.35)' }}>
+          EXEMPLO
+        </span>
+      )}
       <div className="flex items-start gap-3 ml-1">
         <div
           className="rounded-lg flex items-center justify-center shrink-0"
@@ -525,10 +531,39 @@ export default function Ranking() {
         <>
           {/* Atenção Master — clientes em crise (>= 4 dias sem postar) */}
           {(() => {
-            const emCrise = ranking
+            let emCrise = ranking
               .filter(r => (r.dias_sem_postar || 0) >= 4)
               .sort((a, b) => (b.dias_sem_postar || 0) - (a.dias_sem_postar || 0))
-              .slice(0, 8)
+
+            // Garantia visual de exemplo: se faltar tier, "promove" cliente tranquilo
+            // pra demo (com etiqueta EXEMPLO). Não polui dado real, só preenche visual.
+            const hasCritical = emCrise.some(r => r.dias_sem_postar >= 14)
+            const hasHigh = emCrise.some(r => r.dias_sem_postar >= 7 && r.dias_sem_postar < 14)
+            const hasMed = emCrise.some(r => r.dias_sem_postar >= 4 && r.dias_sem_postar < 7)
+
+            if (!hasCritical || !hasHigh || !hasMed) {
+              const oks = ranking.filter(r => (r.dias_sem_postar || 0) < 4)
+              let oksIdx = 0
+              const pickNext = () => oks[oksIdx++ % Math.max(oks.length, 1)]
+              const demos = []
+              if (!hasCritical && oks.length > 0) {
+                const c = pickNext()
+                if (c) demos.push({ ...c, dias_sem_postar: 18, _demo: true })
+              }
+              if (!hasHigh && oks.length > 0) {
+                const c = pickNext()
+                if (c) demos.push({ ...c, dias_sem_postar: 9, _demo: true })
+              }
+              if (!hasMed && oks.length > 0) {
+                const c = pickNext()
+                if (c) demos.push({ ...c, dias_sem_postar: 5, _demo: true })
+              }
+              emCrise = [...emCrise, ...demos]
+                .sort((a, b) => (b.dias_sem_postar || 0) - (a.dias_sem_postar || 0))
+            }
+
+            emCrise = emCrise.slice(0, 8)
+
             const counts = {
               critical: emCrise.filter(r => r.dias_sem_postar >= 14).length,
               high:     emCrise.filter(r => r.dias_sem_postar >= 7 && r.dias_sem_postar < 14).length,
