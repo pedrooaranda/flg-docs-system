@@ -28,7 +28,7 @@ export function useTipoMetricas({ tipoBackend, tipoFiltroPostFE, defaultOrdenar 
     setOverview(null)
     Promise.all([
       api(`/metricas/${clienteId}/overview?plataforma=${platform}&dias=${periodo}&tipo=${tipoBackend}`),
-      api(`/metricas/${clienteId}/posts?plataforma=${platform}&limit=24&tipo=${tipoBackend}&ordenar=${ordenar}`),
+      api(`/metricas/${clienteId}/posts?plataforma=${platform}&limit=24&tipo=${tipoBackend}&ordenar=${ordenar}&dias=${periodo}`),
     ]).then(([ov, po]) => {
       setOverview(ov)
       const all = po.posts || []

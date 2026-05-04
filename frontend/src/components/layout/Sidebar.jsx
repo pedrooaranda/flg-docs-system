@@ -15,7 +15,7 @@ import { cn, getUserDisplayName } from '../../lib/utils'
 const consultantNav = [
   { icon: LayoutDashboard, label: 'Dashboard',    path: '/' },
   { icon: Users,          label: 'Meus Clientes', path: '/clientes', matchPrefix: true },
-  { icon: BarChart2,      label: 'Métricas',       path: '/metricas', badge: 'Beta', matchPrefix: true },
+  { icon: BarChart2,      label: 'Métricas',       path: '/metricas', matchPrefix: true },
   { icon: Trophy,         label: 'Ranking',        path: '/ranking' },
   { icon: FileText,       label: 'Materiais',      path: '/materiais' },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
@@ -24,7 +24,7 @@ const consultantNav = [
 const adminNav = [
   { icon: LayoutDashboard, label: 'Dashboard',  path: '/' },
   { icon: Users,          label: 'Clientes',     path: '/clientes', matchPrefix: true },
-  { icon: BarChart2,      label: 'Métricas',      path: '/metricas', badge: 'Beta', matchPrefix: true },
+  { icon: BarChart2,      label: 'Métricas',      path: '/metricas', matchPrefix: true },
   { icon: Trophy,         label: 'Ranking',       path: '/ranking' },
   { icon: FileText,       label: 'Materiais',    path: '/materiais' },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
