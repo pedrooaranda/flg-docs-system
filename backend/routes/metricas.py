@@ -390,7 +390,6 @@ async def get_posts(
     plataforma: str = "instagram",
     tipo: str = "all",
     ordenar: str = "engajamento",
-    dias: int = 30,
     user=Depends(get_current_user),
 ):
     if limit > 50:
@@ -399,16 +398,13 @@ async def get_posts(
         raise HTTPException(400, f"tipo deve ser um de: {sorted(VALID_TIPO)}")
     if ordenar not in VALID_ORDENAR:
         raise HTTPException(400, f"ordenar deve ser um de: {sorted(VALID_ORDENAR)}")
-    if dias < 1 or dias > 365:
-        raise HTTPException(400, "dias deve ser entre 1 e 365")
     repo = _get_repo(plataforma, cliente_id)
     return {
         "cliente_id": cliente_id,
         "plataforma": plataforma,
         "tipo": tipo,
         "ordenar": ordenar,
-        "dias": dias,
-        "posts": repo.get_posts(cliente_id, limit, tipo=tipo, ordenar=ordenar, dias=dias),
+        "posts": repo.get_posts(cliente_id, limit, tipo=tipo, ordenar=ordenar),
     }
 
 

@@ -116,7 +116,7 @@ class MockInstagramRepository(InstagramRepository):
 
         return dados
 
-    def get_posts(self, cliente_id: str, limit: int = 12, tipo: str = "all", ordenar: str = "engajamento", dias: int = 30, **kwargs) -> list:
+    def get_posts(self, cliente_id: str, limit: int = 12, tipo: str = "all", ordenar: str = "engajamento", **kwargs) -> list:
         rng = self._rng(cliente_id)
 
         if tipo == "feed":
@@ -128,28 +128,20 @@ class MockInstagramRepository(InstagramRepository):
         else:
             tipos_ciclo = ["REEL", "IMAGE", "CAROUSEL", "STORY", "VIDEO", "REEL", "STORY", "IMAGE"]
 
-        # Gera com janela maior que a pedida pra simular cliente com histórico variado.
-        # Filtro `dias` corta os fora do período antes de retornar.
-        max_dias_atras = max(dias, 90)
-        cutoff = date.today() - timedelta(days=dias)
-
         posts = []
-        for i in range(limit * 2):  # gera o dobro pra ter folga após filtro
+        for i in range(limit):
             tipo_post = tipos_ciclo[i % len(tipos_ciclo)]
             alcance   = rng.randint(600, 6000)
             curtidas  = rng.randint(80, 500)
             coments   = rng.randint(5, 70)
             salvam    = rng.randint(10, 140)
             taxa = round((curtidas + coments + salvam) / max(alcance, 1) * 100, 2)
-            dias_atras = rng.randint(1, max_dias_atras)
-            publicado = date.today() - timedelta(days=dias_atras)
-            if publicado < cutoff:
-                continue
+            dias_atras = rng.randint(1, 30)
 
             posts.append({
                 "id": f"mock_{cliente_id[:8]}_{i}",
                 "tipo": tipo_post,
-                "publicado_em": str(publicado),
+                "publicado_em": str(date.today() - timedelta(days=dias_atras)),
                 "legenda": _mock_legenda(tipo_post, rng),
                 "curtidas": curtidas,
                 "comentarios": coments,
@@ -172,7 +164,7 @@ class MockInstagramRepository(InstagramRepository):
             "alcance": "alcance",
         }
         sk = sort_keys.get(ordenar, "taxa_engajamento")
-        return sorted(posts, key=lambda x: x.get(sk) or 0, reverse=True)[:limit]
+        return sorted(posts, key=lambda x: x.get(sk) or 0, reverse=True)
 
     def get_demografia(self, cliente_id: str, tipo: str = "follower") -> dict:
         """Mock: distribuição realista de gênero × idade + países + cidades."""
@@ -410,7 +402,7 @@ class LiveInstagramRepository(InstagramRepository):
         "exits": "exits",
     }
 
-    def get_posts(self, cliente_id: str, limit: int = 12, tipo: str = "all", ordenar: str = "engajamento", dias: int = 30) -> list:
+    def get_posts(self, cliente_id: str, limit: int = 12, tipo: str = "all", ordenar: str = "engajamento", **kwargs) -> list:
         column = self.ORDER_COLUMN_MAP.get(ordenar, "engagement_rate")
         q = self.sb.table("instagram_posts").select("*").eq("cliente_id", cliente_id)
 
@@ -421,11 +413,6 @@ class LiveInstagramRepository(InstagramRepository):
         elif tipo == "story":
             q = q.eq("media_product_type", "STORY")
         # tipo == "all" (default) → sem filtro
-
-        # Filtro de período — corta posts publicados antes da janela.
-        if dias and dias > 0:
-            cutoff = (date.today() - timedelta(days=dias)).isoformat()
-            q = q.gte("posted_at", cutoff)
 
         posts = q.order(column, desc=True).limit(limit).execute().data or []
 
