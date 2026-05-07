@@ -97,7 +97,17 @@ async def oauth_callback(
 
     if error:
         logger.warning(f"OAuth error: {error} — {error_description}")
-        return RedirectResponse(_redirect_target(f"ig_error={error}"))
+        # Detecta erros comuns do Meta pra dar mensagem dedicada no frontend
+        err_lower = (error + " " + error_description).lower()
+        if "developer" in err_lower and "role" in err_lower:
+            err_code = "developer_role"
+        elif "insufficient" in err_lower:
+            err_code = "developer_role"
+        elif error == "access_denied":
+            err_code = "access_denied"
+        else:
+            err_code = error
+        return RedirectResponse(_redirect_target(f"ig_error={err_code}"))
 
     if not code or not state:
         return RedirectResponse(_redirect_target("ig_error=missing_params"))

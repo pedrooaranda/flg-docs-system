@@ -155,7 +155,38 @@ export default function ConectarInstagram() {
             </div>
           )}
 
-          {!loading && info && igError && !igConnected && igError !== 'account_personal' && (
+          {!loading && info && igError && !igConnected && igError === 'developer_role' && (
+            <div className="py-2">
+              <AlertCircle size={32} className="mx-auto mb-3 text-amber-400" />
+              <h2 className="text-base font-semibold text-white mb-2 text-center">
+                Você ainda não foi liberado pelo Meta
+              </h2>
+              <p className="text-xs text-white/65 mb-4 leading-relaxed text-center">
+                Apareceu uma tela preta dizendo "Insufficient Developer Role"? Isso significa que <strong className="text-white/90">seu acesso ainda não foi liberado</strong> no app oficial da FLG no Meta.
+              </p>
+              <div
+                className="rounded-lg p-3 mb-4 text-[11px] text-white/70 leading-relaxed"
+                style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.20)' }}
+              >
+                <p className="font-semibold text-white/85 mb-2">O que fazer:</p>
+                <ol className="space-y-1 list-decimal list-inside">
+                  <li>Avise seu consultor da FLG que apareceu este erro.</li>
+                  <li>Ele precisa adicionar seu perfil do Meta como <strong>Tester</strong> no app oficial.</li>
+                  <li>Você vai receber um convite por email/notificação. <strong>Aceite o convite.</strong></li>
+                  <li>Volte aqui e clique em "Tentar novamente".</li>
+                </ol>
+              </div>
+              <button
+                onClick={startOAuth}
+                className="w-full py-2.5 rounded-lg text-sm font-semibold"
+                style={{ background: '#C9A84C', color: '#1a1300' }}
+              >
+                Já fui liberado. Tentar novamente
+              </button>
+            </div>
+          )}
+
+          {!loading && info && igError && !igConnected && igError !== 'account_personal' && igError !== 'developer_role' && (
             <div className="text-center py-4">
               <AlertCircle size={32} className="mx-auto mb-3 text-amber-400" />
               <h2 className="text-base font-semibold text-white mb-1">Autorização não concluída</h2>
