@@ -147,6 +147,7 @@ async def sync_cliente(cliente_id: str, sync_demographics: bool = False, force_r
             diagnostics["insights_partial"] = posts_result["insights_partial"]
             diagnostics["insights_minimal"] = posts_result["insights_minimal"]
             diagnostics["insights_failed"] = posts_result["insights_failed"]
+            diagnostics["auto_recovered"] = posts_result.get("auto_recovered", 0)
             # Se Meta devolveu posts mas TODOS os insights falharam, sinaliza problema —
             # provavelmente conta Personal/Creator sem permissão de Insights.
             if posts_result["media_fetched"] > 0 and posts_result["insights_failed"] == posts_result["media_fetched"]:
@@ -316,6 +317,11 @@ async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id
 
     `force_refresh=True` ignora skip de posts finalizados/recentemente atualizados —
     útil pra recolher insights depois de mudança de schema/deprecação Meta.
+
+    Auto-recovery: posts finalizados com `engagement_rate=NULL` mas `likes>0`
+    (sinal claro de insights quebrados historicamente) são re-buscados
+    automaticamente. Cap em MAX_AUTO_RECOVERIES_PER_SYNC pra respeitar rate
+    limits — runs subsequentes pegam o resto.
     """
     fields = (
         "id,media_type,media_product_type,caption,permalink,media_url,thumbnail_url,"
@@ -330,7 +336,10 @@ async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id
         "insights_minimal": 0,
         "insights_failed": 0,
         "pages_fetched": 0,
+        "auto_recovered": 0,
     }
+
+    MAX_AUTO_RECOVERIES_PER_SYNC = 40  # ~80 chamadas Meta no pior caso (insights + breakdown)
 
     cutoff_resync = datetime.now(timezone.utc) - timedelta(days=DAYS_RESYNC_RECENT_POSTS)
     cutoff_finalize = datetime.now(timezone.utc) - timedelta(days=DAYS_FINALIZE_POSTS)
@@ -371,21 +380,52 @@ async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id
                 continue
 
             existing = sb.table("instagram_posts").select(
-                "id,metricas_finalizadas,ultima_atualizacao_metricas"
+                "id,metricas_finalizadas,ultima_atualizacao_metricas,engagement_rate,likes"
             ).eq("ig_media_id", media_id).maybe_single().execute()
 
             existing_data = existing.data if existing else None
 
+            # Auto-recovery: detecta insights quebrados historicamente.
+            # Post finalizado + eng=NULL/0 + likes>0 = insights falhou no sync original.
+            # Re-busca este post (sem forçar paginação contínua) pra repopular.
+            existing_eng = existing_data.get("engagement_rate") if existing_data else None
+            existing_likes = (existing_data.get("likes") or 0) if existing_data else 0
+            broken_insights = (
+                existing_data
+                and existing_data.get("metricas_finalizadas")
+                and (existing_eng is None or existing_eng == 0)
+                and existing_likes > 0
+            )
+            allow_auto_recovery = (
+                broken_insights
+                and not force_refresh
+                and counters["auto_recovered"] < MAX_AUTO_RECOVERIES_PER_SYNC
+            )
+
             # Critério de parada B: post já FINALIZADO no DB → tudo antes já foi
             # sincronizado em runs anteriores. Pode parar (não processa esse e nem segue paginando).
-            # Em force_refresh ignoramos pra recolher insights de novo.
-            if existing_data and existing_data.get("metricas_finalizadas") and not force_refresh:
+            # Em force_refresh OU auto-recovery ignoramos pra recolher insights de novo.
+            if (
+                existing_data
+                and existing_data.get("metricas_finalizadas")
+                and not force_refresh
+                and not allow_auto_recovery
+            ):
                 stop_paginating = True
                 continue
 
-            # Skip resync se já está no DB e foi atualizado hoje (também ignorado em force_refresh)
+            if allow_auto_recovery:
+                counters["auto_recovered"] += 1
+
+            # Skip resync se já está no DB e foi atualizado hoje (também ignorado em force_refresh
+            # e em auto-recovery — queremos refazer o post mesmo que tenha sido tocado hoje).
             skip_resync = False
-            if existing_data and posted_at < cutoff_resync and not force_refresh:
+            if (
+                existing_data
+                and posted_at < cutoff_resync
+                and not force_refresh
+                and not allow_auto_recovery
+            ):
                 last_update = _parse_ts(existing_data.get("ultima_atualizacao_metricas"))
                 if last_update and (datetime.now(timezone.utc) - last_update).days < 1:
                     skip_resync = True
@@ -412,6 +452,7 @@ async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id
     logger.info(
         f"_sync_posts cliente={cliente_id}: pages={counters['pages_fetched']}, "
         f"media={counters['media_fetched']}, synced={counters['synced']}, "
+        f"auto_recovered={counters['auto_recovered']}, "
         f"insights full/partial/minimal/failed="
         f"{counters['insights_full']}/{counters['insights_partial']}/"
         f"{counters['insights_minimal']}/{counters['insights_failed']}"
