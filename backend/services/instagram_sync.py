@@ -153,7 +153,22 @@ async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict
 
         # 3. Stories ativas (24h)
         try:
-            counters["posts"] += await _sync_stories(sb, client, cliente_id, ig_user_id, access_token)
+            stories_result = await _sync_stories(sb, client, cliente_id, ig_user_id, access_token)
+            counters["posts"] += stories_result["synced"]
+            diagnostics["stories_media_fetched"] = stories_result["media_fetched"]
+            diagnostics["stories_insights_full"] = stories_result["insights_full"]
+            diagnostics["stories_insights_safe"] = stories_result["insights_safe"]
+            diagnostics["stories_insights_failed"] = stories_result["insights_failed"]
+            if stories_result["media_fetched"] > 0 and stories_result["insights_failed"] == stories_result["media_fetched"]:
+                errors.append({
+                    "step": "stories",
+                    "message": (
+                        f"Insights falhou em todas as {stories_result['media_fetched']} stories. "
+                        "Possíveis causas: conta IG não é Business/Creator, ou faltou aprovar "
+                        "permissão instagram_manage_insights no OAuth, ou Meta deprecou alguma "
+                        "métrica do conjunto STORY."
+                    ),
+                })
         except Exception as e:
             errors.append({"step": "stories", "message": f"{type(e).__name__}: {str(e)[:200]}"})
 
@@ -389,19 +404,35 @@ async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id
 # alguma métrica como `impressions` ou `profile_visits` para certos tipos de
 # conta), tentamos um subset menor e seguro pra trazer ao menos o essencial.
 # Conjunto "essencial" = só o que continua suportado em 2025+.
+#
+# STORY (atualização 2026-05): Meta deprecou `impressions` (full deprecation
+# 2025-04-21) e removeu `taps_forward`/`taps_back`/`exits` como standalone —
+# agora vêm só via `navigation` com breakdown=story_navigation_action_type.
+# Métricas válidas em STORY: reach, replies, shares, total_interactions,
+# views, navigation, profile_visits, follows, total_views, reposts.
+# `comments`/`likes` NÃO existem em STORY (só FEED/REELS).
 _INSIGHTS_METRICS = {
     "REELS": {
         "full": "reach,saved,shares,total_interactions,plays,ig_reels_video_view_total_time,ig_reels_avg_watch_time,likes,comments",
         "safe": "reach,saved,shares,total_interactions,likes,comments",
     },
     "STORY": {
-        "full": "reach,impressions,exits,replies,taps_forward,taps_back,shares",
-        "safe": "reach,replies,taps_forward,taps_back",
+        "full": "reach,replies,shares,total_interactions,views,navigation",
+        "safe": "reach,replies",
     },
     "FEED": {
         "full": "reach,impressions,saved,shares,total_interactions,profile_visits,follows,likes,comments",
         "safe": "reach,saved,shares,total_interactions,likes,comments",
     },
+}
+
+# Mapeia dimension_values do breakdown story_navigation_action_type
+# (Meta retorna em lowercase) pras keys que usamos em instagram_posts.
+_STORY_NAV_ACTION_TO_FIELD = {
+    "tap_forward": "taps_forward",
+    "tap_back": "taps_back",
+    "tap_exit": "exits",
+    "swipe_forward": "swipes_forward",
 }
 
 
@@ -410,11 +441,16 @@ async def _fetch_post_insights(client: httpx.AsyncClient, media_id: str, media_p
     Tenta primeiro a lista FULL. Se Meta retornar 400 (provavelmente porque
     deprecou alguma métrica para esse tipo de conta), retenta com SAFE.
     Logs registram qual variante foi usada e por quê.
+
+    Pra STORY: faz uma chamada extra com breakdown=story_navigation_action_type
+    pra extrair taps_forward/taps_back/exits (que Meta removeu como standalone
+    e expôs só via breakdown do navigation).
     """
     bucket = "REELS" if media_product_type == "REELS" else "STORY" if media_product_type == "STORY" else "FEED"
     full = _INSIGHTS_METRICS[bucket]["full"]
     safe = _INSIGHTS_METRICS[bucket]["safe"]
 
+    out: Optional[dict] = None
     for attempt_label, metrics in (("full", full), ("safe", safe)):
         resp = await client.get(
             f"{GRAPH}/{media_id}/insights",
@@ -432,7 +468,7 @@ async def _fetch_post_insights(client: httpx.AsyncClient, media_id: str, media_p
             if attempt_label == "safe":
                 logger.info(f"Insights {media_id} ({bucket}) usado fallback SAFE")
             out["_insights_variant"] = attempt_label
-            return out
+            break
 
         # Não-200: log e tenta próximo nível
         if attempt_label == "full":
@@ -444,7 +480,44 @@ async def _fetch_post_insights(client: httpx.AsyncClient, media_id: str, media_p
                 f"Insights {media_id} ({bucket}) SAFE também falhou {resp.status_code}: {resp.text[:240]}"
             )
 
-    return {"_insights_variant": "failed"}
+    if out is None:
+        return {"_insights_variant": "failed"}
+
+    # STORY: enriquece com breakdown de navigation pra obter taps_forward/back/exits.
+    # Falha aqui não invalida os outros insights — apenas perde granularidade.
+    if bucket == "STORY":
+        try:
+            nav_resp = await client.get(
+                f"{GRAPH}/{media_id}/insights",
+                params={
+                    "metric": "navigation",
+                    "breakdown": "story_navigation_action_type",
+                    "access_token": token,
+                },
+            )
+            await asyncio.sleep(INTER_CALL_DELAY)
+            if nav_resp.status_code == 200:
+                data = nav_resp.json().get("data", [])
+                if data:
+                    total_value = data[0].get("total_value", {}) or {}
+                    breakdowns_arr = total_value.get("breakdowns", []) or []
+                    if breakdowns_arr:
+                        for r in breakdowns_arr[0].get("results", []) or []:
+                            dims = r.get("dimension_values", []) or []
+                            if not dims:
+                                continue
+                            field = _STORY_NAV_ACTION_TO_FIELD.get(dims[0].lower())
+                            if field:
+                                out[field] = int(r.get("value") or 0)
+            else:
+                logger.warning(
+                    f"Insights {media_id} (STORY) navigation breakdown falhou "
+                    f"{nav_resp.status_code}: {nav_resp.text[:240]}"
+                )
+        except Exception as e:
+            logger.warning(f"Insights {media_id} (STORY) navigation breakdown erro: {e}")
+
+    return out
 
 
 def _build_post_row(cliente_id: str, item: dict, insights: dict, posted_at: datetime, cutoff_finalize: datetime) -> dict:
@@ -458,7 +531,9 @@ def _build_post_row(cliente_id: str, item: dict, insights: dict, posted_at: date
     if reach > 0:
         engagement_rate = round((likes + comments + saved + shares) / reach * 100, 3)
 
-    impressions = insights.get("impressions", 0) or 0
+    # STORY usa `views` (impressions deprecated 2025-04-21). Mapeia views → impressions
+    # pra preservar retention_rate calc + coluna existente em instagram_posts.
+    impressions = insights.get("impressions") or insights.get("views") or 0
     exits = insights.get("exits", 0) or 0
     retention_rate = None
     if impressions > 0 and exits is not None:
@@ -514,7 +589,9 @@ def _build_post_row(cliente_id: str, item: dict, insights: dict, posted_at: date
 # 3. STORIES
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-async def _sync_stories(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id: str, token: str) -> int:
+async def _sync_stories(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id: str, token: str) -> dict:
+    """Retorna dict com synced + counters de insights (full/safe/failed) — mesmo
+    shape do _sync_posts pra surfacing de erro quando todas as stories falharem."""
     resp = await client.get(
         f"{GRAPH}/{ig_user_id}/stories",
         params={
@@ -523,23 +600,31 @@ async def _sync_stories(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_
         },
     )
     await asyncio.sleep(INTER_CALL_DELAY)
+    counters = {"synced": 0, "media_fetched": 0, "insights_full": 0, "insights_safe": 0, "insights_failed": 0}
     if resp.status_code != 200:
-        logger.debug(f"Stories fetch falhou {resp.status_code}: {resp.text[:200]}")
-        return 0
+        logger.warning(f"Stories fetch falhou {resp.status_code}: {resp.text[:200]}")
+        return counters
 
     items = resp.json().get("data", [])
+    counters["media_fetched"] = len(items)
     cutoff_finalize = datetime.now(timezone.utc) - timedelta(days=DAYS_FINALIZE_POSTS)
-    synced = 0
     for item in items:
         item["media_product_type"] = "STORY"
         posted_at = _parse_ts(item.get("timestamp"))
         if not posted_at:
             continue
         insights = await _fetch_post_insights(client, item["id"], "STORY", token)
+        variant = insights.get("_insights_variant", "failed")
+        counters[f"insights_{variant}"] = counters.get(f"insights_{variant}", 0) + 1
         row = _build_post_row(cliente_id, item, insights, posted_at, cutoff_finalize)
         sb.table("instagram_posts").upsert(row, on_conflict="ig_media_id").execute()
-        synced += 1
-    return synced
+        counters["synced"] += 1
+    logger.info(
+        f"_sync_stories cliente={cliente_id}: media={counters['media_fetched']}, "
+        f"synced={counters['synced']}, insights full/safe/failed="
+        f"{counters['insights_full']}/{counters['insights_safe']}/{counters['insights_failed']}"
+    )
+    return counters
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
