@@ -22,6 +22,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta, date
 from typing import Optional
@@ -87,10 +88,14 @@ async def _run_daily_sync():
 # ORQUESTRADOR POR CLIENTE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict:
+async def sync_cliente(cliente_id: str, sync_demographics: bool = False, force_refresh: bool = False) -> dict:
     """
     Sincroniza um cliente específico.
     Retorna dict com contadores, duração e erros por etapa.
+
+    `force_refresh=True` reignora skip de posts finalizados/recentemente
+    atualizados — usado quando precisa repopular insights depois de mudança de
+    schema/deprecação Meta.
     """
     from deps import supabase_client as sb
 
@@ -108,7 +113,10 @@ async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict
     access_token = conn["access_token"]
     username = conn.get("username", "?")
 
-    logger.info(f"📊 Sync @{username} (cliente={cliente_id}, ig_user_id={ig_user_id})...")
+    logger.info(
+        f"📊 Sync @{username} (cliente={cliente_id}, ig_user_id={ig_user_id}, "
+        f"force_refresh={force_refresh})..."
+    )
 
     counters = {"followers": 0, "posts": 0, "metricas_diarias": 0, "horarios": 0, "demografia": 0}
     diagnostics = {}  # detalhes extras (insights variantes, media_fetched, etc.)
@@ -129,12 +137,15 @@ async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict
 
         # 2. Posts (FEED + REELS)
         try:
-            posts_result = await _sync_posts(sb, client, cliente_id, ig_user_id, access_token)
+            posts_result = await _sync_posts(
+                sb, client, cliente_id, ig_user_id, access_token, force_refresh=force_refresh,
+            )
             counters["posts"] = posts_result["synced"]
             diagnostics["media_fetched"] = posts_result["media_fetched"]
             diagnostics["pages_fetched"] = posts_result["pages_fetched"]
             diagnostics["insights_full"] = posts_result["insights_full"]
-            diagnostics["insights_safe"] = posts_result["insights_safe"]
+            diagnostics["insights_partial"] = posts_result["insights_partial"]
+            diagnostics["insights_minimal"] = posts_result["insights_minimal"]
             diagnostics["insights_failed"] = posts_result["insights_failed"]
             # Se Meta devolveu posts mas TODOS os insights falharam, sinaliza problema —
             # provavelmente conta Personal/Creator sem permissão de Insights.
@@ -157,7 +168,8 @@ async def sync_cliente(cliente_id: str, sync_demographics: bool = False) -> dict
             counters["posts"] += stories_result["synced"]
             diagnostics["stories_media_fetched"] = stories_result["media_fetched"]
             diagnostics["stories_insights_full"] = stories_result["insights_full"]
-            diagnostics["stories_insights_safe"] = stories_result["insights_safe"]
+            diagnostics["stories_insights_partial"] = stories_result["insights_partial"]
+            diagnostics["stories_insights_minimal"] = stories_result["insights_minimal"]
             diagnostics["stories_insights_failed"] = stories_result["insights_failed"]
             if stories_result["media_fetched"] > 0 and stories_result["insights_failed"] == stories_result["media_fetched"]:
                 errors.append({
@@ -295,11 +307,15 @@ async def _update_conexao_profile(sb, conn_id: str, profile: dict):
 # 2. POSTS (FEED + REELS)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id: str, token: str) -> dict:
+async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id: str, token: str, force_refresh: bool = False) -> dict:
     """
-    Retorna dict com contadores: media_fetched, synced, insights_full, insights_safe,
-    insights_failed, pages_fetched. Pagina até MAX_HISTORICAL_DAYS atrás OU
-    até bater num post já finalizado no DB (cron incremental fica rápido).
+    Retorna dict com contadores: media_fetched, synced, pages_fetched +
+    insights_{full,partial,minimal,failed}.
+    Pagina até MAX_HISTORICAL_DAYS atrás OU até bater num post já finalizado
+    no DB (cron incremental fica rápido).
+
+    `force_refresh=True` ignora skip de posts finalizados/recentemente atualizados —
+    útil pra recolher insights depois de mudança de schema/deprecação Meta.
     """
     fields = (
         "id,media_type,media_product_type,caption,permalink,media_url,thumbnail_url,"
@@ -310,7 +326,8 @@ async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id
         "media_fetched": 0,
         "synced": 0,
         "insights_full": 0,
-        "insights_safe": 0,
+        "insights_partial": 0,
+        "insights_minimal": 0,
         "insights_failed": 0,
         "pages_fetched": 0,
     }
@@ -361,13 +378,14 @@ async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id
 
             # Critério de parada B: post já FINALIZADO no DB → tudo antes já foi
             # sincronizado em runs anteriores. Pode parar (não processa esse e nem segue paginando).
-            if existing_data and existing_data.get("metricas_finalizadas"):
+            # Em force_refresh ignoramos pra recolher insights de novo.
+            if existing_data and existing_data.get("metricas_finalizadas") and not force_refresh:
                 stop_paginating = True
                 continue
 
-            # Skip resync se já está no DB e foi atualizado hoje
+            # Skip resync se já está no DB e foi atualizado hoje (também ignorado em force_refresh)
             skip_resync = False
-            if existing_data and posted_at < cutoff_resync:
+            if existing_data and posted_at < cutoff_resync and not force_refresh:
                 last_update = _parse_ts(existing_data.get("ultima_atualizacao_metricas"))
                 if last_update and (datetime.now(timezone.utc) - last_update).days < 1:
                     skip_resync = True
@@ -377,7 +395,7 @@ async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id
 
             insights = await _fetch_post_insights(client, media_id, item.get("media_product_type", "FEED"), token)
             variant = insights.pop("_insights_variant", "failed")
-            counters[f"insights_{variant}"] += 1
+            counters[f"insights_{variant}"] = counters.get(f"insights_{variant}", 0) + 1
 
             row = _build_post_row(cliente_id, item, insights, posted_at, cutoff_finalize)
             sb.table("instagram_posts").upsert(row, on_conflict="ig_media_id").execute()
@@ -394,37 +412,57 @@ async def _sync_posts(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id
     logger.info(
         f"_sync_posts cliente={cliente_id}: pages={counters['pages_fetched']}, "
         f"media={counters['media_fetched']}, synced={counters['synced']}, "
-        f"insights full/safe/failed="
-        f"{counters['insights_full']}/{counters['insights_safe']}/{counters['insights_failed']}"
+        f"insights full/partial/minimal/failed="
+        f"{counters['insights_full']}/{counters['insights_partial']}/"
+        f"{counters['insights_minimal']}/{counters['insights_failed']}"
     )
     return counters
 
 
-# Insights: pedimos a lista completa primeiro. Se Meta rejeitar (ex: deprecou
-# alguma métrica como `impressions` ou `profile_visits` para certos tipos de
-# conta), tentamos um subset menor e seguro pra trazer ao menos o essencial.
-# Conjunto "essencial" = só o que continua suportado em 2025+.
+# Métricas Meta Insights — refatorado 2026-05.
 #
-# STORY (atualização 2026-05): Meta deprecou `impressions` (full deprecation
-# 2025-04-21) e removeu `taps_forward`/`taps_back`/`exits` como standalone —
-# agora vêm só via `navigation` com breakdown=story_navigation_action_type.
-# Métricas válidas em STORY: reach, replies, shares, total_interactions,
-# views, navigation, profile_visits, follows, total_views, reposts.
-# `comments`/`likes` NÃO existem em STORY (só FEED/REELS).
-_INSIGHTS_METRICS = {
-    "REELS": {
-        "full": "reach,saved,shares,total_interactions,plays,ig_reels_video_view_total_time,ig_reels_avg_watch_time,likes,comments",
-        "safe": "reach,saved,shares,total_interactions,likes,comments",
-    },
-    "STORY": {
-        "full": "reach,replies,shares,total_interactions,views,navigation",
-        "safe": "reach,replies",
-    },
-    "FEED": {
-        "full": "reach,impressions,saved,shares,total_interactions,profile_visits,follows,likes,comments",
-        "safe": "reach,saved,shares,total_interactions,likes,comments",
-    },
+# DESIGN: self-healing. Mantemos uma lista "preferida" por tipo (o que a Meta
+# diz que suporta hoje, com base em docs 2025+). Se Meta rejeitar a chamada,
+# parseamos a mensagem de erro pra identificar QUAL métrica caiu, removemos
+# essa métrica e retentamos. Quando Meta deprecar mais coisas no futuro, o
+# código se adapta sozinho — sem precisar reverter pra "SAFE" hardcoded.
+#
+# Fallback final: `reach` sozinho (sempre suportado). Se nem isso voltar, conta
+# como `_insights_variant=failed`.
+#
+# DEPRECAÇÕES atuais que motivaram o redesign:
+#   • impressions    → views (deprecated 2025-04-21, all versions)
+#   • plays          → views (deprecated 2025-04-21, all versions)
+#   • taps_forward/back/exits standalone → navigation com breakdown
+#   • clips_replays_count, ig_reels_aggregated_all_plays_count → views
+#   • likes/comments insights NÃO usamos: vêm direto de like_count/comments_count
+#     do objeto media (mais barato + sem risco de deprecação).
+#
+# Ref: https://developers.facebook.com/docs/instagram-platform/reference/instagram-media/insights
+_PREFERRED_INSIGHT_METRICS = {
+    "FEED": [
+        "reach", "saved", "shares", "total_interactions",
+        "views", "profile_visits", "follows",
+    ],
+    "REELS": [
+        "reach", "saved", "shares", "total_interactions",
+        "views", "ig_reels_video_view_total_time", "ig_reels_avg_watch_time",
+    ],
+    "STORY": [
+        "reach", "replies", "shares", "total_interactions",
+        "views", "navigation",
+    ],
 }
+
+# Fallback final — só métrica historicamente sempre suportada.
+_BARE_MIN_METRIC = "reach"
+
+# Tira o nome da métrica rejeitada do error message do Meta. Padrões comuns:
+#   "(#100) The (impressions) metric is no longer supported"
+#   "(#100) Tried accessing nonexisting field (impressions) on node ..."
+#   "metric: impressions is not supported"
+_REJECTED_METRIC_PAREN = re.compile(r"\(([a-z][a-z_]+)\)")
+
 
 # Mapeia dimension_values do breakdown story_navigation_action_type
 # (Meta retorna em lowercase) pras keys que usamos em instagram_posts.
@@ -436,52 +474,107 @@ _STORY_NAV_ACTION_TO_FIELD = {
 }
 
 
+def _identify_rejected_metric(error_text: str, candidates: list) -> Optional[str]:
+    """
+    Tenta extrair o nome da métrica que Meta rejeitou. Olha primeiro o padrão
+    `(metric_name)` típico das mensagens; depois cai pra substring match.
+    Retorna None se não conseguir identificar — caller faz fallback minimal.
+    """
+    if not error_text or not candidates:
+        return None
+    candidate_set = set(candidates)
+    for match in _REJECTED_METRIC_PAREN.findall(error_text):
+        if match in candidate_set:
+            return match
+    error_lower = error_text.lower()
+    for metric in candidates:
+        # Substring match — seguro porque metric names são únicos e não são
+        # palavras comuns (todas têm underscore ou prefixo específico).
+        if metric.lower() in error_lower:
+            return metric
+    return None
+
+
+def _parse_insights_payload(raw_data: list) -> dict:
+    """Achata `data: [{name, values:[{value}]}]` em `{name: value}`."""
+    out = {}
+    for entry in raw_data:
+        name = entry.get("name")
+        if not name:
+            continue
+        values = entry.get("values") or []
+        out[name] = values[0].get("value") if values else None
+    return out
+
+
 async def _fetch_post_insights(client: httpx.AsyncClient, media_id: str, media_product_type: str, token: str) -> dict:
     """
-    Tenta primeiro a lista FULL. Se Meta retornar 400 (provavelmente porque
-    deprecou alguma métrica para esse tipo de conta), retenta com SAFE.
-    Logs registram qual variante foi usada e por quê.
+    Pede insights pra Meta pedindo a lista preferida. Se Meta rejeitar com 400,
+    identifica qual métrica caiu, dropa e retenta. Quando todas as métricas
+    úteis foram dropadas, faz uma última tentativa só com `reach`. Se nem isso
+    voltar, retorna `{_insights_variant: "failed"}`.
 
     Pra STORY: faz uma chamada extra com breakdown=story_navigation_action_type
-    pra extrair taps_forward/taps_back/exits (que Meta removeu como standalone
-    e expôs só via breakdown do navigation).
+    pra obter taps_forward/taps_back/exits (Meta tirou como standalone).
     """
     bucket = "REELS" if media_product_type == "REELS" else "STORY" if media_product_type == "STORY" else "FEED"
-    full = _INSIGHTS_METRICS[bucket]["full"]
-    safe = _INSIGHTS_METRICS[bucket]["safe"]
-
+    metrics = list(_PREFERRED_INSIGHT_METRICS[bucket])
+    dropped: list = []
     out: Optional[dict] = None
-    for attempt_label, metrics in (("full", full), ("safe", safe)):
+
+    while metrics:
         resp = await client.get(
             f"{GRAPH}/{media_id}/insights",
-            params={"metric": metrics, "access_token": token},
+            params={"metric": ",".join(metrics), "access_token": token},
         )
         await asyncio.sleep(INTER_CALL_DELAY)
 
         if resp.status_code == 200:
-            raw = resp.json().get("data", [])
-            out = {}
-            for entry in raw:
-                name = entry.get("name")
-                values = entry.get("values", [])
-                out[name] = values[0].get("value") if values else None
-            if attempt_label == "safe":
-                logger.info(f"Insights {media_id} ({bucket}) usado fallback SAFE")
-            out["_insights_variant"] = attempt_label
+            out = _parse_insights_payload(resp.json().get("data", []))
             break
 
-        # Não-200: log e tenta próximo nível
-        if attempt_label == "full":
-            logger.warning(
-                f"Insights {media_id} ({bucket}) FULL falhou {resp.status_code}: {resp.text[:240]} — tentando SAFE"
+        rejected = _identify_rejected_metric(resp.text, metrics)
+        if rejected:
+            metrics.remove(rejected)
+            dropped.append(rejected)
+            logger.info(
+                f"Insights {media_id} ({bucket}) Meta rejeitou '{rejected}' — retry com {len(metrics)} métricas restantes"
             )
-        else:
+            continue
+
+        # Não conseguiu identificar — uma última tentativa só com bare-min
+        if metrics != [_BARE_MIN_METRIC]:
             logger.warning(
-                f"Insights {media_id} ({bucket}) SAFE também falhou {resp.status_code}: {resp.text[:240]}"
+                f"Insights {media_id} ({bucket}) erro não-parseável "
+                f"{resp.status_code}: {resp.text[:200]} — caindo pra '{_BARE_MIN_METRIC}'"
             )
+            metrics = [_BARE_MIN_METRIC]
+            continue
+
+        # bare-min também falhou — desiste
+        logger.warning(
+            f"Insights {media_id} ({bucket}) {_BARE_MIN_METRIC} também falhou "
+            f"{resp.status_code}: {resp.text[:240]}"
+        )
+        return {"_insights_variant": "failed", "_insights_dropped": dropped}
 
     if out is None:
-        return {"_insights_variant": "failed"}
+        return {"_insights_variant": "failed", "_insights_dropped": dropped}
+
+    # Classifica variant pra diagnóstico:
+    #   full     = nenhuma dropada
+    #   partial  = pelo menos 1 dropada mas sobrou >1 métrica
+    #   minimal  = só `reach` sobreviveu
+    if not dropped:
+        variant = "full"
+    elif metrics == [_BARE_MIN_METRIC]:
+        variant = "minimal"
+    else:
+        variant = "partial"
+    out["_insights_variant"] = variant
+    if dropped:
+        out["_insights_dropped"] = dropped
+        logger.info(f"Insights {media_id} ({bucket}) variant={variant} dropped={dropped}")
 
     # STORY: enriquece com breakdown de navigation pra obter taps_forward/back/exits.
     # Falha aqui não invalida os outros insights — apenas perde granularidade.
@@ -521,6 +614,9 @@ async def _fetch_post_insights(client: httpx.AsyncClient, media_id: str, media_p
 
 
 def _build_post_row(cliente_id: str, item: dict, insights: dict, posted_at: datetime, cutoff_finalize: datetime) -> dict:
+    # likes/comments vêm SEMPRE do objeto media (like_count/comments_count) — Meta
+    # não devolve mais essas como insight metrics em alguns cenários e a fonte
+    # direta é mais barata e estável.
     likes = item.get("like_count", 0) or insights.get("likes", 0) or 0
     comments = item.get("comments_count", 0) or insights.get("comments", 0) or 0
     saved = insights.get("saved", 0) or 0
@@ -531,8 +627,8 @@ def _build_post_row(cliente_id: str, item: dict, insights: dict, posted_at: date
     if reach > 0:
         engagement_rate = round((likes + comments + saved + shares) / reach * 100, 3)
 
-    # STORY usa `views` (impressions deprecated 2025-04-21). Mapeia views → impressions
-    # pra preservar retention_rate calc + coluna existente em instagram_posts.
+    # `impressions` deprecated 2025-04-21 pra todas as versões — Meta substituiu
+    # por `views`. Preserva coluna `impressions` no DB com `views` como fallback.
     impressions = insights.get("impressions") or insights.get("views") or 0
     exits = insights.get("exits", 0) or 0
     retention_rate = None
@@ -541,6 +637,13 @@ def _build_post_row(cliente_id: str, item: dict, insights: dict, posted_at: date
 
     media_product_type = item.get("media_product_type", "FEED")
     media_type = item.get("media_type")
+
+    # `plays` deprecated 2025-04-21 — Meta substituiu por `views`. Pra REELS, usa
+    # views como total de plays (mantém KPI "Plays totais" funcionando).
+    plays = insights.get("plays")
+    if not plays and media_product_type == "REELS":
+        plays = insights.get("views") or 0
+    plays = plays or 0
 
     finalizadas = posted_at < cutoff_finalize and media_product_type != "STORY"
 
@@ -569,7 +672,7 @@ def _build_post_row(cliente_id: str, item: dict, insights: dict, posted_at: date
         "comments": comments,
         "profile_visits": insights.get("profile_visits", 0) or 0,
         "follows": insights.get("follows", 0) or 0,
-        "plays": insights.get("plays", 0) or 0,
+        "plays": plays,
         "ig_reels_video_view_total_time": insights.get("ig_reels_video_view_total_time"),
         "ig_reels_avg_watch_time": insights.get("ig_reels_avg_watch_time"),
         "exits": exits,
@@ -590,8 +693,8 @@ def _build_post_row(cliente_id: str, item: dict, insights: dict, posted_at: date
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 async def _sync_stories(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_id: str, token: str) -> dict:
-    """Retorna dict com synced + counters de insights (full/safe/failed) — mesmo
-    shape do _sync_posts pra surfacing de erro quando todas as stories falharem."""
+    """Retorna dict com synced + counters de insights (full/partial/minimal/failed)
+    — mesmo shape do _sync_posts pra surfacing de erro quando todas as stories falharem."""
     resp = await client.get(
         f"{GRAPH}/{ig_user_id}/stories",
         params={
@@ -600,7 +703,10 @@ async def _sync_stories(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_
         },
     )
     await asyncio.sleep(INTER_CALL_DELAY)
-    counters = {"synced": 0, "media_fetched": 0, "insights_full": 0, "insights_safe": 0, "insights_failed": 0}
+    counters = {
+        "synced": 0, "media_fetched": 0,
+        "insights_full": 0, "insights_partial": 0, "insights_minimal": 0, "insights_failed": 0,
+    }
     if resp.status_code != 200:
         logger.warning(f"Stories fetch falhou {resp.status_code}: {resp.text[:200]}")
         return counters
@@ -621,8 +727,9 @@ async def _sync_stories(sb, client: httpx.AsyncClient, cliente_id: str, ig_user_
         counters["synced"] += 1
     logger.info(
         f"_sync_stories cliente={cliente_id}: media={counters['media_fetched']}, "
-        f"synced={counters['synced']}, insights full/safe/failed="
-        f"{counters['insights_full']}/{counters['insights_safe']}/{counters['insights_failed']}"
+        f"synced={counters['synced']}, insights full/partial/minimal/failed="
+        f"{counters['insights_full']}/{counters['insights_partial']}/"
+        f"{counters['insights_minimal']}/{counters['insights_failed']}"
     )
     return counters
 

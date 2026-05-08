@@ -308,16 +308,20 @@ async def list_all_connections(user=Depends(get_current_user)):
 # ─── Sync manual ──────────────────────────────────────────────────────────────
 
 @router.post("/sync/{cliente_id}")
-async def sync_cliente_manual(cliente_id: str, user=Depends(get_current_user)):
+async def sync_cliente_manual(cliente_id: str, force: bool = False, user=Depends(get_current_user)):
     """
     Trigger manual de sync para um cliente conectado.
     Usado pelo botão "Atualizar agora" na página Métricas.
 
     Sempre puxa demografia (endpoint caro, mas user pediu explicitamente).
+
+    `?force=true` re-sincroniza posts antigos finalizados (útil depois de
+    deprecação de métricas Meta pra repopular insights). Cuidado — paginação
+    integral vai até MAX_HISTORICAL_DAYS (90d).
     """
     from services.instagram_sync import sync_cliente
     try:
-        result = await sync_cliente(cliente_id, sync_demographics=True)
+        result = await sync_cliente(cliente_id, sync_demographics=True, force_refresh=force)
         return {"ok": True, **result}
     except Exception as e:
         logger.error(f"Sync manual falhou cliente={cliente_id}: {e}", exc_info=True)
