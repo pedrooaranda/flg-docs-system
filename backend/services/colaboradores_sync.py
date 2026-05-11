@@ -12,7 +12,6 @@ de operadores) e a baixa frequência de mudanças manuais.
 """
 
 import logging
-from typing import Optional
 
 logger = logging.getLogger("flg.colaboradores_sync")
 

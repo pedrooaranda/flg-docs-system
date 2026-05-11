@@ -84,11 +84,15 @@ def _is_owner_fallback(user) -> bool:
     return (user.email or "").strip().lower() in OWNER_FALLBACK_EMAILS
 
 
-def _resolve_caller(user) -> dict:
-    """Resolve o colaborador correspondente ao usuário autenticado pelo email.
-    Retorna dict do colaborador ou None se não houver registro."""
+def _resolve_caller(user) -> Optional[dict]:
+    """Resolve o colaborador ATIVO correspondente ao usuário autenticado pelo email.
+    Retorna dict do colaborador ou None se não houver registro ativo.
+
+    Filtra `ativo=true` intencionalmente — soft-deleted = sem privilégios.
+    Caller deletado tenta operação → cai pra fallback (se for owner email) ou 403.
+    """
     email = (user.email or "").strip().lower()
-    r = _supabase.table("colaboradores").select("*").eq("email", email).maybe_single().execute()
+    r = _supabase.table("colaboradores").select("*").eq("email", email).eq("ativo", True).maybe_single().execute()
     return r.data if r else None
 
 
@@ -102,7 +106,7 @@ def _require_role(user, min_role: str) -> dict:
     caller = _resolve_caller(user)
     if caller is None:
         if _is_owner_fallback(user):
-            return {"email": user.email, "role": "owner", "_fallback": True}
+            return {"email": (user.email or "").strip().lower(), "role": "owner", "_fallback": True}
         raise HTTPException(status_code=403, detail="Usuário sem registro de colaborador. Peça pra um admin criar.")
 
     caller_level = ROLE_LEVEL.get(caller.get("role", "member"), 0)
@@ -207,8 +211,10 @@ async def create_colaborador(payload: ColaboradorCreate, user=Depends(get_curren
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning(f"create_colaborador: falha ao verificar auth.users: {e}")
-        # Continua mesmo assim — não quer travar criação por causa de erro no list_users
+        # Não falha o POST — integridade de email é nice-to-have, não bloqueia criação.
+        # Mas loga em ERROR pra ser visível em produção (auth.users list_users falhando
+        # = bug em algum lugar, não silêncio aceitável).
+        logger.error(f"create_colaborador: falha ao verificar auth.users (POST prossegue): {e}")
 
     # Insert
     data = payload.model_dump(exclude_none=True)
@@ -264,7 +270,7 @@ async def update_colaborador(
     if caller is None and not is_owner_fb:
         raise HTTPException(status_code=403, detail="Sem registro de colaborador")
     if is_owner_fb:
-        caller = {"email": user.email, "role": "owner", "_fallback": True}
+        caller = {"email": (user.email or "").strip().lower(), "role": "owner", "_fallback": True}
 
     caller_level = ROLE_LEVEL.get(caller.get("role", "member"), 0)
     is_admin_plus = caller_level >= ROLE_LEVEL["admin"]
