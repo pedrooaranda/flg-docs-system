@@ -67,8 +67,10 @@ CREATE INDEX IF NOT EXISTS idx_colaboradores_ativo      ON colaboradores(ativo) 
 
 ALTER TABLE colaboradores ENABLE ROW LEVEL SECURITY;
 
--- Policy: leitura para todos autenticados; escrita apenas via service role
--- (endpoint backend faz checks finos com a service role, RLS é só defesa em profundidade).
+-- Policy: leitura para todos autenticados. Não há policies de INSERT/UPDATE/DELETE
+-- intencionalmente — o backend usa a service role do Supabase que bypassa RLS por
+-- design, e faz os checks finos de permissão (owner > admin > member) no nível do
+-- endpoint REST. Se o anon key vazar, sem policy de write = bloqueado por RLS.
 DROP POLICY IF EXISTS colaboradores_select_authenticated ON colaboradores;
 CREATE POLICY colaboradores_select_authenticated ON colaboradores
   FOR SELECT TO authenticated USING (true);
@@ -164,23 +166,31 @@ def sync_role_to_auth_metadata(supabase, email: str, role: str) -> bool:
     Returns: True se sucesso, False se usuário não encontrado ou erro.
     Logs warning em qualquer falha — não levanta exceção (caller decide se
     quer ignorar ou propagar).
+
+    Per supabase-py v2.10+:
+      - `list_users(page, per_page) -> List[User]` (Pydantic User objects)
+      - Default per_page=50; bumpamos pra 200 pra cobrir workspace FLG.
+      - `update_user_by_id(uid, attributes)` aceita dict que supabase-py coerce
+        em AdminUserAttributes via Pydantic. Shape `{"user_metadata": {...}}` é canônico.
     """
     try:
-        # Buscar user por email via Auth Admin API.
-        # Supabase Python: client.auth.admin.list_users() — pagina, então filtramos.
-        # Pra dezenas de usuários, list_users() é OK; se ficar lento, paginar com per_page.
-        users_resp = supabase.auth.admin.list_users()
-        # Resposta pode ser lista ou objeto com .users dependendo da versão; normaliza.
-        users = users_resp if isinstance(users_resp, list) else getattr(users_resp, "users", [])
-
-        target = next((u for u in users if (getattr(u, "email", None) or u.get("email")) == email), None)
+        users = supabase.auth.admin.list_users(page=1, per_page=200)
+        target_email = (email or "").strip().lower()
+        target = next(
+            (u for u in users if (getattr(u, "email", "") or "").strip().lower() == target_email),
+            None,
+        )
         if not target:
             logger.warning(f"sync_role: usuário {email} não encontrado em auth.users — colaborador órfão?")
             return False
 
-        user_id = getattr(target, "id", None) or target.get("id")
-        current_meta = getattr(target, "user_metadata", None) or target.get("user_metadata", {}) or {}
+        user_id = getattr(target, "id", None)
+        if not user_id:
+            logger.warning(f"sync_role: User {email} sem id — formato inesperado da resposta")
+            return False
 
+        # User.user_metadata é dict (ou None) per Pydantic model do supabase-auth.
+        current_meta = getattr(target, "user_metadata", None) or {}
         new_meta = {**current_meta, "role": role}
 
         supabase.auth.admin.update_user_by_id(user_id, {"user_metadata": new_meta})
@@ -233,11 +243,12 @@ campo. Member só edita o próprio registro em campos limitados.
 """
 
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field, field_validator
 
 from deps import get_current_user, supabase_client
 from services.colaboradores_sync import sync_role_to_auth_metadata
@@ -254,9 +265,17 @@ TIERS_VALIDOS = ("junior", "pleno", "senior", "lead")
 ROLES_VALIDOS = ("owner", "admin", "member")
 ROLE_LEVEL = {"member": 0, "admin": 1, "owner": 2}
 
+# Email regex simples — validação real é no Supabase Auth no signup; aqui só rejeita
+# input obviamente quebrado. Evita dep extra `email-validator` que `EmailStr` exigiria.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+# Fallback hardcoded pro owner — proteção se registro do Pedro for deletado por engano.
+# Match EXATO (não substring) pra evitar que qualquer email com 'pedro' ganhe acesso.
+OWNER_FALLBACK_EMAILS = {"pedroaranda@grupoguglielmi.com"}
+
 
 class ColaboradorCreate(BaseModel):
-    email: EmailStr
+    email: str
     nome: str = Field(min_length=1)
     categoria: str
     cargo: Optional[str] = None
@@ -264,6 +283,14 @@ class ColaboradorCreate(BaseModel):
     role: str = "member"
     manager_id: Optional[str] = None
     avatar_url: Optional[str] = None
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not _EMAIL_RE.match(v):
+            raise ValueError("Email inválido")
+        return v
 
 
 class ColaboradorUpdate(BaseModel):
@@ -279,10 +306,16 @@ class ColaboradorUpdate(BaseModel):
 
 # ─── Helpers de permissão ────────────────────────────────────────────────────
 
+def _is_owner_fallback(user) -> bool:
+    """Pedro hardcoded como owner caso registro tenha sido deletado.
+    Match exato (não substring) — proteção robusta."""
+    return (user.email or "").strip().lower() in OWNER_FALLBACK_EMAILS
+
+
 def _resolve_caller(user) -> dict:
     """Resolve o colaborador correspondente ao usuário autenticado pelo email.
     Retorna dict do colaborador ou None se não houver registro."""
-    email = user.email
+    email = (user.email or "").strip().lower()
     r = _supabase.table("colaboradores").select("*").eq("email", email).maybe_single().execute()
     return r.data if r else None
 
@@ -291,13 +324,12 @@ def _require_role(user, min_role: str) -> dict:
     """Garante que o caller tem pelo menos `min_role`. Retorna o colaborador do caller.
     Levanta HTTP 403 se não.
 
-    Fallback legacy: se `user.email.includes('pedro')` E nenhum colaborador encontrado,
-    permite tratá-lo como owner — protege Pedro caso registro seja deletado por engano.
+    Fallback: se Pedro (email exato) não tem registro, trata como owner —
+    protege caso registro seja deletado por engano.
     """
     caller = _resolve_caller(user)
     if caller is None:
-        # Fallback: pedro hardcoded como owner se não tem registro ainda
-        if "pedro" in (user.email or "").lower():
+        if _is_owner_fallback(user):
             return {"email": user.email, "role": "owner", "_fallback": True}
         raise HTTPException(status_code=403, detail="Usuário sem registro de colaborador. Peça pra um admin criar.")
 
@@ -411,11 +443,14 @@ async def create_colaborador(payload: ColaboradorCreate, user=Depends(get_curren
     if payload.role == "owner" and caller.get("role") != "owner":
         raise HTTPException(status_code=403, detail="Apenas Owner pode criar outro Owner")
 
-    # Verificar que o email tem signup no Supabase Auth (evita registro órfão)
+    # Verificar que o email tem signup no Supabase Auth (evita registro órfão).
+    # list_users() default per_page=50 — bumpamos pra 200 (cobre o workspace FLG por muito tempo).
+    # Quando passarmos disso, refatorar pra paginação real ou cache de mapping email→user_id.
     try:
-        users_resp = _supabase.auth.admin.list_users()
-        users = users_resp if isinstance(users_resp, list) else getattr(users_resp, "users", [])
-        exists = any((getattr(u, "email", None) or u.get("email")) == payload.email for u in users)
+        users = _supabase.auth.admin.list_users(page=1, per_page=200)
+        # supabase-py v2.10+: retorna List[User] (Pydantic User objects).
+        target_email = payload.email.strip().lower()
+        exists = any((getattr(u, "email", "") or "").strip().lower() == target_email for u in users)
         if not exists:
             raise HTTPException(
                 status_code=400,
@@ -505,12 +540,12 @@ async def update_colaborador(
     if not target:
         raise HTTPException(status_code=404, detail="Colaborador não encontrado")
 
-    # Resolver caller (qualquer role, mesmo member, passa)
+    # Resolver caller (qualquer role, mesmo member, passa). Pedro fallback exato.
     caller = _resolve_caller(user)
-    is_pedro_fallback = caller is None and "pedro" in (user.email or "").lower()
-    if caller is None and not is_pedro_fallback:
+    is_owner_fb = caller is None and _is_owner_fallback(user)
+    if caller is None and not is_owner_fb:
         raise HTTPException(status_code=403, detail="Sem registro de colaborador")
-    if is_pedro_fallback:
+    if is_owner_fb:
         caller = {"email": user.email, "role": "owner", "_fallback": True}
 
     caller_level = ROLE_LEVEL.get(caller.get("role", "member"), 0)
