@@ -33,6 +33,7 @@ from routes.conexoes import router as conexoes_router
 from routes.notas import router as notas_router
 from routes.admin_clickup import router as admin_clickup_router
 from routes.instagram_oauth import router as instagram_oauth_router
+from routes.colaboradores import router as colaboradores_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -140,6 +141,12 @@ async def _apply_migration_003():
         logger.warning(f"⚠️ Migration 003 conexão falhou: {e}")
 
 
+# Migration 004 (colaboradores) é aplicada manualmente via Supabase Dashboard —
+# VPS sem IPv6 não consegue conexão direta. Schema em
+# docs/superpowers/plans/2026-05-10-colaboradores-phase1.md Task 1.
+# Status: aplicado em 2026-05-10.
+
+
 # ─── Lifespan ─────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -205,6 +212,7 @@ app.include_router(conexoes_router)
 app.include_router(notas_router)
 app.include_router(admin_clickup_router)
 app.include_router(instagram_oauth_router)
+app.include_router(colaboradores_router)
 
 app.add_middleware(
     CORSMiddleware,
