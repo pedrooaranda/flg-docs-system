@@ -1,0 +1,4 @@
+-- Migration 004 — Aplicada manualmente no Supabase Dashboard em 2026-05-10
+-- (VPS sem IPv6 → padrão da repo, ver memory/vps_supabase_ipv6_issue.md)
+-- O bloco SQL exato está no plano docs/superpowers/plans/2026-05-10-colaboradores-phase1.md Task 1.
+-- Status: aplicado em produção em 2026-05-10.
