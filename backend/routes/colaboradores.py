@@ -171,3 +171,64 @@ async def get_colaborador(colab_id: str, user=Depends(get_current_user)):
     if not r or not r.data:
         raise HTTPException(status_code=404, detail="Colaborador não encontrado")
     return r.data
+
+
+# ─── Endpoint POST ───────────────────────────────────────────────────────────
+
+@router.post("")
+async def create_colaborador(payload: ColaboradorCreate, user=Depends(get_current_user)):
+    """Cria colaborador. Admin+ apenas. Promoção a 'owner' requer caller=owner."""
+    caller = _require_role(user, "admin")
+
+    _validate_categoria(payload.categoria)
+    _validate_tier(payload.tier)
+    _validate_role(payload.role)
+
+    # Apenas owner pode criar outro owner
+    if payload.role == "owner" and caller.get("role") != "owner":
+        raise HTTPException(status_code=403, detail="Apenas Owner pode criar outro Owner")
+
+    # Verificar que o email tem signup no Supabase Auth (evita registro órfão).
+    # list_users() default per_page=50 — bumpamos pra 200 (cobre o workspace FLG por muito tempo).
+    # Quando passarmos disso, refatorar pra paginação real ou cache de mapping email→user_id.
+    try:
+        users = _supabase.auth.admin.list_users(page=1, per_page=200)
+        # supabase-py v2.10+: retorna List[User] (Pydantic User objects).
+        target_email = payload.email.strip().lower()
+        exists = any((getattr(u, "email", "") or "").strip().lower() == target_email for u in users)
+        if not exists:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Email {payload.email} não tem conta no Supabase Auth. "
+                    "Convide o usuário pelo dashboard Auth primeiro, depois crie o colaborador."
+                ),
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"create_colaborador: falha ao verificar auth.users: {e}")
+        # Continua mesmo assim — não quer travar criação por causa de erro no list_users
+
+    # Insert
+    data = payload.model_dump(exclude_none=True)
+    data["created_at"] = datetime.now(timezone.utc).isoformat()
+    data["updated_at"] = data["created_at"]
+
+    try:
+        r = _supabase.table("colaboradores").insert(data).execute()
+    except Exception as e:
+        msg = str(e)
+        if "unique" in msg.lower() or "duplicate" in msg.lower():
+            raise HTTPException(status_code=409, detail=f"Email {payload.email} já cadastrado")
+        raise HTTPException(status_code=500, detail=f"Erro ao criar colaborador: {msg}")
+
+    novo = (r.data or [None])[0]
+    if not novo:
+        raise HTTPException(status_code=500, detail="Colaborador não foi criado")
+
+    # Sync role pra auth metadata (se role != default 'member' faz sentido sincronizar
+    # imediatamente; pra 'member' também rodamos pra garantir consistência)
+    sync_role_to_auth_metadata(_supabase, novo["email"], novo["role"])
+
+    return novo
