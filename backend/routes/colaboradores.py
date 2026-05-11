@@ -316,3 +316,33 @@ async def update_colaborador(
         sync_role_to_auth_metadata(_supabase, updated["email"], new_role)
 
     return updated
+
+
+# ─── Endpoint DELETE ─────────────────────────────────────────────────────────
+
+@router.delete("/{colab_id}")
+async def delete_colaborador(colab_id: str, user=Depends(get_current_user)):
+    """Soft-delete: marca ativo=false. Admin+. Owner não pode ser desativado por não-owner."""
+    caller = _require_role(user, "admin")
+
+    target_resp = _supabase.table("colaboradores").select("*").eq("id", colab_id).maybe_single().execute()
+    target = target_resp.data if target_resp else None
+    if not target:
+        raise HTTPException(status_code=404, detail="Colaborador não encontrado")
+
+    if target.get("role") == "owner" and caller.get("role") != "owner":
+        raise HTTPException(status_code=403, detail="Apenas Owner pode desativar outro Owner")
+
+    # Auto-desativação: bloqueada (evita lockout acidental)
+    if target.get("email") == caller.get("email"):
+        raise HTTPException(status_code=400, detail="Você não pode desativar seu próprio registro")
+
+    try:
+        _supabase.table("colaboradores").update({
+            "ativo": False,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", colab_id).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao desativar: {e}")
+
+    return {"ok": True, "id": colab_id, "ativo": False}
