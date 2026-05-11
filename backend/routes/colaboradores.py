@@ -232,3 +232,87 @@ async def create_colaborador(payload: ColaboradorCreate, user=Depends(get_curren
     sync_role_to_auth_metadata(_supabase, novo["email"], novo["role"])
 
     return novo
+
+
+# ─── Endpoint PATCH ──────────────────────────────────────────────────────────
+
+# Campos que o próprio colaborador pode editar quando não é admin+
+SELF_EDITABLE_FIELDS = {"nome", "cargo", "avatar_url"}
+
+
+@router.patch("/{colab_id}")
+async def update_colaborador(
+    colab_id: str,
+    payload: ColaboradorUpdate,
+    user=Depends(get_current_user),
+):
+    """
+    Edita colaborador. Regras:
+    - Admin+: edita qualquer um, qualquer campo.
+    - Member: edita só o próprio registro, apenas campos SELF_EDITABLE_FIELDS.
+    - Promoção pra role='owner' requer caller=owner.
+    """
+    # Validar tabela
+    target_resp = _supabase.table("colaboradores").select("*").eq("id", colab_id).maybe_single().execute()
+    target = target_resp.data if target_resp else None
+    if not target:
+        raise HTTPException(status_code=404, detail="Colaborador não encontrado")
+
+    # Resolver caller (qualquer role, mesmo member, passa). Pedro fallback exato.
+    caller = _resolve_caller(user)
+    is_owner_fb = caller is None and _is_owner_fallback(user)
+    if caller is None and not is_owner_fb:
+        raise HTTPException(status_code=403, detail="Sem registro de colaborador")
+    if is_owner_fb:
+        caller = {"email": user.email, "role": "owner", "_fallback": True}
+
+    caller_level = ROLE_LEVEL.get(caller.get("role", "member"), 0)
+    is_admin_plus = caller_level >= ROLE_LEVEL["admin"]
+    is_self = caller.get("email") == target.get("email")
+
+    if not is_admin_plus and not is_self:
+        raise HTTPException(status_code=403, detail="Você só pode editar o próprio registro")
+
+    updates = payload.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nada pra atualizar")
+
+    # Member auto-editando: filtra apenas campos permitidos
+    if not is_admin_plus:
+        invalid = [k for k in updates.keys() if k not in SELF_EDITABLE_FIELDS]
+        if invalid:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Member só pode editar: {sorted(SELF_EDITABLE_FIELDS)}. Não permitido: {invalid}",
+            )
+
+    # Validar valores enum
+    _validate_categoria(updates.get("categoria"))
+    _validate_tier(updates.get("tier"))
+    _validate_role(updates.get("role"))
+
+    # Promoção a 'owner' só por outro owner
+    new_role = updates.get("role")
+    if new_role == "owner" and caller.get("role") != "owner":
+        raise HTTPException(status_code=403, detail="Apenas Owner pode promover alguém a Owner")
+
+    # Rebaixamento de owner: também só owner pode rebaixar outro owner
+    if target.get("role") == "owner" and new_role and new_role != "owner" and caller.get("role") != "owner":
+        raise HTTPException(status_code=403, detail="Apenas Owner pode rebaixar outro Owner")
+
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    try:
+        r = _supabase.table("colaboradores").update(updates).eq("id", colab_id).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar: {e}")
+
+    updated = (r.data or [None])[0]
+    if not updated:
+        raise HTTPException(status_code=500, detail="Update não retornou registro")
+
+    # Se role mudou, sincronizar com auth metadata
+    if new_role and new_role != target.get("role"):
+        sync_role_to_auth_metadata(_supabase, updated["email"], new_role)
+
+    return updated
