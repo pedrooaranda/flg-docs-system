@@ -18,6 +18,7 @@ const ConhecimentoBase = lazy(() => import('./components/ConhecimentoBase'))
 const Clientes         = lazy(() => import('./components/Clientes'))
 const Materiais        = lazy(() => import('./components/Materiais'))
 const Copywriter       = lazy(() => import('./components/Copywriter'))
+const Colaboradores    = lazy(() => import('./components/Colaboradores'))
 const IntelecFLG       = lazy(() => import('./components/admin/IntelecFLG'))
 const AgentesConfig    = lazy(() => import('./components/admin/AgentesConfig'))
 const Metricas         = lazy(() => import('./components/Metricas'))
@@ -154,6 +155,12 @@ export default function App() {
           <Route path="/copywriter" element={
             <AuthGuard session={session} title="Copywriter FLG">
               <Copywriter />
+            </AuthGuard>
+          } />
+
+          <Route path="/colaboradores" element={
+            <AuthGuard session={session} title="Colaboradores">
+              <Colaboradores />
             </AuthGuard>
           } />
 
