@@ -19,6 +19,7 @@ const Clientes         = lazy(() => import('./components/Clientes'))
 const Materiais         = lazy(() => import('./components/Materiais'))
 const MateriaisDiarios  = lazy(() => import('./components/Materiais/Diarios'))
 const MateriaisReunioes = lazy(() => import('./components/Materiais/Reunioes'))
+const EditorReuniao     = lazy(() => import('./components/Materiais/Reuniao'))
 const Copywriter       = lazy(() => import('./components/Copywriter'))
 const Colaboradores    = lazy(() => import('./components/Colaboradores'))
 const IntelecFLG       = lazy(() => import('./components/admin/IntelecFLG'))
@@ -157,6 +158,13 @@ export default function App() {
             <Route path="diarios" element={<Suspense fallback={<PageSpinner />}><MateriaisDiarios /></Suspense>} />
             <Route path="reunioes" element={<Suspense fallback={<PageSpinner />}><MateriaisReunioes session={session} /></Suspense>} />
           </Route>
+
+          {/* Editor de reunião (rota nested fora de Materiais layout pra ter tela inteira) */}
+          <Route path="/materiais/reunioes/:cid/:n" element={
+            <AuthGuard session={session} title="Preparação de Reunião">
+              <EditorReuniao session={session} />
+            </AuthGuard>
+          } />
 
           <Route path="/copywriter" element={
             <AuthGuard session={session} title="Copywriter FLG">

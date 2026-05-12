@@ -8,8 +8,9 @@
  * admin vê todos.
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Search, Presentation, AlertCircle } from 'lucide-react'
+import { api } from '../../lib/api'
 import { useApp } from '../../contexts/AppContext'
 import { Avatar } from '../ui/Avatar'
 import EncontroCard from './shared/EncontroCard'
@@ -100,6 +101,30 @@ export default function MateriaisReunioes({ session }) {
 
 function ClienteRow({ cliente, encontros }) {
   const encontroAtual = cliente.encontro_atual || 1
+  // Mapa encontro_numero → pratica (fetched on demand quando expandido pela 1ª vez)
+  const [praticasByNumero, setPraticasByNumero] = useState(null)
+  const [loadingPraticas, setLoadingPraticas] = useState(false)
+
+  const loadPraticas = useCallback(async () => {
+    if (praticasByNumero || loadingPraticas) return
+    setLoadingPraticas(true)
+    try {
+      const rows = await api(`/reunioes/${cliente.id}`)
+      const m = {}
+      for (const r of rows || []) {
+        if (r.pratica) m[r.encontro_numero] = r.pratica
+      }
+      setPraticasByNumero(m)
+    } catch {
+      setPraticasByNumero({})  // fallback: trata como sem prática
+    } finally {
+      setLoadingPraticas(false)
+    }
+  }, [cliente.id, praticasByNumero, loadingPraticas])
+
+  // Carrega quando o componente entra no viewport (simples: na 1ª render)
+  useEffect(() => { loadPraticas() }, [loadPraticas])
+
   return (
     <div
       className="rounded-lg p-3"
@@ -130,7 +155,8 @@ function ClienteRow({ cliente, encontros }) {
           <EncontroCard
             key={enc.numero}
             encontroBase={enc}
-            encontroPratica={null}
+            encontroPratica={praticasByNumero?.[enc.numero] || null}
+            clienteId={cliente.id}
           />
         ))}
       </div>
