@@ -29,8 +29,13 @@ logger = logging.getLogger("flg.claude_html")
 
 _claude = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
-# Caminho da pasta do design system (relativo à raiz do repo)
-_DS_DIR = Path(__file__).parent.parent.parent / "flg-design-system"
+# Caminho da pasta do design system. No host (dev): frontend/public/flg-design-system.
+# No container: pode ser sobrescrito via env FLG_DESIGN_SYSTEM_PATH (mount via docker-compose).
+import os as _os
+_DS_DIR = Path(
+    _os.getenv("FLG_DESIGN_SYSTEM_PATH")
+    or (Path(__file__).parent.parent.parent / "frontend" / "public" / "flg-design-system")
+)
 
 
 def _read_ds_file(rel_path: str) -> str:

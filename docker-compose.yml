@@ -9,8 +9,11 @@ services:
         - GIT_SHA=${GIT_SHA:-unknown}
     restart: unless-stopped
     env_file: .env
+    environment:
+      - FLG_DESIGN_SYSTEM_PATH=/app/flg-design-system
     volumes:
-      - ./backend/assets:/app/assets:ro    # imagens estáticas dos encontros
+      - ./backend/assets:/app/assets:ro                                  # imagens estáticas dos encontros
+      - ./frontend/public/flg-design-system:/app/flg-design-system:ro    # FLG design system (lido pelo claude_html_generator)
     networks:
       - traefik_default
     labels:

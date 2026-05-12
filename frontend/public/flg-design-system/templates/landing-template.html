@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FLG Brasil &middot; Landing Page</title>
+<meta name="description" content="Descrição SEO em até 160 caracteres.">
+
+<!-- Fonts oficiais FLG -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,30..100;1,9..144,300..700,30..100&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- FLG Design System -->
+<link rel="stylesheet" href="../css/flg.css">
+
+<style>
+/* ─── Overrides para landing page (scroll vertical, não deck) ─── */
+html,body{overflow-y:auto !important;overflow-x:hidden;height:auto !important}
+body{min-height:100vh}
+
+/* Layout sections */
+.section{
+  position:relative;
+  padding:clamp(5rem,10vh,8rem) clamp(1.5rem,4vw,3rem);
+  overflow:hidden;
+}
+.section-inner{max-width:1240px;margin:0 auto;position:relative;z-index:2}
+
+/* Hero */
+.hero{
+  min-height:100vh;display:flex;align-items:center;
+  position:relative;overflow:hidden;
+}
+
+/* Nav fixa */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:90;
+  padding:1rem clamp(1.5rem,4vw,3rem);
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(5,5,10,0);
+  backdrop-filter:blur(0);
+  transition:background 0.4s var(--ease),backdrop-filter 0.4s,border-bottom 0.4s;
+  border-bottom:1px solid transparent;
+}
+.nav.scrolled{
+  background:rgba(5,5,10,0.85);
+  backdrop-filter:blur(20px);
+  border-bottom-color:var(--line);
+}
+.nav-logo{height:22px;opacity:0.9}
+.nav-cta{
+  font-family:var(--mono);font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;
+  padding:0.7rem 1.4rem;border:1px solid var(--gold);border-radius:100px;
+  color:var(--gold);transition:all 0.3s var(--ease);
+}
+.nav-cta:hover{background:var(--gold);color:#000}
+
+/* Botão primário */
+.btn-primary{
+  display:inline-flex;align-items:center;gap:0.6rem;
+  padding:1rem 2.2rem;background:var(--gold);color:#000;
+  font-size:0.92rem;font-weight:600;border-radius:100px;
+  position:relative;overflow:hidden;
+  transition:transform 0.3s var(--ease),box-shadow 0.3s;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(233,196,106,0.3)}
+
+/* Footer */
+.footer{
+  border-top:1px solid var(--line);
+  padding:3rem clamp(1.5rem,4vw,3rem);
+  text-align:center;
+}
+.footer p{font-size:0.78rem;color:var(--ink-mute);line-height:1.7;margin-top:0.75rem}
+.footer-logo{height:22px;margin:0 auto;opacity:0.5}
+</style>
+</head>
+<body>
+
+<!-- Grain texture (opcional para landing) -->
+<div class="grain"></div>
+
+<!-- NAV -->
+<nav class="nav" id="nav">
+  <a href="#top"><img src="../assets/logo-flg.png" alt="FLG" class="nav-logo"></a>
+  <a href="#cta" class="nav-cta">Quero come&ccedil;ar</a>
+</nav>
+
+<!-- ═══════════ HERO ═══════════ -->
+<section class="hero" id="top">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center"></div>
+    <div class="wave-horizon"></div>
+  </div>
+  <div class="section-inner" style="text-align:center">
+    <div class="eyebrow" style="justify-content:center">FLG Brasil</div>
+    <h1 class="d-mega" style="max-width:1080px;margin:1.5rem auto">
+      Headline <em>principal</em><br>da landing page.
+    </h1>
+    <p class="body-lg" style="margin:2rem auto;max-width:640px;text-align:center">
+      Subheadline curta que expande a promessa da headline. Mant&eacute;m o leitor lendo.
+    </p>
+    <a href="#cta" class="btn-primary">Call to action principal &rarr;</a>
+    <div class="gold-divider" style="margin:3rem auto 0">
+      <div class="line"></div><div class="dot"></div><div class="line"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ SEÇÃO PROBLEMA ═══════════ -->
+<section class="section">
+  <div class="section-inner">
+    <div class="eyebrow">O contexto</div>
+    <h2 class="d-xl" style="max-width:840px;margin-bottom:2rem">
+      Frase que nomeia <em>a dor</em> do leitor.
+    </h2>
+    <p class="body-lg" style="margin-bottom:1.5rem">
+      Par&aacute;grafo descrevendo o cen&aacute;rio que o leitor vive. Use linguagem direta, sem travess&otilde;es.
+    </p>
+    <div class="entries" style="margin-top:2rem">
+      <div class="entry"><div class="entry-num">01</div><div class="entry-text">Sintoma 1 que <strong>o leitor reconhece</strong>.</div></div>
+      <div class="entry"><div class="entry-num">02</div><div class="entry-text">Sintoma 2 com identifica&ccedil;&atilde;o imediata.</div></div>
+      <div class="entry"><div class="entry-num">03</div><div class="entry-text">Sintoma 3 que fecha o di&aacute;gnostico emocional.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ SEÇÃO SOLUÇÃO ═══════════ -->
+<section class="section" style="background:var(--bg-stage)">
+  <div class="section-inner">
+    <div class="eyebrow">A solu&ccedil;&atilde;o</div>
+    <h2 class="d-xl" style="max-width:920px;margin-bottom:2rem">
+      Nome do <em>produto/m&eacute;todo</em>.
+    </h2>
+    <div class="pillars" style="margin-top:2rem">
+      <div class="pillar-block">
+        <div class="pillar-tag">Pilar 01</div>
+        <div class="pillar-title">T&iacute;tulo do pilar</div>
+        <p class="pillar-desc">Descri&ccedil;&atilde;o curta e direta do que esse pilar entrega para o leitor.</p>
+      </div>
+      <div class="pillar-block">
+        <div class="pillar-tag">Pilar 02</div>
+        <div class="pillar-title">T&iacute;tulo do pilar</div>
+        <p class="pillar-desc">Descri&ccedil;&atilde;o curta e direta do que esse pilar entrega.</p>
+      </div>
+      <div class="pillar-block">
+        <div class="pillar-tag">Pilar 03</div>
+        <div class="pillar-title">T&iacute;tulo do pilar</div>
+        <p class="pillar-desc">Descri&ccedil;&atilde;o curta e direta do que esse pilar entrega.</p>
+      </div>
+      <div class="pillar-block">
+        <div class="pillar-tag">Pilar 04</div>
+        <div class="pillar-title">T&iacute;tulo do pilar</div>
+        <p class="pillar-desc">Descri&ccedil;&atilde;o curta e direta do que esse pilar entrega.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CTA FINAL ═══════════ -->
+<section class="section" id="cta" style="text-align:center">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center"></div>
+  </div>
+  <div class="section-inner">
+    <div class="eyebrow" style="justify-content:center">Pr&oacute;ximo passo</div>
+    <h2 class="d-mega" style="max-width:1100px;margin:1.5rem auto">
+      Frase de <em>fechamento</em>.
+    </h2>
+    <p class="body-lg" style="margin:2rem auto">
+      Uma &uacute;ltima linha de refor&ccedil;o emocional antes do CTA.
+    </p>
+    <a href="#" class="btn-primary">Quero come&ccedil;ar &rarr;</a>
+  </div>
+</section>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<footer class="footer">
+  <img src="../assets/logo-flg.png" alt="FLG Brasil" class="footer-logo">
+  <p>FLG Brasil &middot; Ditando o mercado moderno</p>
+</footer>
+
+<script>
+// Nav scroll behavior
+const nav = document.getElementById('nav');
+addEventListener('scroll', ()=>{
+  nav.classList.toggle('scrolled', scrollY > 50);
+});
+</script>
+</body>
+</html>

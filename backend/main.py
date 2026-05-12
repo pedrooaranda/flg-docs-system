@@ -14,8 +14,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, HTTPException, Header, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 from pydantic import BaseModel
 from supabase import create_client
 
@@ -224,14 +222,10 @@ app.include_router(encontros_intelecto_router)
 # docs/superpowers/plans/2026-05-12-reunioes-phase-a-admin-intelectual.md Task 1.
 # Status: aplicado em 2026-05-12.
 
-# Servir o flg-design-system/ como assets estáticos
-# Acessível em /flg-design-system/css/flg.css, /flg-design-system/js/flg-deck.js, etc.
-# Usado pelo preview do IntelecFLG (Phase A) e pela apresentação fullscreen (Phase D)
-_DS_PATH = Path(__file__).parent.parent / "flg-design-system"
-if _DS_PATH.exists():
-    app.mount("/flg-design-system", StaticFiles(directory=str(_DS_PATH)), name="flg_design_system")
-else:
-    logging.getLogger("flg.main").warning(f"flg-design-system/ não encontrado em {_DS_PATH} — preview não vai carregar CSS")
+# flg-design-system/ é servido pelo FRONTEND (Nginx via Vite) em frontend/public/flg-design-system/.
+# Backend lê os arquivos via volume mount (/app/flg-design-system) só pra construir o
+# system prompt do Claude — NÃO serve via HTTP. Browser carrega /flg-design-system/css/flg.css
+# do Nginx do frontend (Traefik route flg-frontend tem priority 1, cai aí pra paths fora de /api).
 
 app.add_middleware(
     CORSMiddleware,
