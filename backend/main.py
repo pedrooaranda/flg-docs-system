@@ -35,6 +35,7 @@ from routes.admin_clickup import router as admin_clickup_router
 from routes.instagram_oauth import router as instagram_oauth_router
 from routes.colaboradores import router as colaboradores_router
 from routes.encontros_intelecto import router as encontros_intelecto_router
+from routes.reunioes import router as reunioes_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -215,12 +216,17 @@ app.include_router(admin_clickup_router)
 app.include_router(instagram_oauth_router)
 app.include_router(colaboradores_router)
 app.include_router(encontros_intelecto_router)
+app.include_router(reunioes_router)
 
 # Migration 005 (encontros_base ganha intelecto_estrutura, html_intelecto,
 # num_slides_intelecto, html_gerado_at) é aplicada manualmente via Supabase
 # Dashboard — VPS sem IPv6 não consegue conexão direta. Schema em
 # docs/superpowers/plans/2026-05-12-reunioes-phase-a-admin-intelectual.md Task 1.
 # Status: aplicado em 2026-05-12.
+
+# Migration 006 (tabela encontros_pratica com slug público + conversa_chat JSONB)
+# também aplicada manualmente via Supabase Dashboard.
+# Schema em docs/migrations/006-encontros-pratica.sql.
 
 # flg-design-system/ é servido pelo FRONTEND (Nginx via Vite) em frontend/public/flg-design-system/.
 # Backend lê os arquivos via volume mount (/app/flg-design-system) só pra construir o
