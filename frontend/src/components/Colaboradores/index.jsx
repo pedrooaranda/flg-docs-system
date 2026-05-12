@@ -19,6 +19,7 @@ import { isAdmin } from '../../lib/utils'
 import { useToast } from '../../lib/toast'
 import ColaboradorRow from './shared/ColaboradorRow'
 import ColaboradorFormModal from './shared/ColaboradorFormModal'
+import PasswordRevealModal from './shared/PasswordRevealModal'
 import { TIERS, INPUT_CLASS } from './shared/constants'
 
 const TABS = [
@@ -45,6 +46,10 @@ export default function Colaboradores({ session }) {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('create')
   const [editingColaborador, setEditingColaborador] = useState(null)
+
+  // Password reveal modal — aparece quando POST retorna temporary_password
+  const [passwordReveal, setPasswordReveal] = useState(null)
+  // shape: { password: string, email: string, nome: string } ou null
 
   // Permissões UI derivadas
   const user = session?.user
@@ -98,9 +103,20 @@ export default function Colaboradores({ session }) {
     }
   }
 
-  function handleSaved() {
+  function handleSaved(result) {
     // PATCH/POST atualizou DB — re-fetch pra puxar relações + ordering atualizados
     loadColaboradores()
+
+    // Se o POST criou auth user novo, mostra modal de revelação da senha temporária.
+    // result.temporary_password só vem em POST e só quando _create_auth_user retornou
+    // um password novo. Em PATCH não vem.
+    if (result?.temporary_password) {
+      setPasswordReveal({
+        password: result.temporary_password,
+        email: result.email,
+        nome: result.nome,
+      })
+    }
   }
 
   // Filtro aplicado: categoria da aba + ativo + busca + tier + role admin/owner
@@ -264,6 +280,14 @@ export default function Colaboradores({ session }) {
         allColaboradores={colaboradores}
         onClose={() => setModalOpen(false)}
         onSaved={handleSaved}
+      />
+
+      <PasswordRevealModal
+        open={passwordReveal !== null}
+        password={passwordReveal?.password || ''}
+        email={passwordReveal?.email || ''}
+        nome={passwordReveal?.nome || ''}
+        onClose={() => setPasswordReveal(null)}
       />
     </div>
   )
