@@ -228,11 +228,33 @@ def generate_intelecto_html(intelecto_estrutura: str, encontro_numero: int) -> d
                 model="claude-sonnet-4-6",
                 max_tokens=8000,
                 temperature=0.3,
-                stop_sequences=["</body>", "```"],
+                # NÃO usar "```" como stop — se Claude começa com ```html (markdown fence),
+                # a resposta vem vazia (0 content blocks) → IndexError em content[0].
+                # _extract_html_only abaixo remove o fence se vier.
+                stop_sequences=["</body>"],
                 system=_build_system_prompt(),
                 messages=messages,
             )
-            raw = response.content[0].text
+            # Extrai texto do primeiro bloco; tolera resposta vazia (stop_reason='stop_sequence' antes do 1º char).
+            raw = ""
+            for block in response.content or []:
+                if getattr(block, "type", None) == "text":
+                    raw += getattr(block, "text", "") or ""
+            if not raw.strip():
+                last_error = (
+                    f"Resposta vazia do Claude (stop_reason={getattr(response, 'stop_reason', '?')}). "
+                    "Pode ser stop sequence muito agressivo ou refusal."
+                )
+                logger.warning(f"generate_intelecto_html: {last_error}")
+                if attempt == 0:
+                    # Pede pra Claude responder de novo, sem prefill nem markdown.
+                    messages.append({"role": "assistant", "content": "<!-- vazio -->"})
+                    messages.append({
+                        "role": "user",
+                        "content": "Sua resposta veio vazia. Responda agora começando direto com a primeira <section class=\"slide\"> sem markdown wrapper.",
+                    })
+                    continue
+                raise RuntimeError(last_error)
             last_raw = raw
             html = _extract_html_only(raw)
 

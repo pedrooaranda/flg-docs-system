@@ -409,7 +409,24 @@ function HtmlTab({ enc, onSaved }) {
 
       {hasHtml && !showRaw && (
         <iframe
-          srcDoc={`<!DOCTYPE html><html><head><link rel="stylesheet" href="/flg-design-system/css/flg.css"></head><body class="flg-deck" style="overflow:auto"><canvas id="stage-canvas"></canvas><div class="grain"></div><div class="deck">${html}</div></body></html>`}
+          /* Sem flg-deck.js, os slides ficam invisíveis (CSS oficial só mostra o .active).
+             Adicionamos override pra empilhar verticalmente em modo preview. */
+          srcDoc={`<!DOCTYPE html><html><head>
+            <link rel="stylesheet" href="/flg-design-system/css/flg.css">
+            <style>
+              body{margin:0;background:#080808;padding:16px}
+              .preview-stack{display:flex;flex-direction:column;gap:16px}
+              .preview-stack > section.slide{position:relative;width:100%;aspect-ratio:16/9;transform:none;opacity:1;visibility:visible;display:block}
+              .preview-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(201,168,76,.5);padding:4px 8px}
+            </style>
+          </head>
+          <body class="flg-deck">
+            <div class="preview-stack">
+              <div class="preview-label">Pré-visualização · ${(html.match(/<section[^>]*class=["'][^"']*\bslide\b/g) || []).length} slides</div>
+              ${html}
+            </div>
+          </body></html>`}
+          sandbox="allow-same-origin"
           className="w-full rounded-lg"
           style={{ height: 600, border: '1px solid var(--flg-border)', background: 'var(--flg-bg-raised)' }}
           title="Preview do HTML intelectual"

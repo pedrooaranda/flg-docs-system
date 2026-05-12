@@ -262,11 +262,29 @@ def generate_pratica_html(
                 model="claude-sonnet-4-6",
                 max_tokens=8000,
                 temperature=0.3,
-                stop_sequences=["</body>", "```"],
+                # "```" como stop derruba a resposta inteira se Claude começa com fence markdown.
+                # _extract_html_only abaixo remove o fence se vier.
+                stop_sequences=["</body>"],
                 system=_build_generation_prompt(),
                 messages=messages,
             )
-            raw = response.content[0].text
+            raw = ""
+            for block in response.content or []:
+                if getattr(block, "type", None) == "text":
+                    raw += getattr(block, "text", "") or ""
+            if not raw.strip():
+                last_error = (
+                    f"Resposta vazia do Claude (stop_reason={getattr(response, 'stop_reason', '?')})"
+                )
+                logger.warning(f"generate_pratica_html: {last_error}")
+                if attempt == 0:
+                    messages.append({"role": "assistant", "content": "<!-- vazio -->"})
+                    messages.append({
+                        "role": "user",
+                        "content": "Sua resposta veio vazia. Responda agora começando direto com a primeira <section class=\"slide\"> sem markdown wrapper.",
+                    })
+                    continue
+                raise RuntimeError(last_error)
             html = _extract_html_only(raw)
 
             ok, err = _validate_pratica_html(html)
