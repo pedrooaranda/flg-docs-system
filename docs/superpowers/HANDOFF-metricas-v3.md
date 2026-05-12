@@ -1,6 +1,6 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-12 (sessão Reuniões Phases B + C1 + C2 entregues — migration 006 aguarda Pedro aplicar manualmente)
+**Última atualização:** 2026-05-12 (sessão Reuniões Phases B + C1 + C2 + D entregues — migration 006 aplicada, fluxo end-to-end funcional)
 **Status:** 4 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 ---
@@ -157,15 +157,29 @@ Editor `/materiais/reunioes/:cid/:n` (tela inteira, fora do layout Materiais):
 - **`Materiais/Reunioes.jsx`** (grid Phase B) — agora fetch `GET /reunioes/:cid` por cliente pra preencher `encontroPratica` no card. `EncontroCard` virou `<Link>` clicável quando intelectual está pronto.
 - **`App.jsx`** — rota `/materiais/reunioes/:cid/:n` (fora do nested Materiais layout pra tela inteira).
 
-**Bloqueio operacional:** sem migration 006 aplicada, endpoints retornam erro Supabase (tabela não existe). O backend tá em prod mas o fluxo só funciona end-to-end após Pedro rodar SQL no Supabase Dashboard.
+**Migration 006 aplicada em 2026-05-12** — fluxo end-to-end funcional após aplicação manual no Supabase Dashboard.
 
-### Phases D, E — pendentes
-| Phase | Escopo | Estimativa |
-|---|---|---|
-| D | Apresentação pública `/apresentar/:slug` — backend monta HTML completo (intelectual + prática) + carrega `flg-design-system/css/flg.css` e `js/flg-deck.js`. Fullscreen nova aba. | ~4h |
-| E | Polish — empty states, "regerar slide N", copiar HTML, mobile-friendly read-only, auto-status 'apresentado'. | ~4h |
+### Phase D — Apresentação pública (entregue 2026-05-12, em produção, SHA `ee13c51`)
 
-**Próximo passo:** Phase D (rota pública `/apresentar/:slug`) — fecha o loop. Botão "Apresentar" no ActionsBar já espera essa URL existir.
+- **`backend/routes/apresentar.py`** — endpoint `GET /apresentar/{slug}` (registrado sem prefix; resolve em `/api/apresentar/...` via Traefik). **Sem auth** (slug é a credencial). Look-up em `encontros_pratica` por slug, 404 se ausente ou `slug_revogado_at IS NOT NULL`. Junta com `encontros_base.html_intelecto` e monta documento completo (estrutura do `deck-template.html`: canvas + grain + progress + counter + nav arrows + `.deck > slides`). Carrega `/flg-design-system/css/flg.css` e `/flg-design-system/js/flg-deck.js` de mesma origem (Nginx do frontend serve via Vite public).
+- **Best-effort `apresentado_at`:** primeira visita marca `apresentado_at=now()` + `status='apresentado'` (não bloqueia render se falhar).
+- **Headers:** `Cache-Control: no-store, no-cache` + `X-Robots-Tag: noindex, nofollow` (evita indexação de slugs públicos).
+- **Frontend `ActionsBar.jsx`** — `APRESENTAR_BASE='/api/apresentar'`. Botão "Apresentar" abre nova aba.
+
+URL pública final: `https://docs.foundersledgrowth.online/api/apresentar/:slug`. Pra ficar mais bonito (sem `/api/`), Pedro pode adicionar rule no Traefik aliasando `/apresentar/*` → backend — opcional, Phase E.
+
+### Phase E — Polish (pendente)
+**Escopo:**
+- "Regerar slide N" individual (Claude refaz só uma `<section>` específica)
+- Botão "Copiar HTML" prática já existe — falta "Copiar slug" e "Copiar URL pública"
+- Empty states: chat sem mensagens, encontros sem intelectual ainda
+- Mobile-friendly read-only no editor (chat funciona, preview empilhado vertical)
+- Traefik rule pra `/apresentar/*` (URL bonita sem `/api/`)
+- Loading skeletons no grid de Reuniões
+
+**Estimativa:** ~4h. Sem plan escrito ainda.
+
+**Próximo passo:** validar fluxo end-to-end (Pedro testa) + se OK, iniciar Phase E ou pivotar pra outro stream.
 
 ---
 
