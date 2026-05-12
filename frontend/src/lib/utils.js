@@ -20,7 +20,8 @@ export function progressPercent(current, total = 15) {
 }
 
 export function isAdmin(user) {
-  return user?.email?.includes('pedro') || user?.user_metadata?.role === 'admin'
+  const role = user?.user_metadata?.role
+  return role === 'owner' || role === 'admin' || user?.email?.includes('pedro')
 }
 
 export function getUserDisplayName(user) {
