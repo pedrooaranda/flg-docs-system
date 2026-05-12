@@ -1,6 +1,6 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-12 (sessão Reuniões Phase B — refactor Materiais + grid clientes×encontros entregue)
+**Última atualização:** 2026-05-12 (sessão Reuniões Phase B + Phase C1 backend entregues — migration 006 aguarda Pedro aplicar manualmente)
 **Status:** 4 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 ---
@@ -130,15 +130,36 @@ Spec: [specs/2026-05-12-reunioes-jornada-design.md](specs/2026-05-12-reunioes-jo
 
 Plano: [plans/2026-05-12-reunioes-phase-b.md](plans/2026-05-12-reunioes-phase-b.md).
 
-### Phases C-E — pendentes (decompostas na spec)
+### Phase C1 backend (entregue 2026-05-12, em produção, SHA `d3e188a`)
+
+⚠️ **Migration 006 ainda não aplicada** — Pedro precisa rodar SQL manualmente no Supabase Dashboard. Arquivo: [docs/migrations/006-encontros-pratica.sql](../migrations/006-encontros-pratica.sql). Backend já está em prod, endpoints respondem mas falham até a tabela existir.
+
+- **`backend/routes/reunioes.py`** (~280 linhas) — 6 endpoints:
+  - `GET  /reunioes/:cid` — lista status de TODOS encontros do cliente (junta `encontros_base` + `encontros_pratica`)
+  - `GET  /reunioes/:cid/:n` — pratica do encontro N (cria rascunho vazio se não existe, idempotente)
+  - `POST /reunioes/:cid/:n/chat` — turno de chat SSE (salva user turn antes, assistant turn após stream)
+  - `POST /reunioes/:cid/:n/gerar` — Claude produz HTML prática final + valida via allowlist + salva
+  - `POST /reunioes/:cid/:n/marcar-pronto` — gera slug único (`secrets.token_urlsafe(9)`, retry 5x), status='pronto'
+  - `POST /reunioes/:cid/:n/revogar` — `slug_revogado_at=now` (mantém histórico)
+- **`backend/services/claude_chat_pratica.py`** — reusa `_DS_MD`/`_DS_CSS`/`_DS_TEMPLATE`/`_ALLOWED_CLASSES` de `claude_html_generator` (mesmo I/O de startup, mesmo cache no Anthropic). `stream_chat_turn()` sync generator pra SSE; `generate_pratica_html()` multi-turn retry com feedback.
+- **`backend/main.py`** registra `reunioes_router` + nota da migration 006.
+- **Modelo Claude:** Sonnet 4.6 com `temperature=0.7` no chat (conversa natural) e `0.3` na geração (HTML estruturado).
+
+Auth: usuário autenticado, sem gate por consultor↔cliente (frontend filtra, padrão dos endpoints existentes). `consultor_email` é gravado pra audit.
+
+### Phase C2 — pendente (próximo passo)
+**Frontend `EditorReuniao`** em rota `/materiais/reunioes/:cid/:n`:
+- Layout split — esquerda preview iframe do `html_intelecto + html_pratica` em tempo real; direita chat consultor↔Claude com streaming SSE (consumir `POST /reunioes/:cid/:n/chat`).
+- Botões: "Gerar HTML prática" (consome `/gerar`), "Marcar pronto" (gera slug), "Revogar slug", "Copiar HTML".
+- Após Phase C2, cards do grid de `/materiais/reunioes` ganham click → navega pro editor.
+
+### Phases D, E — pendentes
 | Phase | Escopo | Estimativa |
 |---|---|---|
-| C1 | Backend: migration 006 (`encontros_pratica` table) + endpoints chat (POST streaming SSE) + gerar HTML prática + marcar-pronto (com slug random) + revogar | ~5h |
-| C2 | Frontend `EditorReuniao` (`/materiais/reunioes/:cid/:n`) — layout split preview/chat, streaming Claude, regenerar slide específico | ~6h |
 | D | Apresentação pública `/apresentar/:slug` — backend monta HTML completo (intelectual + prática) + carrega `flg-design-system/css/flg.css` e `js/flg-deck.js`. Fullscreen nova aba. | ~4h |
 | E | Polish — empty states, "regerar slide N", copiar HTML, mobile-friendly read-only, auto-status 'apresentado'. | ~4h |
 
-**Próximo passo:** Phase C1 — escrever migration 006 (`encontros_pratica`) + endpoints `/reunioes/:cid` + `/reunioes/:cid/:n/chat` (SSE) + `/reunioes/:cid/:n/gerar` + `/reunioes/:cid/:n/marcar-pronto`. Spec detalha em `specs/2026-05-12-reunioes-jornada-design.md`.
+**Próximo passo:** Phase C2 (frontend editor) ou Phase D (rota pública) — pode ser feito em qualquer ordem.
 
 ---
 
@@ -187,7 +208,8 @@ Plano: [plans/2026-05-12-reunioes-phase-b.md](plans/2026-05-12-reunioes-phase-b.
    - Métricas V3 → Phase 3B (sub-página todos os posts) ou 3D (polish shadcn/radix)
    - Ranking Tabs → Phase 2 (backend endpoint consultores)
    - Colaboradores → Phase 4 (tela de trocar senha primeiro login + isOwner extraction + polish)
-   - **Reuniões da Jornada → Phase C1+C2** (editor `/materiais/reunioes/:cid/:n` com chat consultor↔Claude streaming + nova tabela `encontros_pratica`) **← provável próximo passo**
+   - **Reuniões da Jornada → Phase C2** (frontend editor split preview/chat streaming consumindo endpoints da C1) **← provável próximo passo**
+   - **⚠️ Pendência operacional:** Migration 006 (`encontros_pratica`) ainda não aplicada — Pedro precisa rodar SQL no Supabase Dashboard antes da Phase C1 funcionar end-to-end. Arquivo: `docs/migrations/006-encontros-pratica.sql`.
 
 3. **Workflow padrão:** brainstorming → spec → plan → subagent-driven-development.
 
@@ -214,14 +236,16 @@ backend/
   routes/
     metricas.py                        # endpoints métricas + builders KPI por tipo
     colaboradores.py                   # CRUD com permission matrix + auto-provisioning auth
-    encontros_intelecto.py             # ★ NOVO: GET encontro + POST estrutura/gerar-html/html raw
+    encontros_intelecto.py             # GET encontro + POST estrutura/gerar-html/html raw
+    reunioes.py                        # ★ NOVO Phase C1: encontros_pratica CRUD + chat SSE + slug
     instagram_oauth.py                 # OAuth + manual sync (?force=true)
     notas.py                           # padrão de rota a mirror
   services/
     instagram.py                       # LiveInstagramRepository.get_historico
     instagram_sync.py                  # self-healing insights + auto-recovery
     colaboradores_sync.py              # sync role DB → auth.users.user_metadata
-    claude_html_generator.py           # ★ NOVO: Claude Sonnet 4.6 + prompt cache do design system + valida HTML
+    claude_html_generator.py           # Claude Sonnet 4.6 + prompt cache do design system + valida HTML
+    claude_chat_pratica.py             # ★ NOVO Phase C1: chat consultor↔Claude streaming + gera HTML prática
     meta_oauth.py
     clickup_sync.py
   tools/clickup_tools.py
