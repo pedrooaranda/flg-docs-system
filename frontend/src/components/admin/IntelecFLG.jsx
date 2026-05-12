@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, Clock, Image, MessageSquare, ChevronRight, RotateCcw, Wand2, FileText, Code2, Sparkles, Loader2 } from 'lucide-react'
+import { Check, X, Clock, Image, MessageSquare, ChevronRight, RotateCcw, Wand2, FileText, Code2, Sparkles, Loader2, ExternalLink } from 'lucide-react'
 import { api, uploadImagemEncontro } from '../../lib/api'
 import { Spinner, PageSpinner } from '../ui/Spinner'
 import { useToast } from '../../lib/toast'
@@ -322,6 +322,43 @@ function HtmlTab({ enc, onSaved }) {
   const hasEstrutura = !!(enc.intelecto_estrutura || '').trim()
   const hasHtml = !!(enc.html_intelecto || '').trim()
 
+  // Abre o deck completo (com flg-deck.js engine ativo) em nova aba via Blob URL.
+  // URL.createObjectURL gera blob:// URL — mesma origem efetiva, então `/flg-design-system/*` resolve.
+  function abrirFullscreen() {
+    if (!hasHtml) return
+    const numSlides = (html.match(/<section[^>]*class=["'][^"']*\bslide\b/g) || []).length
+    const docHtml = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Encontro ${enc.numero} — Preview · FLG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,30..100;1,9..144,300..700,30..100&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="${window.location.origin}/flg-design-system/css/flg.css">
+</head>
+<body class="flg-deck" data-deck-id="intelecto-${enc.numero}">
+<canvas id="stage-canvas"></canvas>
+<div class="grain"></div>
+<div class="progress"><div class="progress-fill"></div></div>
+<div class="counter"><span class="counter-dot"></span><span class="counter-num">01 / ${String(numSlides).padStart(2,'0')}</span></div>
+<div class="nav-hint">&#8592; &#8594; &middot; ESPA&Ccedil;O &middot; SWIPE</div>
+<button class="nav-arrows nav-prev" aria-label="Anterior">&lsaquo;</button>
+<button class="nav-arrows nav-next" aria-label="Pr&oacute;ximo">&rsaquo;</button>
+<div class="deck">
+${html}
+</div>
+<script src="${window.location.origin}/flg-design-system/js/flg-deck.js"></script>
+</body>
+</html>`
+    const blob = new Blob([docHtml], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const win = window.open(url, '_blank', 'noopener')
+    // Best-effort revogar a URL depois de carregar
+    if (win) setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  }
+
   async function handleGenerate() {
     if (!hasEstrutura) {
       toast({ title: 'Salve a estrutura primeiro', description: 'Aba Estrutura precisa estar preenchida', variant: 'error' })
@@ -387,12 +424,29 @@ function HtmlTab({ enc, onSaved }) {
             </span>
           )}
         </div>
-        <button
-          onClick={() => setShowRaw(s => !s)}
-          className="text-xs text-white/55 hover:text-white/85 cursor-pointer transition-colors"
-        >
-          {showRaw ? '◄ Preview' : 'Editar HTML raw ►'}
-        </button>
+        <div className="flex items-center gap-3">
+          {hasHtml && (
+            <button
+              onClick={abrirFullscreen}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+              style={{
+                background: 'rgba(201,168,76,0.10)',
+                border: '1px solid rgba(201,168,76,0.30)',
+                color: '#C9A84C',
+              }}
+              title="Abre o deck navegável em nova aba (com flg-deck.js engine)"
+            >
+              <ExternalLink size={12} />
+              Abrir em fullscreen
+            </button>
+          )}
+          <button
+            onClick={() => setShowRaw(s => !s)}
+            className="text-xs text-white/55 hover:text-white/85 cursor-pointer transition-colors"
+          >
+            {showRaw ? '◄ Preview' : 'Editar HTML raw ►'}
+          </button>
+        </div>
       </div>
 
       {!hasHtml && !generating && (
@@ -409,26 +463,28 @@ function HtmlTab({ enc, onSaved }) {
 
       {hasHtml && !showRaw && (
         <iframe
-          /* Sem flg-deck.js, os slides ficam invisíveis (CSS oficial só mostra o .active).
-             Adicionamos override pra empilhar verticalmente em modo preview. */
+          /* Override do flg.css: body.flg-deck tem `overflow:hidden` oficialmente — sobrescrevemos
+             pra permitir scroll vertical empilhando todos os slides em aspect-ratio 16:9. */
           srcDoc={`<!DOCTYPE html><html><head>
             <link rel="stylesheet" href="/flg-design-system/css/flg.css">
             <style>
-              body{margin:0;background:#080808;padding:16px}
-              .preview-stack{display:flex;flex-direction:column;gap:16px}
-              .preview-stack > section.slide{position:relative;width:100%;aspect-ratio:16/9;transform:none;opacity:1;visibility:visible;display:block}
+              html,body{margin:0;background:#080808;overflow:auto !important}
+              body.flg-deck{overflow:auto !important;height:auto}
+              .preview-stack{display:flex;flex-direction:column;gap:16px;padding:16px}
+              .preview-stack > section.slide{position:relative;inset:auto;width:100%;aspect-ratio:16/9;transform:none;opacity:1 !important;visibility:visible !important;display:flex}
+              .preview-stack > section.slide.active{opacity:1 !important;visibility:visible !important}
               .preview-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(201,168,76,.5);padding:4px 8px}
             </style>
           </head>
           <body class="flg-deck">
             <div class="preview-stack">
-              <div class="preview-label">Pré-visualização · ${(html.match(/<section[^>]*class=["'][^"']*\bslide\b/g) || []).length} slides</div>
+              <div class="preview-label">Pré-visualização · ${(html.match(/<section[^>]*class=["'][^"']*\bslide\b/g) || []).length} slides · role pra ver todos</div>
               ${html}
             </div>
           </body></html>`}
           sandbox="allow-same-origin"
           className="w-full rounded-lg"
-          style={{ height: 600, border: '1px solid var(--flg-border)', background: 'var(--flg-bg-raised)' }}
+          style={{ height: 720, border: '1px solid var(--flg-border)', background: 'var(--flg-bg-raised)' }}
           title="Preview do HTML intelectual"
         />
       )}

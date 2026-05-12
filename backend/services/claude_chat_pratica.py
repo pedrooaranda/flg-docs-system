@@ -272,7 +272,7 @@ def generate_pratica_html(
             logger.info(f"generate_pratica_html: tentando modelo {model}, messages={len(messages)}")
             response = _claude.messages.create(
                 model=model,
-                max_tokens=8000,
+                max_tokens=16000,
                 temperature=0.3,
                 stop_sequences=["</body>"],
                 system=_build_generation_prompt(),
@@ -289,7 +289,7 @@ def generate_pratica_html(
                     {"role": "user", "content": "Sua resposta veio vazia. Responda agora começando direto com a primeira <section class=\"slide\"> sem markdown wrapper."},
                 ]
                 response = _claude.messages.create(
-                    model=model, max_tokens=8000, temperature=0.3,
+                    model=model, max_tokens=16000, temperature=0.3,
                     stop_sequences=["</body>"], system=_build_generation_prompt(),
                     messages=msgs_retry,
                 )
@@ -335,7 +335,7 @@ def generate_pratica_html(
         })
         try:
             response = _claude.messages.create(
-                model=used_model, max_tokens=8000, temperature=0.3,
+                model=used_model, max_tokens=16000, temperature=0.3,
                 stop_sequences=["</body>"], system=_build_generation_prompt(),
                 messages=messages,
             )

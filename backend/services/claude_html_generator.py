@@ -205,7 +205,7 @@ def _extract_html_only(raw: str) -> str:
     return raw.strip()
 
 
-def _call_claude(model: str, messages: list, max_tokens: int = 8000) -> tuple:
+def _call_claude(model: str, messages: list, max_tokens: int = 16000) -> tuple:
     """Chama Claude e retorna (raw_text, response). SDK faz retry automático
     em 408/409/429/5xx (inclui 529) com exponential backoff jitter (max_retries=5).
 
@@ -268,6 +268,14 @@ def generate_intelecto_html(intelecto_estrutura: str, encontro_numero: int) -> d
             logger.info(f"generate_intelecto_html: tentando modelo {model} (encontro {encontro_numero})")
             raw, response = _call_claude(model, messages)
             used_model = model
+            # Detecta truncamento por max_tokens (HTML cortado no meio)
+            stop_reason = getattr(response, "stop_reason", None)
+            if stop_reason == "max_tokens":
+                logger.warning(
+                    f"generate_intelecto_html: {model} truncou (stop_reason=max_tokens, "
+                    f"output_tokens={getattr(response.usage, 'output_tokens', '?')}). "
+                    "Considere aumentar max_tokens se isso for recorrente."
+                )
             if not raw.strip():
                 # Resposta vazia — tenta de novo no mesmo modelo pedindo sem markdown
                 logger.warning(f"generate_intelecto_html: resposta vazia de {model} (stop_reason={getattr(response, 'stop_reason', '?')})")
