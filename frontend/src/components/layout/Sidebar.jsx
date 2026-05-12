@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, FileText, PenTool,
   Brain, Bot, Settings, LogOut,
-  ChevronLeft, ChevronRight, BarChart2, Trophy,
+  ChevronLeft, ChevronRight, BarChart2, Trophy, UserCog,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { Avatar } from '../ui/Avatar'
@@ -19,6 +19,7 @@ const consultantNav = [
   { icon: Trophy,         label: 'Ranking',        path: '/ranking' },
   { icon: FileText,       label: 'Materiais',      path: '/materiais' },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
+  { icon: UserCog,        label: 'Colaboradores',  path: '/colaboradores' },
 ]
 
 const adminNav = [
@@ -28,6 +29,7 @@ const adminNav = [
   { icon: Trophy,         label: 'Ranking',       path: '/ranking' },
   { icon: FileText,       label: 'Materiais',    path: '/materiais' },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
+  { icon: UserCog,        label: 'Colaboradores',  path: '/colaboradores' },
 ]
 
 const adminOnlyNav = [
