@@ -1,6 +1,6 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-12 (sessão Colaboradores Phase 3+3.1 + Reuniões da Jornada Phase A + organização raiz)
+**Última atualização:** 2026-05-12 (sessão Reuniões Phase B — refactor Materiais + grid clientes×encontros entregue)
 **Status:** 4 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 ---
@@ -116,15 +116,29 @@ Spec: [specs/2026-05-12-reunioes-jornada-design.md](specs/2026-05-12-reunioes-jo
 
 **Decisão arquitetural importante:** `flg-design-system/` movido pra `frontend/public/flg-design-system/` (Nginx serve URLs `/flg-design-system/*` direto). Backend lê os 3 arquivos via volume mount em `/app/flg-design-system` (env `FLG_DESIGN_SYSTEM_PATH`). Decisão veio de: backend Dockerfile context é `./backend` (não copia arquivos fora), Traefik route `/api/*` strip-prefix faria URL ficar `/api/flg-design-system/` se mount fosse no backend.
 
-### Phases B-E — pendentes (decompostas na spec)
+### Phase B — Refactor Materiais + Grid (entregue 2026-05-12, em produção, SHA `e0a8601`)
+- `frontend/src/components/Materiais.jsx` (1 arquivo, 312 linhas) refatorado em pasta `Materiais/`:
+  - `index.jsx` — MateriaisLayout com NavLinks "Diários" / "Reuniões" + `<Outlet />`.
+  - `Diarios.jsx` — UI clássica migrada zero comportamento novo (ClienteSelector + chat + biblioteca).
+  - `Reunioes.jsx` — grid clientes × encontros (1-15 hoje). Busca por nome/empresa, filtro por consultor (admin vê todos). Empty states.
+  - `shared/constants.js` — `ENCONTRO_STATUS` map (intelectual_pendente, aguardando_pratica, rascunho, pronto, apresentado) + `deriveStatus(encontroBase, encontroPratica)` helper.
+  - `shared/EncontroCard.jsx` — card visual por encontro com label, num_slides, status.
+- `App.jsx` ganhou rotas nested `/materiais/diarios` (index redirect) + `/materiais/reunioes`. Lazy imports separados pra cada sub-rota.
+- `Sidebar.jsx` — item Materiais ganhou `matchPrefix: true` pra destacar em sub-rotas.
+
+**Status atualmente exibido:** só `intelectual_pendente` (html_intelecto vazio) e `aguardando_pratica` (html_intelecto pronto, sem prática) — `encontros_pratica` ainda não existe (vem em C1). `deriveStatus` já prepara as outras chaves.
+
+Plano: [plans/2026-05-12-reunioes-phase-b.md](plans/2026-05-12-reunioes-phase-b.md).
+
+### Phases C-E — pendentes (decompostas na spec)
 | Phase | Escopo | Estimativa |
 |---|---|---|
-| B | Refactor Materiais.jsx → pasta `Materiais/` com sub-rotas `/diarios` e `/reunioes`. Grid clientes × encontros (1-15). | ~5h |
-| C | Editor `/materiais/reunioes/:cid/:n` — preview intelectual + chat consultor↔Claude (streaming SSE) gera HTML prática. Nova tabela `encontros_pratica`. | ~11h |
+| C1 | Backend: migration 006 (`encontros_pratica` table) + endpoints chat (POST streaming SSE) + gerar HTML prática + marcar-pronto (com slug random) + revogar | ~5h |
+| C2 | Frontend `EditorReuniao` (`/materiais/reunioes/:cid/:n`) — layout split preview/chat, streaming Claude, regenerar slide específico | ~6h |
 | D | Apresentação pública `/apresentar/:slug` — backend monta HTML completo (intelectual + prática) + carrega `flg-design-system/css/flg.css` e `js/flg-deck.js`. Fullscreen nova aba. | ~4h |
 | E | Polish — empty states, "regerar slide N", copiar HTML, mobile-friendly read-only, auto-status 'apresentado'. | ~4h |
 
-**Próximo passo:** Phase B plan + execução (refactor Materiais + grid).
+**Próximo passo:** Phase C1 — escrever migration 006 (`encontros_pratica`) + endpoints `/reunioes/:cid` + `/reunioes/:cid/:n/chat` (SSE) + `/reunioes/:cid/:n/gerar` + `/reunioes/:cid/:n/marcar-pronto`. Spec detalha em `specs/2026-05-12-reunioes-jornada-design.md`.
 
 ---
 
@@ -173,7 +187,7 @@ Spec: [specs/2026-05-12-reunioes-jornada-design.md](specs/2026-05-12-reunioes-jo
    - Métricas V3 → Phase 3B (sub-página todos os posts) ou 3D (polish shadcn/radix)
    - Ranking Tabs → Phase 2 (backend endpoint consultores)
    - Colaboradores → Phase 4 (tela de trocar senha primeiro login + isOwner extraction + polish)
-   - **Reuniões da Jornada → Phase B** (refactor Materiais + grid clientes×encontros) **← provável próximo passo**
+   - **Reuniões da Jornada → Phase C1+C2** (editor `/materiais/reunioes/:cid/:n` com chat consultor↔Claude streaming + nova tabela `encontros_pratica`) **← provável próximo passo**
 
 3. **Workflow padrão:** brainstorming → spec → plan → subagent-driven-development.
 
@@ -222,7 +236,11 @@ frontend/src/components/
       ColaboradorFormModal.jsx, PasswordRevealModal.jsx
   layout/Sidebar.jsx                   # consultantNav + adminNav + adminOnlyNav
   lib/utils.js                         # isAdmin reconhece owner. isOwner() ainda inline (Phase 4 extrair)
-  Materiais.jsx                        # ★ REFATORAR na Phase B Reuniões → pasta Materiais/ com sub-rotas
+  Materiais/                           # ★ NOVO (Phase B Reuniões): refactor + sub-rotas
+    index.jsx                          # MateriaisLayout (tabs Diários / Reuniões)
+    Diarios.jsx                        # UI clássica migrada
+    Reunioes.jsx                       # grid clientes × encontros
+    shared/constants.js, shared/EncontroCard.jsx
   admin/IntelecFLG.jsx                 # ★ 5 tabs agora: Conteúdo, Estrutura, HTML, Imagens, Chat
 
 frontend/public/
