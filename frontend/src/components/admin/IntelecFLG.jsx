@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, Clock, Image, MessageSquare, ChevronRight, RotateCcw, Wand2 } from 'lucide-react'
+import { Check, X, Clock, Image, MessageSquare, ChevronRight, RotateCcw, Wand2, FileText, Code2, Sparkles, Loader2 } from 'lucide-react'
 import { api, uploadImagemEncontro } from '../../lib/api'
 import { Spinner, PageSpinner } from '../ui/Spinner'
 import { useToast } from '../../lib/toast'
@@ -9,9 +9,11 @@ import { useApp } from '../../contexts/AppContext'
 import ChatAgente from '../ChatAgente'
 
 const TABS = [
-  { id: 'conteudo', icon: MessageSquare, label: 'Conteúdo' },
-  { id: 'imagens',  icon: Image,         label: 'Imagens' },
-  { id: 'chat',     icon: MessageSquare, label: 'Chat de Intelecto' },
+  { id: 'conteudo',   icon: MessageSquare, label: 'Conteúdo' },
+  { id: 'estrutura',  icon: FileText,      label: 'Estrutura' },
+  { id: 'html',       icon: Code2,         label: 'HTML' },
+  { id: 'imagens',    icon: Image,         label: 'Imagens' },
+  { id: 'chat',       icon: MessageSquare, label: 'Chat de Intelecto' },
 ]
 
 function EncontroListItem({ enc, active, onClick }) {
@@ -236,6 +238,203 @@ function ConteudoTab({ enc, onSaved }) {
   )
 }
 
+function EstruturaTab({ enc, onSaved }) {
+  const toast = useToast()
+  const [valor, setValor] = useState(enc.intelecto_estrutura || '')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await api(`/admin/encontros/${enc.numero}/intelecto`, {
+        method: 'POST',
+        body: JSON.stringify({ intelecto_estrutura: valor }),
+      })
+      toast({ title: 'Estrutura salva', variant: 'success' })
+      onSaved && onSaved()
+    } catch (e) {
+      toast({ title: 'Erro ao salvar', description: e.message, variant: 'error' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const numSlides = (valor.match(/^SLIDE\s+\d+/gim) || []).length
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg p-4" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.20)' }}>
+        <p className="text-xs font-semibold text-amber-400 mb-2">Formato (simples)</p>
+        <pre className="text-[11px] text-white/65 leading-relaxed whitespace-pre-wrap font-mono">{`SLIDE 1
+Título do slide
+Conteúdo: texto livre, ou
+- bullet 1
+- bullet 2
+ou lista numerada:
+1. Item um
+2. Item dois
+
+SLIDE 2
+Próximo título
+...`}</pre>
+        <p className="text-[10px] text-white/40 mt-2">
+          Sistema converte automaticamente em HTML do design system na aba HTML.
+        </p>
+      </div>
+
+      <textarea
+        value={valor}
+        onChange={e => setValor(e.target.value)}
+        rows={20}
+        placeholder="SLIDE 1&#10;Título&#10;Conteúdo..."
+        className="w-full px-4 py-3 rounded-lg text-sm font-mono bg-[var(--flg-bg-raised)] border border-[var(--flg-border)] text-white placeholder:text-white/30 focus:outline-none focus:border-[#C9A84C]/50 resize-y"
+        style={{ minHeight: 400 }}
+      />
+
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-white/55">
+          {numSlides} slide{numSlides === 1 ? '' : 's'} detectado{numSlides === 1 ? '' : 's'}
+        </p>
+        <button
+          onClick={handleSave}
+          disabled={saving || !valor.trim()}
+          className="px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ background: '#C9A84C', color: '#080808' }}
+        >
+          {saving ? 'Salvando…' : 'Salvar estrutura'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function HtmlTab({ enc, onSaved }) {
+  const toast = useToast()
+  const [html, setHtml] = useState(enc.html_intelecto || '')
+  const [showRaw, setShowRaw] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [savingRaw, setSavingRaw] = useState(false)
+
+  const hasEstrutura = !!(enc.intelecto_estrutura || '').trim()
+  const hasHtml = !!(enc.html_intelecto || '').trim()
+
+  async function handleGenerate() {
+    if (!hasEstrutura) {
+      toast({ title: 'Salve a estrutura primeiro', description: 'Aba Estrutura precisa estar preenchida', variant: 'error' })
+      return
+    }
+    setGenerating(true)
+    try {
+      const r = await api(`/admin/encontros/${enc.numero}/gerar-html`, { method: 'POST' })
+      setHtml(r.html_intelecto)
+      toast({
+        title: `${r.num_slides} slides gerados`,
+        description: `Tokens: ${r.input_tokens} in (${r.cached_input_tokens} cached) + ${r.output_tokens} out`,
+        variant: 'success',
+      })
+      onSaved && onSaved()
+    } catch (e) {
+      toast({ title: 'Erro ao gerar HTML', description: e.message, variant: 'error' })
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function handleSaveRaw() {
+    setSavingRaw(true)
+    try {
+      await api(`/admin/encontros/${enc.numero}/html`, {
+        method: 'POST',
+        body: JSON.stringify({ html_intelecto: html }),
+      })
+      toast({ title: 'HTML salvo', variant: 'success' })
+      onSaved && onSaved()
+    } catch (e) {
+      toast({ title: 'Erro ao salvar HTML', description: e.message, variant: 'error' })
+    } finally {
+      setSavingRaw(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleGenerate}
+            disabled={generating || !hasEstrutura}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: '#C9A84C', color: '#080808' }}
+          >
+            {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+            {generating ? 'Gerando HTML…' : hasHtml ? 'Regerar HTML' : 'Gerar HTML do Design System'}
+          </button>
+          {enc.num_slides_intelecto > 0 && (
+            <span className="text-xs text-white/55">
+              {enc.num_slides_intelecto} slide{enc.num_slides_intelecto === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => setShowRaw(s => !s)}
+          className="text-xs text-white/55 hover:text-white/85 cursor-pointer transition-colors"
+        >
+          {showRaw ? '◄ Preview' : 'Editar HTML raw ►'}
+        </button>
+      </div>
+
+      {!hasHtml && !generating && (
+        <div className="rounded-lg p-6 text-center" style={{ background: 'var(--flg-bg-raised)', border: '1px dashed var(--flg-border)' }}>
+          <Code2 size={24} className="mx-auto mb-2 text-white/30" />
+          <p className="text-sm text-white/55">Nenhum HTML gerado ainda.</p>
+          <p className="text-xs text-white/35 mt-1">
+            {hasEstrutura
+              ? 'Click em "Gerar HTML do Design System" pra Claude converter a estrutura.'
+              : 'Salve a estrutura textual na aba Estrutura primeiro.'}
+          </p>
+        </div>
+      )}
+
+      {hasHtml && !showRaw && (
+        <iframe
+          srcDoc={`<!DOCTYPE html><html><head><link rel="stylesheet" href="/flg-design-system/css/flg.css"></head><body class="flg-deck" style="overflow:auto"><canvas id="stage-canvas"></canvas><div class="grain"></div><div class="deck">${html}</div></body></html>`}
+          className="w-full rounded-lg"
+          style={{ height: 600, border: '1px solid var(--flg-border)', background: 'var(--flg-bg-raised)' }}
+          title="Preview do HTML intelectual"
+        />
+      )}
+
+      {showRaw && (
+        <>
+          <textarea
+            value={html}
+            onChange={e => setHtml(e.target.value)}
+            rows={25}
+            className="w-full px-4 py-3 rounded-lg text-[11px] font-mono bg-[var(--flg-bg-raised)] border border-[var(--flg-border)] text-white/85 focus:outline-none focus:border-[#C9A84C]/50 resize-y"
+            style={{ minHeight: 500 }}
+          />
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => setHtml(enc.html_intelecto || '')}
+              className="px-3 py-2 rounded-lg text-xs text-white/65 hover:text-white cursor-pointer transition-colors"
+            >
+              Reverter
+            </button>
+            <button
+              onClick={handleSaveRaw}
+              disabled={savingRaw || !html.trim()}
+              className="px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#C9A84C', color: '#080808' }}
+            >
+              {savingRaw ? 'Salvando…' : 'Salvar HTML editado'}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function ImagensTab({ enc, onSaved }) {
   const toast = useToast()
   const { dispatch } = useApp()
@@ -382,6 +581,12 @@ export default function IntelecFLG() {
                 onSaved={updateEncontro}
                 onSwitchToChat={() => setActiveTab('chat')}
               />
+            )}
+            {activeTab === 'estrutura' && (
+              <EstruturaTab enc={encWithCallback} onSaved={updateEncontro} />
+            )}
+            {activeTab === 'html' && (
+              <HtmlTab enc={encWithCallback} onSaved={updateEncontro} />
             )}
             {activeTab === 'imagens' && (
               <ImagensTab enc={encWithCallback} onSaved={updateEncontro} />
