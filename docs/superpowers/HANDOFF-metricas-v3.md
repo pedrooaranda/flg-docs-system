@@ -1,6 +1,6 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-12 (sessão Reuniões Phase B + Phase C1 backend entregues — migration 006 aguarda Pedro aplicar manualmente)
+**Última atualização:** 2026-05-12 (sessão Reuniões Phases B + C1 + C2 entregues — migration 006 aguarda Pedro aplicar manualmente)
 **Status:** 4 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 ---
@@ -147,11 +147,17 @@ Plano: [plans/2026-05-12-reunioes-phase-b.md](plans/2026-05-12-reunioes-phase-b.
 
 Auth: usuário autenticado, sem gate por consultor↔cliente (frontend filtra, padrão dos endpoints existentes). `consultor_email` é gravado pra audit.
 
-### Phase C2 — pendente (próximo passo)
-**Frontend `EditorReuniao`** em rota `/materiais/reunioes/:cid/:n`:
-- Layout split — esquerda preview iframe do `html_intelecto + html_pratica` em tempo real; direita chat consultor↔Claude com streaming SSE (consumir `POST /reunioes/:cid/:n/chat`).
-- Botões: "Gerar HTML prática" (consome `/gerar`), "Marcar pronto" (gera slug), "Revogar slug", "Copiar HTML".
-- Após Phase C2, cards do grid de `/materiais/reunioes` ganham click → navega pro editor.
+### Phase C2 frontend (entregue 2026-05-12, em produção, SHA `0549495`)
+
+Editor `/materiais/reunioes/:cid/:n` (tela inteira, fora do layout Materiais):
+- **`Materiais/Reuniao/index.jsx`** — fetch de pratica via `GET /reunioes/:cid/:n`, render split 58/42. Empty states: cliente/encontro não encontrado; intelectual ainda não gerado.
+- **`Materiais/Reuniao/PreviewIntelecto.jsx`** — iframe combinando `html_intelecto + html_pratica` com `<link rel="stylesheet" href="/flg-design-system/css/flg.css">`. Empilha slides verticalmente pra revisão (sem `flg-deck.js` aqui).
+- **`Materiais/Reuniao/ChatGerador.jsx`** — chat consultor↔Claude consumindo `apiStream(POST /reunioes/:cid/:n/chat)`. Streaming visível com TypingDots. Optimistic user turn + auto-reload após done.
+- **`Materiais/Reuniao/ActionsBar.jsx`** — botões "Gerar HTML" (estado-aware: "Gerar" / "Gerar de novo"), "Marcar pronto" (gera slug), "Apresentar" (abre `/apresentar/:slug` em nova aba — link 404 até Phase D), "Revogar", "Copy HTML".
+- **`Materiais/Reunioes.jsx`** (grid Phase B) — agora fetch `GET /reunioes/:cid` por cliente pra preencher `encontroPratica` no card. `EncontroCard` virou `<Link>` clicável quando intelectual está pronto.
+- **`App.jsx`** — rota `/materiais/reunioes/:cid/:n` (fora do nested Materiais layout pra tela inteira).
+
+**Bloqueio operacional:** sem migration 006 aplicada, endpoints retornam erro Supabase (tabela não existe). O backend tá em prod mas o fluxo só funciona end-to-end após Pedro rodar SQL no Supabase Dashboard.
 
 ### Phases D, E — pendentes
 | Phase | Escopo | Estimativa |
@@ -159,7 +165,7 @@ Auth: usuário autenticado, sem gate por consultor↔cliente (frontend filtra, p
 | D | Apresentação pública `/apresentar/:slug` — backend monta HTML completo (intelectual + prática) + carrega `flg-design-system/css/flg.css` e `js/flg-deck.js`. Fullscreen nova aba. | ~4h |
 | E | Polish — empty states, "regerar slide N", copiar HTML, mobile-friendly read-only, auto-status 'apresentado'. | ~4h |
 
-**Próximo passo:** Phase C2 (frontend editor) ou Phase D (rota pública) — pode ser feito em qualquer ordem.
+**Próximo passo:** Phase D (rota pública `/apresentar/:slug`) — fecha o loop. Botão "Apresentar" no ActionsBar já espera essa URL existir.
 
 ---
 
@@ -260,10 +266,15 @@ frontend/src/components/
       ColaboradorFormModal.jsx, PasswordRevealModal.jsx
   layout/Sidebar.jsx                   # consultantNav + adminNav + adminOnlyNav
   lib/utils.js                         # isAdmin reconhece owner. isOwner() ainda inline (Phase 4 extrair)
-  Materiais/                           # ★ NOVO (Phase B Reuniões): refactor + sub-rotas
+  Materiais/                           # Phase B + C2 Reuniões
     index.jsx                          # MateriaisLayout (tabs Diários / Reuniões)
     Diarios.jsx                        # UI clássica migrada
-    Reunioes.jsx                       # grid clientes × encontros
+    Reunioes.jsx                       # grid clientes × encontros (fetcha praticas por cliente)
+    Reuniao/                           # ★ NOVO Phase C2: editor split
+      index.jsx                        # orquestrador
+      PreviewIntelecto.jsx             # iframe combinando intelectual + prática
+      ChatGerador.jsx                  # chat consultor↔Claude streaming
+      ActionsBar.jsx                   # Gerar / Marcar pronto / Apresentar / Revogar / Copy
     shared/constants.js, shared/EncontroCard.jsx
   admin/IntelecFLG.jsx                 # ★ 5 tabs agora: Conteúdo, Estrutura, HTML, Imagens, Chat
 
