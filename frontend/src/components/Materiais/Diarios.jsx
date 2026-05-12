@@ -1,14 +1,21 @@
+/**
+ * MateriaisDiarios — UI clássica de materiais.
+ *
+ * Migrada de components/Materiais.jsx (idêntica em comportamento).
+ * Mantém ClienteSelector + chat + biblioteca lado a lado.
+ */
+
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Search, FileText, FileDown, Eye, Trash2, Upload, ChevronDown } from 'lucide-react'
-import { api } from '../lib/api'
-import { Avatar } from './ui/Avatar'
-import { Spinner } from './ui/Spinner'
-import { formatDate } from '../lib/utils'
-import { useToast } from '../lib/toast'
-import ChatAgente from './ChatAgente'
-import { useApp } from '../contexts/AppContext'
+import { Search, FileText, FileDown, Eye, Trash2, ChevronDown } from 'lucide-react'
+import { api } from '../../lib/api'
+import { Avatar } from '../ui/Avatar'
+import { Spinner } from '../ui/Spinner'
+import { formatDate } from '../../lib/utils'
+import { useToast } from '../../lib/toast'
+import ChatAgente from '../ChatAgente'
+import { useApp } from '../../contexts/AppContext'
 
 function ClienteSelector({ clientes, selectedId, onSelect }) {
   const [open, setOpen] = useState(false)
@@ -130,7 +137,6 @@ function BibliotecaTab({ clienteId, activeTab, setActiveTab }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Tab bar */}
       <div className="flex gap-1 p-3 border-b border-white/5 flex-shrink-0">
         {tabs.map(t => (
           <button
@@ -222,7 +228,7 @@ function BibliotecaTab({ clienteId, activeTab, setActiveTab }) {
   )
 }
 
-export default function Materiais() {
+export default function MateriaisDiarios() {
   const [searchParams] = useSearchParams()
   const { clientes } = useApp()
   const [selectedId, setSelectedId] = useState(searchParams.get('cliente') || '')
@@ -232,7 +238,6 @@ export default function Materiais() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header com seletor */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-white/5 flex-shrink-0">
         <ClienteSelector
           clientes={clientes}
@@ -255,9 +260,7 @@ export default function Materiais() {
         )}
       </div>
 
-      {/* Layout duas colunas */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Chat */}
         <div className="flex flex-col border-r border-white/5" style={{ width: '55%' }}>
           {selectedId ? (
             <>
@@ -294,7 +297,6 @@ export default function Materiais() {
           )}
         </div>
 
-        {/* Biblioteca */}
         <div className="flex flex-col" style={{ flex: 1, background: 'var(--flg-bg-raised)' }}>
           <div className="px-4 py-2.5 border-b border-white/5 flex-shrink-0"
             style={{ background: 'var(--flg-bg-secondary)' }}>

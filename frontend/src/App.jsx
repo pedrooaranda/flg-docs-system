@@ -16,7 +16,9 @@ const PreparacaoEncontro = lazy(() => import('./components/PreparacaoEncontro'))
 const AdminPanel       = lazy(() => import('./components/AdminPanel'))
 const ConhecimentoBase = lazy(() => import('./components/ConhecimentoBase'))
 const Clientes         = lazy(() => import('./components/Clientes'))
-const Materiais        = lazy(() => import('./components/Materiais'))
+const Materiais         = lazy(() => import('./components/Materiais'))
+const MateriaisDiarios  = lazy(() => import('./components/Materiais/Diarios'))
+const MateriaisReunioes = lazy(() => import('./components/Materiais/Reunioes'))
 const Copywriter       = lazy(() => import('./components/Copywriter'))
 const Colaboradores    = lazy(() => import('./components/Colaboradores'))
 const IntelecFLG       = lazy(() => import('./components/admin/IntelecFLG'))
@@ -150,7 +152,11 @@ export default function App() {
             <AuthGuard session={session} title="Materiais">
               <Materiais />
             </AuthGuard>
-          } />
+          }>
+            <Route index element={<Navigate to="diarios" replace />} />
+            <Route path="diarios" element={<Suspense fallback={<PageSpinner />}><MateriaisDiarios /></Suspense>} />
+            <Route path="reunioes" element={<Suspense fallback={<PageSpinner />}><MateriaisReunioes session={session} /></Suspense>} />
+          </Route>
 
           <Route path="/copywriter" element={
             <AuthGuard session={session} title="Copywriter FLG">

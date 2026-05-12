@@ -17,7 +17,7 @@ const consultantNav = [
   { icon: Users,          label: 'Meus Clientes', path: '/clientes', matchPrefix: true },
   { icon: BarChart2,      label: 'Métricas',       path: '/metricas', matchPrefix: true },
   { icon: Trophy,         label: 'Ranking',        path: '/ranking' },
-  { icon: FileText,       label: 'Materiais',      path: '/materiais' },
+  { icon: FileText,       label: 'Materiais',      path: '/materiais', matchPrefix: true },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
   { icon: UserCog,        label: 'Colaboradores',  path: '/colaboradores' },
 ]
@@ -27,7 +27,7 @@ const adminNav = [
   { icon: Users,          label: 'Clientes',     path: '/clientes', matchPrefix: true },
   { icon: BarChart2,      label: 'Métricas',      path: '/metricas', matchPrefix: true },
   { icon: Trophy,         label: 'Ranking',       path: '/ranking' },
-  { icon: FileText,       label: 'Materiais',    path: '/materiais' },
+  { icon: FileText,       label: 'Materiais',    path: '/materiais', matchPrefix: true },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
   { icon: UserCog,        label: 'Colaboradores',  path: '/colaboradores' },
 ]
