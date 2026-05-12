@@ -144,8 +144,15 @@ def _validate_role(value: Optional[str]):
 
 
 def _validate_email_domain(email: str):
-    """Garante que o email termina com ALLOWED_EMAIL_DOMAIN. Case-insensitive."""
-    if not (email or "").strip().lower().endswith(ALLOWED_EMAIL_DOMAIN):
+    """
+    Garante que o email é exatamente UM par usuario@grupoguglielmi.com.
+    Rejeita strings com múltiplos `@` (defesa contra spoofing tipo
+    `foo@evil.com@grupoguglielmi.com` que `endswith` passaria).
+    """
+    normalized = (email or "").strip().lower()
+    parts = normalized.split("@")
+    expected_domain = ALLOWED_EMAIL_DOMAIN.lstrip("@")  # "grupoguglielmi.com"
+    if len(parts) != 2 or parts[1] != expected_domain or not parts[0]:
         raise HTTPException(
             status_code=400,
             detail=f"Email deve usar o domínio corporativo {ALLOWED_EMAIL_DOMAIN}",

@@ -19,16 +19,6 @@ export default function PasswordRevealModal({ open, password, email, nome, onClo
     if (open) setCopied(false)
   }, [open])
 
-  // ESC fecha
-  useEffect(() => {
-    if (!open) return
-    function handleKey(e) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [open, onClose])
-
   async function copyPassword() {
     try {
       await navigator.clipboard.writeText(password)
@@ -46,12 +36,10 @@ export default function PasswordRevealModal({ open, password, email, nome, onClo
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
-      onClick={onClose}
     >
       <div
         className="rounded-2xl w-full max-w-md"
         style={{ background: 'var(--flg-bg-secondary)', border: '1px solid rgba(201,168,76,0.30)' }}
-        onClick={e => e.stopPropagation()}
       >
         <div
           className="flex items-center justify-between p-5 border-b"
