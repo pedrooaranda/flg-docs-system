@@ -1,5 +1,6 @@
 # ─── Anthropic + Agno (AgentOS + Agent framework) ────────────────────────────
 anthropic>=0.40.0
+beautifulsoup4>=4.12.0
 agno==2.5.9
 
 # ─── FastAPI + servidor ───────────────────────────────────────────────────────
