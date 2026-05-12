@@ -231,7 +231,6 @@ _DS_PATH = Path(__file__).parent.parent / "flg-design-system"
 if _DS_PATH.exists():
     app.mount("/flg-design-system", StaticFiles(directory=str(_DS_PATH)), name="flg_design_system")
 else:
-    import logging
     logging.getLogger("flg.main").warning(f"flg-design-system/ não encontrado em {_DS_PATH} — preview não vai carregar CSS")
 
 app.add_middleware(

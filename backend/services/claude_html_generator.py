@@ -65,7 +65,7 @@ def _extract_allowed_classes(css_content: str) -> set[str]:
 
 
 _ALLOWED_CLASSES = _extract_allowed_classes(_DS_CSS)
-logger.info(f"claude_html_generator: {_ALLOWED_CLASSES.__len__()} classes CSS no allowlist")
+logger.info(f"claude_html_generator: {len(_ALLOWED_CLASSES)} classes CSS no allowlist")
 
 
 def _build_system_prompt() -> list:
@@ -188,63 +188,73 @@ def _extract_html_only(raw: str) -> str:
 
 
 def generate_intelecto_html(intelecto_estrutura: str, encontro_numero: int) -> dict:
-    """
-    Chama Claude pra converter estrutura textual em HTML do design system.
+    """Gera HTML do design system via Claude.
 
-    Args:
-      intelecto_estrutura: texto formato "SLIDE N / Título / Conteúdo"
-      encontro_numero: número do encontro (pra logging)
-
-    Returns:
-      {
-        "html": str,           # HTML válido (apenas as <section class="slide">)
-        "num_slides": int,     # count de slides gerados
-        "cached_input_tokens": int,  # quantos tokens vieram de cache (info)
-        "input_tokens": int,
-        "output_tokens": int,
-      }
-
-    Levanta ValueError se estrutura está vazia. Levanta RuntimeError se Claude
-    falha ou HTML retornado é inválido após 1 retry.
+    Retry strategy: na 1ª tentativa, manda só a estrutura. Se validação falhar,
+    a 2ª tentativa é uma continuação da conversa (multi-turn) — manda o output
+    anterior + a mensagem de erro pro Claude corrigir. Isso dá feedback real
+    em vez de re-rodar a mesma chamada com temperature baixa (que geraria saída
+    quase idêntica e o mesmo erro).
     """
     if not intelecto_estrutura or not intelecto_estrutura.strip():
         raise ValueError("intelecto_estrutura vazia — escreva pelo menos um SLIDE")
 
-    user_message = (
+    initial_user_message = (
         f"Encontro {encontro_numero}. Estrutura abaixo. "
         f"Converta em HTML do design system FLG. "
         f"Retorne APENAS as <section class=\"slide\">, sem html/head/body wrapper.\n\n"
         f"<estrutura>\n{intelecto_estrutura.strip()}\n</estrutura>"
     )
 
+    # Conversation accumulada — começa com a mensagem inicial.
+    # Em caso de retry, adicionamos o output do Claude + a mensagem de erro.
+    messages = [{"role": "user", "content": initial_user_message}]
+
     last_error = None
-    for attempt in range(2):  # 1 tentativa + 1 retry
+    last_raw = None
+
+    for attempt in range(2):  # 1 tentativa + 1 retry com feedback
         try:
-            logger.info(f"generate_intelecto_html: encontro {encontro_numero}, attempt {attempt+1}")
+            logger.info(
+                f"generate_intelecto_html: encontro {encontro_numero}, attempt {attempt+1}, "
+                f"messages={len(messages)}"
+            )
             response = _claude.messages.create(
                 model="claude-sonnet-4-6",
                 max_tokens=8000,
                 temperature=0.3,
                 stop_sequences=["</body>", "```"],
                 system=_build_system_prompt(),
-                messages=[{"role": "user", "content": user_message}],
+                messages=messages,
             )
             raw = response.content[0].text
+            last_raw = raw
             html = _extract_html_only(raw)
 
             ok, err = _validate_html(html)
             if not ok:
                 last_error = err
-                logger.warning(f"generate_intelecto_html: validação falhou (attempt {attempt+1}): {err}")
+                logger.warning(
+                    f"generate_intelecto_html: validação falhou (attempt {attempt+1}): {err}"
+                )
                 if attempt == 0:
-                    # Próximo turno: pedir pro Claude corrigir
+                    # Constrói retry com feedback explícito — multi-turn conversa
+                    messages.append({"role": "assistant", "content": raw})
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            f"O HTML acima tem problema: {err}\n\n"
+                            f"Corrija e retorne APENAS o HTML válido (sem markdown wrapper, "
+                            f"sem ```, começando direto na primeira <section class=\"slide\">). "
+                            f"Use APENAS classes do css_flg que está no system prompt."
+                        ),
+                    })
                     continue
                 raise RuntimeError(f"HTML inválido após 2 tentativas: {err}")
 
             soup = BeautifulSoup(html, "html.parser")
             num_slides = len(soup.select("section.slide"))
 
-            # Métricas de uso da API (pra log + UI)
             usage = response.usage
             return {
                 "html": html,
@@ -254,9 +264,12 @@ def generate_intelecto_html(intelecto_estrutura: str, encontro_numero: int) -> d
                 "output_tokens": usage.output_tokens,
             }
         except (anthropic.APIError, anthropic.APIConnectionError) as e:
-            logger.error(f"generate_intelecto_html: Claude API erro (attempt {attempt+1}): {e}")
+            logger.error(
+                f"generate_intelecto_html: Claude API erro (attempt {attempt+1}): {e}"
+            )
             last_error = str(e)
             if attempt == 0:
+                # Em erro de API, retry MESMA chamada (sem multi-turn) — error de infra
                 continue
             raise RuntimeError(f"Claude API falhou após 2 tentativas: {last_error}")
 

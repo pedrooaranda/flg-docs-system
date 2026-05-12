@@ -583,13 +583,13 @@ export default function IntelecFLG() {
               />
             )}
             {activeTab === 'estrutura' && (
-              <EstruturaTab enc={encWithCallback} onSaved={updateEncontro} />
+              <EstruturaTab key={encWithCallback.numero} enc={encWithCallback} onSaved={updateEncontro} />
             )}
             {activeTab === 'html' && (
-              <HtmlTab enc={encWithCallback} onSaved={updateEncontro} />
+              <HtmlTab key={encWithCallback.numero} enc={encWithCallback} onSaved={updateEncontro} />
             )}
             {activeTab === 'imagens' && (
-              <ImagensTab enc={encWithCallback} onSaved={updateEncontro} />
+              <ImagensTab key={encWithCallback.numero} enc={encWithCallback} onSaved={updateEncontro} />
             )}
             {activeTab === 'chat' && (
               <div className="h-full min-h-[500px] rounded-xl overflow-hidden border border-white/5">

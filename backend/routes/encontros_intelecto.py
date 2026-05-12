@@ -8,6 +8,7 @@ Endpoints:
 """
 
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -24,19 +25,13 @@ _supabase = supabase_client
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
-ROLE_LEVEL = {"member": 0, "admin": 1, "owner": 2}
+from routes.colaboradores import _require_role as _require_role_shared
 
 
 def _require_admin(user):
-    """Garante caller tem role admin+ via colaboradores. Fallback: pedro hardcoded."""
-    email = (user.email or "").strip().lower()
-    # Fallback owner
-    if email == "pedroaranda@grupoguglielmi.com":
-        return
-    r = _supabase.table("colaboradores").select("role").eq("email", email).eq("ativo", True).maybe_single().execute()
-    role = (r.data or {}).get("role") if r else None
-    if ROLE_LEVEL.get(role or "member", 0) < ROLE_LEVEL["admin"]:
-        raise HTTPException(status_code=403, detail="Operação requer role admin+")
+    """Garante caller tem role admin+. Reusa _require_role de colaboradores
+    pra evitar drift do fallback (Pedro hardcoded como owner) e da lógica de RBAC."""
+    _require_role_shared(user, "admin")
 
 
 # ─── Modelos ─────────────────────────────────────────────────────────────────
@@ -163,7 +158,6 @@ async def save_html_intelecto_raw(
 
     try:
         # Conta slides via regex simples (sem dep BeautifulSoup aqui — ok)
-        import re
         num_slides = len(re.findall(r'<section[^>]*class=["\'][^"\']*\bslide\b', payload.html_intelecto))
 
         r = (
