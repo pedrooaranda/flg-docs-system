@@ -1,0 +1,5 @@
+-- Migration 005 — Aplicada manualmente no Supabase Dashboard em 2026-05-12
+-- (VPS sem IPv6 → padrão da repo, ver memory/vps_supabase_ipv6_issue.md)
+-- Adiciona colunas em encontros_base pra estrutura textual + HTML gerado da parte intelectual.
+-- SQL exato em docs/superpowers/plans/2026-05-12-reunioes-phase-a-admin-intelectual.md Task 1.
+-- Status: aplicado em produção em 2026-05-12.
