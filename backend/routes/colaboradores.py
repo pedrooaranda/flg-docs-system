@@ -16,6 +16,8 @@ campo. Member só edita o próprio registro em campos limitados.
 
 import logging
 import re
+import secrets
+import string
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -44,6 +46,14 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 # Fallback hardcoded pro owner — proteção se registro do Pedro for deletado por engano.
 # Match EXATO (não substring) pra evitar que qualquer email com 'pedro' ganhe acesso.
 OWNER_FALLBACK_EMAILS = {"pedroaranda@grupoguglielmi.com"}
+
+# Domínio corporativo obrigatório pra novos colaboradores. Match case-insensitive
+# pelo sufixo. Hardcoded — se a empresa adicionar mais domínios, virar env var ou
+# tabela de configuração.
+ALLOWED_EMAIL_DOMAIN = "@grupoguglielmi.com"
+
+# Tamanho da senha temporária gerada quando o backend cria auth.user automaticamente.
+TEMP_PASSWORD_LENGTH = 16
 
 
 class ColaboradorCreate(BaseModel):
@@ -133,6 +143,83 @@ def _validate_role(value: Optional[str]):
         raise HTTPException(status_code=400, detail=f"role deve ser uma de: {ROLES_VALIDOS}")
 
 
+def _validate_email_domain(email: str):
+    """Garante que o email termina com ALLOWED_EMAIL_DOMAIN. Case-insensitive."""
+    if not (email or "").strip().lower().endswith(ALLOWED_EMAIL_DOMAIN):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Email deve usar o domínio corporativo {ALLOWED_EMAIL_DOMAIN}",
+        )
+
+
+def _generate_password(length: int = TEMP_PASSWORD_LENGTH) -> str:
+    """
+    Gera senha aleatória forte. Garante diversidade mínima (pelo menos 1 maiúscula,
+    1 minúscula, 1 dígito). Usa `secrets.choice` (CSPRNG).
+    """
+    alphabet = string.ascii_letters + string.digits
+    while True:
+        password = ''.join(secrets.choice(alphabet) for _ in range(length))
+        if (
+            any(c.islower() for c in password)
+            and any(c.isupper() for c in password)
+            and any(c.isdigit() for c in password)
+        ):
+            return password
+
+
+def _create_auth_user(email: str, nome: str) -> tuple[bool, Optional[str]]:
+    """
+    Cria conta em auth.users com senha temporária e marca `needs_password_change=true`
+    no user_metadata. Idempotente: se o user já existir, retorna (False, None) sem erro.
+
+    Returns: (was_created: bool, temporary_password: Optional[str])
+      - (True,  password) → criou agora, retorna senha pra revelar
+      - (False, None)     → user já existia, fluxo normal
+
+    Levanta HTTPException 500 se Supabase falhar de fato (não "já existe").
+    """
+    target = email.strip().lower()
+
+    # Verifica se já existe
+    try:
+        users = _supabase.auth.admin.list_users(page=1, per_page=200)
+        existing = any(
+            (getattr(u, "email", "") or "").strip().lower() == target for u in users
+        )
+        if existing:
+            return False, None
+    except Exception as e:
+        logger.error(f"_create_auth_user: list_users falhou pra {target}: {e}")
+        # Não trava criação — tenta create_user mesmo assim; se já existe, retorna erro distinto.
+
+    # Cria novo
+    password = _generate_password()
+    try:
+        _supabase.auth.admin.create_user({
+            "email": target,
+            "password": password,
+            "email_confirm": True,  # skip verification email — admin já validou
+            "user_metadata": {
+                "full_name": nome,
+                "needs_password_change": True,
+            },
+        })
+        logger.info(f"_create_auth_user: criada conta auth.users pra {target}")
+        return True, password
+    except Exception as e:
+        msg = str(e)
+        # Race: já existia mas list_users não retornou — trata como existente
+        if "already" in msg.lower() or "exists" in msg.lower() or "duplicate" in msg.lower():
+            logger.warning(f"_create_auth_user: {target} já existia (race com list_users)")
+            return False, None
+        logger.error(f"_create_auth_user: create_user falhou pra {target}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Falha ao criar conta no Supabase Auth: {msg[:200]}",
+        )
+
+
 # ─── Endpoints GET ───────────────────────────────────────────────────────────
 
 @router.get("")
@@ -181,9 +268,20 @@ async def get_colaborador(colab_id: str, user=Depends(get_current_user)):
 
 @router.post("")
 async def create_colaborador(payload: ColaboradorCreate, user=Depends(get_current_user)):
-    """Cria colaborador. Admin+ apenas. Promoção a 'owner' requer caller=owner."""
+    """
+    Cria colaborador. Admin+ apenas. Promoção a 'owner' requer caller=owner.
+
+    Auto-provisioning (Phase 3.1): se o email não tem conta em auth.users, o backend
+    cria automaticamente com senha aleatória e retorna a senha temporária na resposta
+    (campo `temporary_password`). Admin é responsável por transmitir a senha ao novo
+    colaborador.
+
+    Validação de domínio: email deve terminar em ALLOWED_EMAIL_DOMAIN
+    (@grupoguglielmi.com). Retorna 400 caso contrário.
+    """
     caller = _require_role(user, "admin")
 
+    _validate_email_domain(payload.email)
     _validate_categoria(payload.categoria)
     _validate_tier(payload.tier)
     _validate_role(payload.role)
@@ -192,32 +290,14 @@ async def create_colaborador(payload: ColaboradorCreate, user=Depends(get_curren
     if payload.role == "owner" and caller.get("role") != "owner":
         raise HTTPException(status_code=403, detail="Apenas Owner pode criar outro Owner")
 
-    # Verificar que o email tem signup no Supabase Auth (evita registro órfão).
-    # list_users() default per_page=50 — bumpamos pra 200 (cobre o workspace FLG por muito tempo).
-    # Quando passarmos disso, refatorar pra paginação real ou cache de mapping email→user_id.
-    try:
-        users = _supabase.auth.admin.list_users(page=1, per_page=200)
-        # supabase-py v2.10+: retorna List[User] (Pydantic User objects).
-        target_email = payload.email.strip().lower()
-        exists = any((getattr(u, "email", "") or "").strip().lower() == target_email for u in users)
-        if not exists:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Email {payload.email} não tem conta no Supabase Auth. "
-                    "Convide o usuário pelo dashboard Auth primeiro, depois crie o colaborador."
-                ),
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        # Não falha o POST — integridade de email é nice-to-have, não bloqueia criação.
-        # Mas loga em ERROR pra ser visível em produção (auth.users list_users falhando
-        # = bug em algum lugar, não silêncio aceitável).
-        logger.error(f"create_colaborador: falha ao verificar auth.users (POST prossegue): {e}")
+    target_email = payload.email.strip().lower()
 
-    # Insert
+    # Auto-provisioning: cria auth user se ainda não existe
+    auth_user_created, temporary_password = _create_auth_user(target_email, payload.nome)
+
+    # Insert colaborador (sempre, independente de auth.user já existir ou ter sido criado)
     data = payload.model_dump(exclude_none=True)
+    data["email"] = target_email  # normaliza pra lowercase
     data["created_at"] = datetime.now(timezone.utc).isoformat()
     data["updated_at"] = data["created_at"]
 
@@ -225,19 +305,31 @@ async def create_colaborador(payload: ColaboradorCreate, user=Depends(get_curren
         r = _supabase.table("colaboradores").insert(data).execute()
     except Exception as e:
         msg = str(e)
+        # Se criamos auth user agora MAS DB insert falhou, sobra órfão no Auth.
+        # Loga ERROR pra cleanup manual. Não tenta rollback automático (risco maior
+        # que orfão isolado).
+        if auth_user_created:
+            logger.error(
+                f"create_colaborador: insert DB falhou DEPOIS de criar auth user pra "
+                f"{target_email} — ÓRFÃO no auth.users, limpeza manual necessária. Erro: {msg}"
+            )
         if "unique" in msg.lower() or "duplicate" in msg.lower():
-            raise HTTPException(status_code=409, detail=f"Email {payload.email} já cadastrado")
+            raise HTTPException(status_code=409, detail=f"Email {target_email} já cadastrado como colaborador")
         raise HTTPException(status_code=500, detail=f"Erro ao criar colaborador: {msg}")
 
     novo = (r.data or [None])[0]
     if not novo:
         raise HTTPException(status_code=500, detail="Colaborador não foi criado")
 
-    # Sync role pra auth metadata (se role != default 'member' faz sentido sincronizar
-    # imediatamente; pra 'member' também rodamos pra garantir consistência)
+    # Sync role pra auth metadata
     sync_role_to_auth_metadata(_supabase, novo["email"], novo["role"])
 
-    return novo
+    # Resposta: colaborador + (opcional) senha temporária
+    response = {**novo}
+    if temporary_password:
+        response["temporary_password"] = temporary_password
+        response["auth_user_created"] = True
+    return response
 
 
 # ─── Endpoint PATCH ──────────────────────────────────────────────────────────
