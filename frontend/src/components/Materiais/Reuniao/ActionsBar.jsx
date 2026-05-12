@@ -13,7 +13,8 @@ import { api } from '../../../lib/api'
 import { useToast } from '../../../lib/toast'
 import { Spinner } from '../../ui/Spinner'
 
-const APRESENTAR_BASE = '/apresentar'  // Phase D — endpoint público, mesma origem
+// Backend serve direto via /api/* (Traefik routing). Slug é a credencial.
+const APRESENTAR_BASE = '/api/apresentar'
 
 export default function ActionsBar({ pratica, onChanged, cliente, encontroNumero }) {
   const toast = useToast()
