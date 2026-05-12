@@ -136,13 +136,18 @@ async def gerar_html_intelecto(numero: int, user=Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao salvar HTML: {e}")
 
+    updated_record = (upd.data or [None])[0]
+    if not updated_record:
+        raise HTTPException(status_code=500, detail="Falha ao atualizar HTML no DB")
+
     return {
-        "ok": True,
-        "num_slides": result["num_slides"],
-        "input_tokens": result["input_tokens"],
-        "cached_input_tokens": result["cached_input_tokens"],
-        "output_tokens": result["output_tokens"],
-        "html_intelecto": result["html"],
+        **updated_record,                             # ← spread the full record FIRST
+        "_telemetry": {                                # ← put generation metadata in a sub-key
+            "num_slides": result["num_slides"],
+            "input_tokens": result["input_tokens"],
+            "cached_input_tokens": result["cached_input_tokens"],
+            "output_tokens": result["output_tokens"],
+        },
     }
 
 

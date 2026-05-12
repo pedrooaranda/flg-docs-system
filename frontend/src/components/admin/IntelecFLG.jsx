@@ -240,18 +240,21 @@ function ConteudoTab({ enc, onSaved }) {
 
 function EstruturaTab({ enc, onSaved }) {
   const toast = useToast()
+  const { dispatch } = useApp()
   const [valor, setValor] = useState(enc.intelecto_estrutura || '')
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
     setSaving(true)
     try {
-      await api(`/admin/encontros/${enc.numero}/intelecto`, {
+      const updated = await api(`/admin/encontros/${enc.numero}/intelecto`, {
         method: 'POST',
         body: JSON.stringify({ intelecto_estrutura: valor }),
       })
+      const novo = { ...enc, ...updated }
+      onSaved && onSaved(novo)
+      dispatch({ type: 'ENCONTRO_UPDATE', payload: novo })
       toast({ title: 'Estrutura salva', variant: 'success' })
-      onSaved && onSaved()
     } catch (e) {
       toast({ title: 'Erro ao salvar', description: e.message, variant: 'error' })
     } finally {
@@ -310,6 +313,7 @@ Próximo título
 
 function HtmlTab({ enc, onSaved }) {
   const toast = useToast()
+  const { dispatch } = useApp()
   const [html, setHtml] = useState(enc.html_intelecto || '')
   const [showRaw, setShowRaw] = useState(false)
   const [generating, setGenerating] = useState(false)
@@ -326,13 +330,19 @@ function HtmlTab({ enc, onSaved }) {
     setGenerating(true)
     try {
       const r = await api(`/admin/encontros/${enc.numero}/gerar-html`, { method: 'POST' })
-      setHtml(r.html_intelecto)
+      // Response agora vem como {...registro_completo, _telemetry: {...}}
+      const telemetry = r._telemetry || {}
+      const updated = { ...r }
+      delete updated._telemetry
+      const novo = { ...enc, ...updated }
+      setHtml(novo.html_intelecto || '')
+      onSaved && onSaved(novo)
+      dispatch({ type: 'ENCONTRO_UPDATE', payload: novo })
       toast({
-        title: `${r.num_slides} slides gerados`,
-        description: `Tokens: ${r.input_tokens} in (${r.cached_input_tokens} cached) + ${r.output_tokens} out`,
+        title: `${telemetry.num_slides || novo.num_slides_intelecto} slides gerados`,
+        description: `Tokens: ${telemetry.input_tokens} in (${telemetry.cached_input_tokens} cached) + ${telemetry.output_tokens} out`,
         variant: 'success',
       })
-      onSaved && onSaved()
     } catch (e) {
       toast({ title: 'Erro ao gerar HTML', description: e.message, variant: 'error' })
     } finally {
@@ -343,12 +353,14 @@ function HtmlTab({ enc, onSaved }) {
   async function handleSaveRaw() {
     setSavingRaw(true)
     try {
-      await api(`/admin/encontros/${enc.numero}/html`, {
+      const updated = await api(`/admin/encontros/${enc.numero}/html`, {
         method: 'POST',
         body: JSON.stringify({ html_intelecto: html }),
       })
+      const novo = { ...enc, ...updated }
+      onSaved && onSaved(novo)
+      dispatch({ type: 'ENCONTRO_UPDATE', payload: novo })
       toast({ title: 'HTML salvo', variant: 'success' })
-      onSaved && onSaved()
     } catch (e) {
       toast({ title: 'Erro ao salvar HTML', description: e.message, variant: 'error' })
     } finally {
