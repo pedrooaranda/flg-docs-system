@@ -95,10 +95,10 @@ async def apresentar(slug: str):
     if pratica.get("slug_revogado_at"):
         raise HTTPException(status_code=404, detail="Apresentação revogada")
 
-    # Fetch intelectual
+    # Fetch intelectual (coluna 'nome' guarda o título do encontro)
     enc_r = (
         _supabase.table("encontros_base")
-        .select("numero, titulo, html_intelecto")
+        .select("numero, nome, html_intelecto")
         .eq("numero", pratica["encontro_numero"])
         .maybe_single()
         .execute()
@@ -109,7 +109,7 @@ async def apresentar(slug: str):
 
     html = _build_deck_html(
         deck_id=f"encontro-{pratica['encontro_numero']}-{slug[:6]}",
-        encontro_titulo=encontro.get("titulo") or f"Encontro {pratica['encontro_numero']}",
+        encontro_titulo=encontro.get("nome") or f"Encontro {pratica['encontro_numero']}",
         html_intelecto=encontro.get("html_intelecto") or "",
         html_pratica=pratica.get("html_pratica") or "",
     )

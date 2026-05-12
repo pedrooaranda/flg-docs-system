@@ -40,7 +40,8 @@ def _build_system_prompt(encontro: dict, cliente: dict) -> list:
     """
     intelecto_estrutura = (encontro or {}).get("intelecto_estrutura") or ""
     intelecto_base = (encontro or {}).get("intelecto_base") or ""
-    titulo = (encontro or {}).get("titulo") or f"Encontro {encontro.get('numero')}"
+    # Coluna real do título do encontro em encontros_base é 'nome'.
+    titulo = (encontro or {}).get("nome") or (encontro or {}).get("titulo") or f"Encontro {(encontro or {}).get('numero')}"
 
     cliente_blob = (
         f"Nome do founder: {cliente.get('nome', '?')}\n"

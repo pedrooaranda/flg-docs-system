@@ -140,7 +140,7 @@ async def list_praticas_do_cliente(cliente_id: str, user=Depends(get_current_use
 
     encontros = (
         _supabase.table("encontros_base")
-        .select("numero, titulo, html_intelecto, num_slides_intelecto")
+        .select("numero, nome, html_intelecto, num_slides_intelecto")
         .order("numero")
         .execute()
     )
@@ -158,7 +158,7 @@ async def list_praticas_do_cliente(cliente_id: str, user=Depends(get_current_use
         p = pratica_por_numero.get(enc["numero"])
         result.append({
             "encontro_numero": enc["numero"],
-            "titulo": enc.get("titulo"),
+            "titulo": enc.get("nome"),  # API expõe como 'titulo' pro frontend; coluna real é 'nome'
             "intelectual_html_pronto": bool(enc.get("html_intelecto") and enc["html_intelecto"].strip()),
             "num_slides_intelecto": enc.get("num_slides_intelecto") or 0,
             "pratica": p,  # null se ainda não tem
