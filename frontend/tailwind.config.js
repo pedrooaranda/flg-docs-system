@@ -18,6 +18,9 @@ export default {
       fontFamily: {
         display: ['"Playfair Display"', 'serif'],
         sans:    ['Poppins', 'sans-serif'],
+        // Design system FLG (decks) — usadas pontualmente em /materiais
+        serifdeck: ['Fraunces', '"Playfair Display"', 'serif'],
+        monodeck:  ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       keyframes: {
         'fade-in': { from: { opacity: 0, transform: 'translateY(4px)' }, to: { opacity: 1, transform: 'translateY(0)' } },

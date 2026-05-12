@@ -1,7 +1,7 @@
 /**
  * EditorReuniao — preparação da parte PRÁTICA de um encontro (por cliente).
  *
- * Rota: /materiais/reunioes/:cid/:n
+ * Rota: /materiais/cliente/:cid/reunioes/:n
  *
  * Layout split:
  *   ESQUERDA — Preview HTML (intelectual + prática) renderizado em iframe.
@@ -60,9 +60,9 @@ export default function EditorReuniao({ session }) {
           <p className="text-sm text-white/70">
             {!cliente ? 'Cliente não encontrado.' : 'Encontro não encontrado.'}
           </p>
-          <Link to="/materiais/reunioes"
+          <Link to={cliente ? `/materiais/cliente/${cliente.id}/reunioes` : '/materiais'}
             className="inline-flex items-center gap-1.5 mt-4 text-xs text-gold-mid hover:underline">
-            <ChevronLeft size={12} /> Voltar pro grid
+            <ChevronLeft size={12} /> Voltar
           </Link>
         </div>
       </div>
@@ -82,9 +82,9 @@ export default function EditorReuniao({ session }) {
           <p className="text-xs text-white/30 mt-3">
             Admin precisa criar a estrutura + gerar HTML em <code>Intelecto FLG</code> antes de você preparar a prática.
           </p>
-          <Link to="/materiais/reunioes"
+          <Link to={`/materiais/cliente/${cliente.id}/reunioes`}
             className="inline-flex items-center gap-1.5 mt-4 text-xs text-gold-mid hover:underline">
-            <ChevronLeft size={12} /> Voltar pro grid
+            <ChevronLeft size={12} /> Voltar pras reuniões
           </Link>
         </div>
       </div>
@@ -120,7 +120,7 @@ export default function EditorReuniao({ session }) {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-3 border-b border-white/5 flex-shrink-0">
-        <Link to="/materiais/reunioes"
+        <Link to={`/materiais/cliente/${cliente.id}/reunioes`}
           className="flex items-center gap-1 text-xs text-white/40 hover:text-white/80 transition-colors">
           <ChevronLeft size={14} /> Reuniões
         </Link>

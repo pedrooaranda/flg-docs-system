@@ -16,9 +16,10 @@ const PreparacaoEncontro = lazy(() => import('./components/PreparacaoEncontro'))
 const AdminPanel       = lazy(() => import('./components/AdminPanel'))
 const ConhecimentoBase = lazy(() => import('./components/ConhecimentoBase'))
 const Clientes         = lazy(() => import('./components/Clientes'))
-const Materiais         = lazy(() => import('./components/Materiais'))
-const MateriaisDiarios  = lazy(() => import('./components/Materiais/Diarios'))
-const MateriaisReunioes = lazy(() => import('./components/Materiais/Reunioes'))
+const MateriaisHome     = lazy(() => import('./components/Materiais'))
+const ClienteArea       = lazy(() => import('./components/Materiais/ClienteArea'))
+const ClienteDiarios    = lazy(() => import('./components/Materiais/ClienteArea/Diarios'))
+const ClienteReunioes   = lazy(() => import('./components/Materiais/ClienteArea/Reunioes'))
 const EditorReuniao     = lazy(() => import('./components/Materiais/Reuniao'))
 const Copywriter       = lazy(() => import('./components/Copywriter'))
 const Colaboradores    = lazy(() => import('./components/Colaboradores'))
@@ -149,18 +150,30 @@ export default function App() {
             </AuthGuard>
           } />
 
+          {/* Materiais: cliente como hub central (escolha de cliente → área do cliente) */}
           <Route path="/materiais" element={
             <AuthGuard session={session} title="Materiais">
-              <Materiais />
+              <MateriaisHome session={session} />
+            </AuthGuard>
+          } />
+
+          {/* Redirects de rotas antigas (compatibilidade com bookmarks anteriores) */}
+          <Route path="/materiais/diarios" element={<Navigate to="/materiais" replace />} />
+          <Route path="/materiais/reunioes" element={<Navigate to="/materiais" replace />} />
+          <Route path="/materiais/reunioes/:cid/:n" element={<Navigate to="/materiais" replace />} />
+
+          <Route path="/materiais/cliente/:cid" element={
+            <AuthGuard session={session} title="Materiais">
+              <ClienteArea />
             </AuthGuard>
           }>
             <Route index element={<Navigate to="diarios" replace />} />
-            <Route path="diarios" element={<Suspense fallback={<PageSpinner />}><MateriaisDiarios /></Suspense>} />
-            <Route path="reunioes" element={<Suspense fallback={<PageSpinner />}><MateriaisReunioes session={session} /></Suspense>} />
+            <Route path="diarios" element={<Suspense fallback={<PageSpinner />}><ClienteDiarios /></Suspense>} />
+            <Route path="reunioes" element={<Suspense fallback={<PageSpinner />}><ClienteReunioes /></Suspense>} />
           </Route>
 
-          {/* Editor de reunião (rota nested fora de Materiais layout pra ter tela inteira) */}
-          <Route path="/materiais/reunioes/:cid/:n" element={
+          {/* Editor (tela inteira, fora do layout) */}
+          <Route path="/materiais/cliente/:cid/reunioes/:n" element={
             <AuthGuard session={session} title="Preparação de Reunião">
               <EditorReuniao session={session} />
             </AuthGuard>
