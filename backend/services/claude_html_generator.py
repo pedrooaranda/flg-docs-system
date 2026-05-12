@@ -27,7 +27,20 @@ from config import settings
 
 logger = logging.getLogger("flg.claude_html")
 
-_claude = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+# Client com retry agressivo:
+# - max_retries=5 (default=2) → SDK faz exponential backoff com jitter, cobrindo 529 (overloaded_error),
+#   429 (rate limit) e 5xx transientes em até ~60s totais.
+# - timeout=120s (default=600s) → mais agressivo pro caso de pedido travar.
+# Ver: https://github.com/anthropics/anthropic-sdk-python
+_claude = anthropic.Anthropic(
+    api_key=settings.anthropic_api_key,
+    max_retries=5,
+    timeout=120.0,
+)
+
+# Modelo principal e fallback (caso 529 persista após retries).
+_MODEL_PRIMARY = "claude-sonnet-4-6"
+_MODEL_FALLBACK = "claude-haiku-4-5"  # menor capacidade mas raramente fica overloaded
 
 # Caminho da pasta do design system. No host (dev): frontend/public/flg-design-system.
 # No container: pode ser sobrescrito via env FLG_DESIGN_SYSTEM_PATH (mount via docker-compose).
@@ -192,14 +205,43 @@ def _extract_html_only(raw: str) -> str:
     return raw.strip()
 
 
+def _call_claude(model: str, messages: list, max_tokens: int = 8000) -> tuple:
+    """Chama Claude e retorna (raw_text, response). SDK faz retry automático
+    em 408/409/429/5xx (inclui 529) com exponential backoff jitter (max_retries=5).
+
+    Levanta:
+      - anthropic.APIStatusError com .status_code se ainda falhar após retries
+      - anthropic.APIConnectionError em problemas de rede
+    """
+    response = _claude.messages.create(
+        model=model,
+        max_tokens=max_tokens,
+        temperature=0.3,
+        stop_sequences=["</body>"],
+        system=_build_system_prompt(),
+        messages=messages,
+    )
+    raw = ""
+    for block in response.content or []:
+        if getattr(block, "type", None) == "text":
+            raw += getattr(block, "text", "") or ""
+    return raw, response
+
+
+def _is_overloaded_error(exc: Exception) -> bool:
+    """True quando erro é Claude API overloaded (529) ou rate-limited (429)."""
+    if isinstance(exc, anthropic.APIStatusError):
+        return exc.status_code in (429, 529)
+    return False
+
+
 def generate_intelecto_html(intelecto_estrutura: str, encontro_numero: int) -> dict:
     """Gera HTML do design system via Claude.
 
-    Retry strategy: na 1ª tentativa, manda só a estrutura. Se validação falhar,
-    a 2ª tentativa é uma continuação da conversa (multi-turn) — manda o output
-    anterior + a mensagem de erro pro Claude corrigir. Isso dá feedback real
-    em vez de re-rodar a mesma chamada com temperature baixa (que geraria saída
-    quase idêntica e o mesmo erro).
+    Estratégia de robustez:
+      1. SDK retry automático (max_retries=5, exponential backoff) cobre 5xx/429/529 transientes.
+      2. Se Sonnet 4.6 ainda falhar com 529/429 após retries → fallback automático pra Haiku 4.5.
+      3. Validation retry multi-turn: se HTML inválido, dá feedback explícito pro Claude corrigir.
     """
     if not intelecto_estrutura or not intelecto_estrutura.strip():
         raise ValueError("intelecto_estrutura vazia — escreva pelo menos um SLIDE")
@@ -211,93 +253,86 @@ def generate_intelecto_html(intelecto_estrutura: str, encontro_numero: int) -> d
         f"<estrutura>\n{intelecto_estrutura.strip()}\n</estrutura>"
     )
 
-    # Conversation accumulada — começa com a mensagem inicial.
-    # Em caso de retry, adicionamos o output do Claude + a mensagem de erro.
     messages = [{"role": "user", "content": initial_user_message}]
 
-    last_error = None
-    last_raw = None
+    # Lista de modelos a tentar em ordem. Cada um já tem 5 retries internos do SDK.
+    models_to_try = [_MODEL_PRIMARY, _MODEL_FALLBACK]
+    last_error: Optional[str] = None
+    response = None
+    raw = ""
+    used_model: Optional[str] = None
 
-    for attempt in range(2):  # 1 tentativa + 1 retry com feedback
+    # ─── Etapa 1: obter resposta válida do Claude (com fallback de modelo) ───
+    for model in models_to_try:
         try:
-            logger.info(
-                f"generate_intelecto_html: encontro {encontro_numero}, attempt {attempt+1}, "
-                f"messages={len(messages)}"
-            )
-            response = _claude.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=8000,
-                temperature=0.3,
-                # NÃO usar "```" como stop — se Claude começa com ```html (markdown fence),
-                # a resposta vem vazia (0 content blocks) → IndexError em content[0].
-                # _extract_html_only abaixo remove o fence se vier.
-                stop_sequences=["</body>"],
-                system=_build_system_prompt(),
-                messages=messages,
-            )
-            # Extrai texto do primeiro bloco; tolera resposta vazia (stop_reason='stop_sequence' antes do 1º char).
-            raw = ""
-            for block in response.content or []:
-                if getattr(block, "type", None) == "text":
-                    raw += getattr(block, "text", "") or ""
+            logger.info(f"generate_intelecto_html: tentando modelo {model} (encontro {encontro_numero})")
+            raw, response = _call_claude(model, messages)
+            used_model = model
             if not raw.strip():
-                last_error = (
-                    f"Resposta vazia do Claude (stop_reason={getattr(response, 'stop_reason', '?')}). "
-                    "Pode ser stop sequence muito agressivo ou refusal."
-                )
-                logger.warning(f"generate_intelecto_html: {last_error}")
-                if attempt == 0:
-                    # Pede pra Claude responder de novo, sem prefill nem markdown.
-                    messages.append({"role": "assistant", "content": "<!-- vazio -->"})
-                    messages.append({
-                        "role": "user",
-                        "content": "Sua resposta veio vazia. Responda agora começando direto com a primeira <section class=\"slide\"> sem markdown wrapper.",
-                    })
-                    continue
-                raise RuntimeError(last_error)
-            last_raw = raw
-            html = _extract_html_only(raw)
-
-            ok, err = _validate_html(html)
-            if not ok:
-                last_error = err
-                logger.warning(
-                    f"generate_intelecto_html: validação falhou (attempt {attempt+1}): {err}"
-                )
-                if attempt == 0:
-                    # Constrói retry com feedback explícito — multi-turn conversa
-                    messages.append({"role": "assistant", "content": raw})
-                    messages.append({
-                        "role": "user",
-                        "content": (
-                            f"O HTML acima tem problema: {err}\n\n"
-                            f"Corrija e retorne APENAS o HTML válido (sem markdown wrapper, "
-                            f"sem ```, começando direto na primeira <section class=\"slide\">). "
-                            f"Use APENAS classes do css_flg que está no system prompt."
-                        ),
-                    })
-                    continue
-                raise RuntimeError(f"HTML inválido após 2 tentativas: {err}")
-
-            soup = BeautifulSoup(html, "html.parser")
-            num_slides = len(soup.select("section.slide"))
-
-            usage = response.usage
-            return {
-                "html": html,
-                "num_slides": num_slides,
-                "cached_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
-                "input_tokens": usage.input_tokens,
-                "output_tokens": usage.output_tokens,
-            }
-        except (anthropic.APIError, anthropic.APIConnectionError) as e:
-            logger.error(
-                f"generate_intelecto_html: Claude API erro (attempt {attempt+1}): {e}"
-            )
-            last_error = str(e)
-            if attempt == 0:
-                # Em erro de API, retry MESMA chamada (sem multi-turn) — error de infra
+                # Resposta vazia — tenta de novo no mesmo modelo pedindo sem markdown
+                logger.warning(f"generate_intelecto_html: resposta vazia de {model} (stop_reason={getattr(response, 'stop_reason', '?')})")
+                msgs_retry = messages + [
+                    {"role": "assistant", "content": "<!-- vazio -->"},
+                    {"role": "user", "content": "Sua resposta veio vazia. Responda agora começando direto com a primeira <section class=\"slide\"> sem markdown wrapper."},
+                ]
+                raw, response = _call_claude(model, msgs_retry)
+                if not raw.strip():
+                    last_error = f"{model} retornou vazio duas vezes"
+                    continue  # tenta próximo modelo
+            break  # sucesso, sai do loop de modelos
+        except (anthropic.APIStatusError, anthropic.APIConnectionError, anthropic.APIError) as e:
+            last_error = f"{model}: {e}"
+            logger.error(f"generate_intelecto_html: {last_error}")
+            if _is_overloaded_error(e) and model != models_to_try[-1]:
+                logger.warning(f"generate_intelecto_html: {model} overloaded/rate-limited, caindo pra fallback")
                 continue
-            raise RuntimeError(f"Claude API falhou após 2 tentativas: {last_error}")
+            # Erro não-recuperável OU já está no último modelo
+            if model == models_to_try[-1]:
+                break
+            continue
+
+    if not raw.strip():
+        raise RuntimeError(
+            f"Claude API indisponível em todos os modelos ({', '.join(models_to_try)}). "
+            f"Último erro: {last_error}. Tente de novo em alguns minutos."
+        )
+
+    # ─── Etapa 2: validar HTML (com retry multi-turn no mesmo modelo) ───
+    html = _extract_html_only(raw)
+    ok, err = _validate_html(html)
+
+    if not ok:
+        logger.warning(f"generate_intelecto_html: validação falhou no 1º round ({used_model}): {err}")
+        messages.append({"role": "assistant", "content": raw})
+        messages.append({
+            "role": "user",
+            "content": (
+                f"O HTML acima tem problema: {err}\n\n"
+                f"Corrija e retorne APENAS o HTML válido (sem markdown wrapper, "
+                f"começando direto na primeira <section class=\"slide\">). "
+                f"Use APENAS classes do css_flg que está no system prompt."
+            ),
+        })
+        try:
+            raw, response = _call_claude(used_model, messages)
+        except (anthropic.APIStatusError, anthropic.APIConnectionError, anthropic.APIError) as e:
+            raise RuntimeError(f"Falha ao re-tentar validação ({used_model}): {e}")
+
+        html = _extract_html_only(raw)
+        ok, err = _validate_html(html)
+        if not ok:
+            raise RuntimeError(f"HTML inválido após 2 tentativas: {err}")
+
+    soup = BeautifulSoup(html, "html.parser")
+    num_slides = len(soup.select("section.slide"))
+    usage = response.usage
+    return {
+        "html": html,
+        "num_slides": num_slides,
+        "cached_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
+        "input_tokens": usage.input_tokens,
+        "output_tokens": usage.output_tokens,
+        "model_used": used_model,
+    }
 
     raise RuntimeError(f"Falha inesperada: {last_error}")

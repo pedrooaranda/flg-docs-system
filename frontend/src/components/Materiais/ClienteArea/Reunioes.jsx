@@ -93,13 +93,27 @@ export default function ClienteReunioes() {
 
   useEffect(() => { loadRows() }, [loadRows])
 
-  // Merge com encontros_base pra ter os títulos mesmo quando o endpoint só dá numero
+  // Merge com encontros_base (do AppContext, atualizado via Supabase Realtime).
+  // Dados de encontros_base no AppContext são source of truth — quando admin
+  // regenera o HTML em /admin/intelecto, o realtime atualiza encontrosBase aqui
+  // imediatamente sem precisar refetch do endpoint /reunioes/:cid.
   const encontrosOrdenados = useMemo(() => {
     if (!rows) return []
     const baseByNum = new Map((encontrosBase || []).map(e => [e.numero, e]))
     return [...rows]
       .sort((a, b) => a.encontro_numero - b.encontro_numero)
-      .map(r => ({ ...r, base: baseByNum.get(r.encontro_numero) || null }))
+      .map(r => {
+        const base = baseByNum.get(r.encontro_numero) || null
+        const intelectoHtmlBase = (base?.html_intelecto || '').trim()
+        return {
+          ...r,
+          base,
+          // Prefere dados do AppContext (realtime) sobre os do endpoint (cached)
+          num_slides_intelecto: base?.num_slides_intelecto ?? r.num_slides_intelecto ?? 0,
+          intelectual_html_pronto: !!intelectoHtmlBase || r.intelectual_html_pronto,
+          titulo: base?.nome || r.titulo,
+        }
+      })
   }, [rows, encontrosBase])
 
   if (loading) {

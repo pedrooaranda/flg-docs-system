@@ -26,11 +26,19 @@ from services.claude_html_generator import (
     _DS_TEMPLATE,
     _ALLOWED_CLASSES,
     _extract_html_only,
+    _MODEL_PRIMARY,
+    _MODEL_FALLBACK,
+    _is_overloaded_error,
 )
 
 logger = logging.getLogger("flg.claude_chat_pratica")
 
-_claude = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+# Client com retry agressivo (mesmo do claude_html_generator).
+_claude = anthropic.Anthropic(
+    api_key=settings.anthropic_api_key,
+    max_retries=5,
+    timeout=120.0,
+)
 
 
 def _build_system_prompt(encontro: dict, cliente: dict) -> list:
@@ -254,16 +262,18 @@ def generate_pratica_html(
         ),
     })
 
+    # Tenta primary → fallback Haiku se 529/429 persistirem
     last_error: Optional[str] = None
-    for attempt in range(2):
+    response = None
+    raw = ""
+    used_model: Optional[str] = None
+    for model in (_MODEL_PRIMARY, _MODEL_FALLBACK):
         try:
-            logger.info(f"generate_pratica_html: attempt {attempt+1}, messages={len(messages)}")
+            logger.info(f"generate_pratica_html: tentando modelo {model}, messages={len(messages)}")
             response = _claude.messages.create(
-                model="claude-sonnet-4-6",
+                model=model,
                 max_tokens=8000,
                 temperature=0.3,
-                # "```" como stop derruba a resposta inteira se Claude começa com fence markdown.
-                # _extract_html_only abaixo remove o fence se vier.
                 stop_sequences=["</body>"],
                 system=_build_generation_prompt(),
                 messages=messages,
@@ -273,54 +283,81 @@ def generate_pratica_html(
                 if getattr(block, "type", None) == "text":
                     raw += getattr(block, "text", "") or ""
             if not raw.strip():
-                last_error = (
-                    f"Resposta vazia do Claude (stop_reason={getattr(response, 'stop_reason', '?')})"
+                logger.warning(f"generate_pratica_html: {model} retornou vazio, tentando novamente sem fence")
+                msgs_retry = messages + [
+                    {"role": "assistant", "content": "<!-- vazio -->"},
+                    {"role": "user", "content": "Sua resposta veio vazia. Responda agora começando direto com a primeira <section class=\"slide\"> sem markdown wrapper."},
+                ]
+                response = _claude.messages.create(
+                    model=model, max_tokens=8000, temperature=0.3,
+                    stop_sequences=["</body>"], system=_build_generation_prompt(),
+                    messages=msgs_retry,
                 )
-                logger.warning(f"generate_pratica_html: {last_error}")
-                if attempt == 0:
-                    messages.append({"role": "assistant", "content": "<!-- vazio -->"})
-                    messages.append({
-                        "role": "user",
-                        "content": "Sua resposta veio vazia. Responda agora começando direto com a primeira <section class=\"slide\"> sem markdown wrapper.",
-                    })
+                raw = ""
+                for block in response.content or []:
+                    if getattr(block, "type", None) == "text":
+                        raw += getattr(block, "text", "") or ""
+                if not raw.strip():
+                    last_error = f"{model} retornou vazio duas vezes"
                     continue
-                raise RuntimeError(last_error)
-            html = _extract_html_only(raw)
-
-            ok, err = _validate_pratica_html(html)
-            if not ok:
-                last_error = err
-                logger.warning(f"generate_pratica_html: validação falhou (attempt {attempt+1}): {err}")
-                if attempt == 0:
-                    messages.append({"role": "assistant", "content": raw})
-                    messages.append({
-                        "role": "user",
-                        "content": (
-                            f"O HTML acima tem problema: {err}\n\n"
-                            f"Corrija e retorne APENAS o HTML válido (sem markdown wrapper, "
-                            f"começando direto na primeira <section class=\"slide\">). "
-                            f"Use APENAS classes do css_flg."
-                        ),
-                    })
-                    continue
-                raise RuntimeError(f"HTML inválido após 2 tentativas: {err}")
-
-            soup = BeautifulSoup(html, "html.parser")
-            num_slides = len(soup.select("section.slide"))
-            usage = response.usage
-
-            return {
-                "html": html,
-                "num_slides": num_slides,
-                "cached_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
-                "input_tokens": usage.input_tokens,
-                "output_tokens": usage.output_tokens,
-            }
-        except (anthropic.APIError, anthropic.APIConnectionError) as e:
-            logger.error(f"generate_pratica_html: Claude API erro (attempt {attempt+1}): {e}")
-            last_error = str(e)
-            if attempt == 0:
+            used_model = model
+            break
+        except (anthropic.APIStatusError, anthropic.APIConnectionError, anthropic.APIError) as e:
+            last_error = f"{model}: {e}"
+            logger.error(f"generate_pratica_html: {last_error}")
+            if _is_overloaded_error(e) and model != _MODEL_FALLBACK:
+                logger.warning(f"generate_pratica_html: {model} overloaded, caindo pra Haiku")
                 continue
-            raise RuntimeError(f"Claude API falhou após 2 tentativas: {last_error}")
+            if model == _MODEL_FALLBACK:
+                break
+            continue
 
-    raise RuntimeError(f"Falha inesperada: {last_error}")
+    if not raw.strip():
+        raise RuntimeError(
+            f"Claude API indisponível (todos os modelos esgotados). "
+            f"Último erro: {last_error}. Tente de novo em alguns minutos."
+        )
+
+    html = _extract_html_only(raw)
+    ok, err = _validate_pratica_html(html)
+
+    if not ok:
+        logger.warning(f"generate_pratica_html: validação falhou no 1º round ({used_model}): {err}")
+        messages.append({"role": "assistant", "content": raw})
+        messages.append({
+            "role": "user",
+            "content": (
+                f"O HTML acima tem problema: {err}\n\n"
+                f"Corrija e retorne APENAS o HTML válido (sem markdown wrapper, "
+                f"começando direto na primeira <section class=\"slide\">). "
+                f"Use APENAS classes do css_flg."
+            ),
+        })
+        try:
+            response = _claude.messages.create(
+                model=used_model, max_tokens=8000, temperature=0.3,
+                stop_sequences=["</body>"], system=_build_generation_prompt(),
+                messages=messages,
+            )
+            raw = ""
+            for block in response.content or []:
+                if getattr(block, "type", None) == "text":
+                    raw += getattr(block, "text", "") or ""
+        except (anthropic.APIStatusError, anthropic.APIConnectionError, anthropic.APIError) as e:
+            raise RuntimeError(f"Falha ao re-tentar validação ({used_model}): {e}")
+        html = _extract_html_only(raw)
+        ok, err = _validate_pratica_html(html)
+        if not ok:
+            raise RuntimeError(f"HTML inválido após 2 tentativas: {err}")
+
+    soup = BeautifulSoup(html, "html.parser")
+    num_slides = len(soup.select("section.slide"))
+    usage = response.usage
+    return {
+        "html": html,
+        "num_slides": num_slides,
+        "cached_input_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0,
+        "input_tokens": usage.input_tokens,
+        "output_tokens": usage.output_tokens,
+        "model_used": used_model,
+    }
