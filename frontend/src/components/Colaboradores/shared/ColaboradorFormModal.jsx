@@ -4,7 +4,7 @@ import { api } from '../../../lib/api'
 import { useToast } from '../../../lib/toast'
 import {
   TIERS, ROLES, CATEGORIAS, CATEGORIA_CONFIG,
-  SELF_EDITABLE_FIELDS, INPUT_CLASS,
+  SELF_EDITABLE_FIELDS, INPUT_CLASS, ALLOWED_EMAIL_DOMAIN,
 } from './constants'
 
 /**
@@ -87,6 +87,16 @@ export default function ColaboradorFormModal({
     setSubmitting(true)
     setError(null)
     try {
+      // Validação client-side de domínio (só pra create — email não é editável no edit)
+      if (mode === 'create') {
+        const normalized = (form.email || '').trim().toLowerCase()
+        if (!normalized.endsWith(ALLOWED_EMAIL_DOMAIN)) {
+          setError(`Email deve usar o domínio corporativo ${ALLOWED_EMAIL_DOMAIN}`)
+          setSubmitting(false)
+          return
+        }
+      }
+
       // Limpa strings vazias pra não mandar campos opcionais como ""
       const payload = { ...form }
       const optionalFields = ['cargo', 'tier', 'manager_id', 'avatar_url']
@@ -166,7 +176,7 @@ export default function ColaboradorFormModal({
               />
               {mode === 'create' && (
                 <p className="text-[10px] text-white/35 mt-1">
-                  O usuário precisa existir no Supabase Auth antes — convide pelo dashboard se ainda não tiver conta.
+                  Apenas emails {ALLOWED_EMAIL_DOMAIN}. Se o usuário não tem conta no Auth, o sistema cria automaticamente com senha temporária.
                 </p>
               )}
             </FormField>

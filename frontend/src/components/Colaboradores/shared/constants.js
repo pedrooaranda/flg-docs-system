@@ -31,3 +31,8 @@ export const SELF_EDITABLE_FIELDS = new Set(['nome', 'cargo', 'avatar_url'])
 
 // Classe utilitária pra inputs do modal (form fields).
 export const INPUT_CLASS = "w-full px-3 py-2 rounded-lg text-sm bg-[var(--flg-bg-raised)] border border-[var(--flg-border)] text-white placeholder:text-white/30 focus:outline-none focus:border-[#C9A84C]/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+
+// Domínio corporativo obrigatório pra emails de colaboradores. Espelha
+// ALLOWED_EMAIL_DOMAIN no backend (backend/routes/colaboradores.py) —
+// manter sincronizado.
+export const ALLOWED_EMAIL_DOMAIN = '@grupoguglielmi.com'
