@@ -1,6 +1,6 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-12 (sessão Reuniões Phases B + C1 + C2 + D entregues — migration 006 aplicada, fluxo end-to-end funcional)
+**Última atualização:** 2026-05-12 (Reuniões A→D + refactor Materiais com cliente como hub central + design tokens FLG)
 **Status:** 4 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 ---
@@ -168,18 +168,41 @@ Editor `/materiais/reunioes/:cid/:n` (tela inteira, fora do layout Materiais):
 
 URL pública final: `https://docs.foundersledgrowth.online/api/apresentar/:slug`. Pra ficar mais bonito (sem `/api/`), Pedro pode adicionar rule no Traefik aliasando `/apresentar/*` → backend — opcional, Phase E.
 
+### Refactor UX 2026-05-12 — Cliente como hub central (entregue, SHA `03d83f4`)
+
+Pedro pediu reorganização: filtro por consultor, cliente como entrada principal, design system aplicado. Implementado:
+
+- **`/materiais`** (`MateriaisHome`) — tela de escolha de cliente. Cards com avatar + nome + empresa + consultor + barra de progresso E0N/15.
+- **Filtro consultor:**
+  - Admin/owner vê tabs `Todos · Pedro Aranda · Lucas Nery · Rebecca Rachel · ...` (lista derivada de `clientes.consultor_responsavel` distinct + união com 3 oficiais hardcoded). URL `?consultor=Lucas Nery` bookmarkable.
+  - Consultor não-admin vê só seus clientes (auto-filtro). Sem UI de toggle.
+- **`/materiais/cliente/:cid`** (`ClienteArea`) — header da identidade do cliente (avatar + nome + empresa + consultor + progresso jornada) + tabs `Diários | Reuniões` via NavLink.
+  - `/materiais/cliente/:cid/diarios` — chat de materiais + biblioteca (cliente vem do `useOutletContext`, sem mais ClienteSelector).
+  - `/materiais/cliente/:cid/reunioes` — grid dos 15 encontros DESSE cliente com cards detalhados (título, status visual com Icon, slides count intelectual+prática, indicador "link ativo" quando slug está vivo).
+- **`/materiais/cliente/:cid/reunioes/:n`** — editor `Reuniao/` reaproveitado (URLs de "voltar" ajustadas pra área do cliente).
+- **Design System tokens FLG aplicados:**
+  - Tipografia: `font-serifdeck` (Fraunces) em nomes/títulos; `font-monodeck` (JetBrains Mono) em E01/E15/contadores.
+  - Cores: `#C9A84C` (gold-mid) consistente, gold-dividers gradient em separadores, eyebrows uppercase tracking-widest.
+  - Fontes importadas em `frontend/src/index.css` (Fraunces + JetBrains Mono).
+- **Helper `consultor-utils.js`:**
+  - `matchConsultor(consultor_responsavel, identificador)` — normaliza espaços/case/acentos pra ligar "Lucas Nery" ↔ "lucasnery" (corrige bug latente do `includes` ingênuo).
+  - `isAdminFromSession(session)` — checa `user_metadata.role === 'owner' | 'admin'` + fallback Pedro.
+  - `listConsultoresFromClientes(clientes)` — DISTINCT consultor_responsavel ordenado por contagem.
+- **Redirects** de rotas antigas: `/materiais/diarios`, `/materiais/reunioes`, `/materiais/reunioes/:cid/:n` → `/materiais` (compat com bookmarks).
+- **Slug:** NÃO mudado. `secrets.token_urlsafe(9)` é credencial não-enumerável. Separação por cliente já é nativa via `cliente_id` FK em `encontros_pratica`.
+
 ### Phase E — Polish (pendente)
 **Escopo:**
 - "Regerar slide N" individual (Claude refaz só uma `<section>` específica)
-- Botão "Copiar HTML" prática já existe — falta "Copiar slug" e "Copiar URL pública"
-- Empty states: chat sem mensagens, encontros sem intelectual ainda
+- "Copiar URL pública" no ActionsBar
+- Empty states refinados
 - Mobile-friendly read-only no editor (chat funciona, preview empilhado vertical)
 - Traefik rule pra `/apresentar/*` (URL bonita sem `/api/`)
 - Loading skeletons no grid de Reuniões
 
 **Estimativa:** ~4h. Sem plan escrito ainda.
 
-**Próximo passo:** validar fluxo end-to-end (Pedro testa) + se OK, iniciar Phase E ou pivotar pra outro stream.
+**Próximo passo:** validar fluxo end-to-end (Pedro testa novo UX) + se OK, iniciar Phase E ou pivotar pra outro stream.
 
 ---
 
@@ -280,16 +303,21 @@ frontend/src/components/
       ColaboradorFormModal.jsx, PasswordRevealModal.jsx
   layout/Sidebar.jsx                   # consultantNav + adminNav + adminOnlyNav
   lib/utils.js                         # isAdmin reconhece owner. isOwner() ainda inline (Phase 4 extrair)
-  Materiais/                           # Phase B + C2 Reuniões
-    index.jsx                          # MateriaisLayout (tabs Diários / Reuniões)
-    Diarios.jsx                        # UI clássica migrada
-    Reunioes.jsx                       # grid clientes × encontros (fetcha praticas por cliente)
-    Reuniao/                           # ★ NOVO Phase C2: editor split
-      index.jsx                        # orquestrador
-      PreviewIntelecto.jsx             # iframe combinando intelectual + prática
-      ChatGerador.jsx                  # chat consultor↔Claude streaming
-      ActionsBar.jsx                   # Gerar / Marcar pronto / Apresentar / Revogar / Copy
-    shared/constants.js, shared/EncontroCard.jsx
+  Materiais/                           # ★ Refactor 2026-05-12: cliente como hub central
+    index.jsx                          # MateriaisHome — tela de escolha de cliente + filtro consultor
+    ClienteArea/
+      index.jsx                        # layout área do cliente (header + abas Diários|Reuniões)
+      Diarios.jsx                      # chat materiais + biblioteca (cliente do Outlet)
+      Reunioes.jsx                     # grid dos 15 encontros do cliente
+    Reuniao/                           # editor split (Phase C2)
+      index.jsx
+      PreviewIntelecto.jsx
+      ChatGerador.jsx
+      ActionsBar.jsx
+    shared/
+      consultor-utils.js               # matchConsultor + isAdminFromSession + listConsultoresFromClientes
+      ConsultorFilter.jsx              # tabs Pedro/Lucas/Rebecca/Todos
+      ClienteCard.jsx                  # card do cliente na tela de escolha
   admin/IntelecFLG.jsx                 # ★ 5 tabs agora: Conteúdo, Estrutura, HTML, Imagens, Chat
 
 frontend/public/
