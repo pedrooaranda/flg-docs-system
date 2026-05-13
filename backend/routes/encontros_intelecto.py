@@ -7,16 +7,22 @@ Endpoints:
   POST /admin/encontros/:numero/gerar-html      — gera HTML via Claude (admin+)
 """
 
+import json
 import logging
 import re
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from deps import get_current_user, supabase_client
-from services.claude_html_generator import generate_intelecto_html, normalize_asset_paths
+from services.claude_html_generator import (
+    generate_intelecto_html,
+    normalize_asset_paths,
+    stream_intelecto_html,
+)
 
 logger = logging.getLogger("flg.encontros_intelecto")
 router = APIRouter(tags=["encontros-intelecto"])
@@ -153,6 +159,84 @@ async def gerar_html_intelecto(numero: int, user=Depends(get_current_user)):
             "output_tokens": result["output_tokens"],
         },
     }
+
+
+@router.post("/admin/encontros/{numero}/gerar-html-stream")
+async def gerar_html_intelecto_stream(numero: int, user=Depends(get_current_user)):
+    """Stream SSE da geração de HTML via Claude. Mesma lógica do /gerar-html
+    mas emite eventos em tempo real:
+      - {type:'delta',  content:str}     — chunk de texto do Claude (preview live)
+      - {type:'progress', slides_completed, estimated_total, output_chars}
+      - {type:'progress', fallback:true, message:str}  — caiu pra Haiku
+      - {type:'validating'}              — terminou stream, validando HTML
+      - {type:'done', record, telemetry} — salvou no DB com sucesso
+      - {type:'error', message:str}      — falha não-recuperável
+    """
+    _require_admin(user)
+
+    r = (
+        _supabase.table("encontros_base")
+        .select("numero, intelecto_estrutura")
+        .eq("numero", numero)
+        .maybe_single()
+        .execute()
+    )
+    encontro = r.data if r else None
+    if not encontro:
+        raise HTTPException(status_code=404, detail=f"Encontro {numero} não encontrado")
+    estrutura = (encontro.get("intelecto_estrutura") or "").strip()
+    if not estrutura:
+        raise HTTPException(status_code=400, detail="Encontro sem intelecto_estrutura — salve a estrutura textual primeiro")
+
+    # Conta `SLIDE N` na estrutura pra estimar total — usado pela progress bar
+    estimated_total = len(re.findall(r"^SLIDE\s+\d+", estrutura, re.MULTILINE | re.IGNORECASE))
+
+    def event_generator():
+        try:
+            for ev_type, payload in stream_intelecto_html(estrutura, numero, estimated_total):
+                if ev_type == 'delta':
+                    yield f"data: {json.dumps({'type': 'delta', 'content': payload})}\n\n"
+                elif ev_type == 'progress':
+                    yield f"data: {json.dumps({'type': 'progress', **(payload or {})})}\n\n"
+                elif ev_type == 'validating':
+                    yield f"data: {json.dumps({'type': 'validating'})}\n\n"
+                elif ev_type == 'error':
+                    yield f"data: {json.dumps({'type': 'error', **(payload or {})})}\n\n"
+                    return
+                elif ev_type == 'done':
+                    # Salva no DB e emite evento final com o registro persistido
+                    try:
+                        upd = (
+                            _supabase.table("encontros_base")
+                            .update({
+                                "html_intelecto": payload["html"],
+                                "num_slides_intelecto": payload["num_slides"],
+                                "html_gerado_at": datetime.now(timezone.utc).isoformat(),
+                            })
+                            .eq("numero", numero)
+                            .execute()
+                        )
+                    except Exception as e:
+                        yield f"data: {json.dumps({'type': 'error', 'message': f'Erro ao salvar HTML: {e}'})}\n\n"
+                        return
+                    updated_record = (upd.data or [None])[0]
+                    if not updated_record:
+                        yield f"data: {json.dumps({'type': 'error', 'message': 'Falha ao atualizar HTML no DB'})}\n\n"
+                        return
+                    yield f"data: {json.dumps({'type': 'done', 'record': updated_record, 'telemetry': {'num_slides': payload['num_slides'], 'model_used': payload.get('model_used'), 'input_tokens': payload['input_tokens'], 'cached_input_tokens': payload['cached_input_tokens'], 'output_tokens': payload['output_tokens']}})}\n\n"
+        except Exception as e:
+            logger.exception(f"gerar_html_intelecto_stream: erro inesperado: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Erro inesperado: {e}'})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/admin/encontros/{numero}/html")

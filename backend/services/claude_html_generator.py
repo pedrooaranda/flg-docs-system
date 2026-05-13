@@ -238,6 +238,132 @@ def _extract_html_only(raw: str) -> str:
     return _normalize_asset_paths(html)
 
 
+def _count_slides_in_partial(partial: str) -> int:
+    """Conta quantas `<section class="slide"` foram completados no buffer parcial.
+    Usado pelo streaming pra emitir progress events."""
+    return len(re.findall(r'<section[^>]*class=["\'][^"\']*\bslide\b', partial))
+
+
+def stream_intelecto_html(intelecto_estrutura: str, encontro_numero: int, estimated_total_slides: int):
+    """Streaming generator pra geração do HTML intelectual.
+
+    Yields tuples (event_type, payload):
+      - ('delta',    str)               — chunk de texto do Claude
+      - ('progress', {slides_completed, estimated_total, output_tokens})
+      - ('validating', None)            — terminou stream, validando
+      - ('done',     {html, num_slides, model_used, telemetry})
+      - ('error',    {message})         — falha não-recuperável
+
+    Estratégia: stream Sonnet 4.6 → fallback Haiku 4.5 em 529/429 → validation
+    retry sync no fim (sem streaming) se HTML inválido.
+    """
+    if not intelecto_estrutura or not intelecto_estrutura.strip():
+        yield ('error', {'message': 'intelecto_estrutura vazia — escreva pelo menos um SLIDE'})
+        return
+
+    initial_user_message = (
+        f"Encontro {encontro_numero}. Estrutura abaixo. "
+        f"Converta em HTML do design system FLG. "
+        f"Retorne APENAS as <section class=\"slide\">, sem html/head/body wrapper.\n\n"
+        f"<estrutura>\n{intelecto_estrutura.strip()}\n</estrutura>"
+    )
+    messages = [{"role": "user", "content": initial_user_message}]
+
+    accumulated = ""
+    last_slides_count = 0
+    last_progress_emit = 0
+    response_obj = None
+    used_model = None
+    last_error = None
+
+    for model in (_MODEL_PRIMARY, _MODEL_FALLBACK):
+        try:
+            logger.info(f"stream_intelecto_html: streaming via {model} (encontro {encontro_numero})")
+            with _claude.messages.stream(
+                model=model,
+                max_tokens=16000,
+                temperature=0.3,
+                stop_sequences=["</body>"],
+                system=_build_system_prompt(),
+                messages=messages,
+            ) as stream:
+                for chunk in stream.text_stream:
+                    if not chunk:
+                        continue
+                    accumulated += chunk
+                    yield ('delta', chunk)
+
+                    # Emite progress event quando contagem de slides muda OU a cada 800 chars
+                    slides_now = _count_slides_in_partial(accumulated)
+                    chars_since = len(accumulated) - last_progress_emit
+                    if slides_now != last_slides_count or chars_since > 800:
+                        last_slides_count = slides_now
+                        last_progress_emit = len(accumulated)
+                        yield ('progress', {
+                            'slides_completed': slides_now,
+                            'estimated_total': estimated_total_slides,
+                            'output_chars': len(accumulated),
+                        })
+
+                response_obj = stream.get_final_message()
+            used_model = model
+            break
+        except (anthropic.APIStatusError, anthropic.APIConnectionError, anthropic.APIError) as e:
+            last_error = f"{model}: {e}"
+            logger.error(f"stream_intelecto_html: {last_error}")
+            if _is_overloaded_error(e) and model != _MODEL_FALLBACK:
+                yield ('progress', {'fallback': True, 'message': f'{model} overloaded, tentando Haiku…'})
+                accumulated = ""  # reset pra começar do zero no Haiku
+                last_slides_count = 0
+                last_progress_emit = 0
+                continue
+            yield ('error', {'message': f"Claude API: {e}"})
+            return
+
+    if not accumulated.strip():
+        yield ('error', {'message': f'Resposta vazia em todos os modelos. {last_error or ""}'})
+        return
+
+    yield ('validating', None)
+
+    html = _extract_html_only(accumulated)
+    ok, err = _validate_html(html)
+    if not ok:
+        # Retry sync com feedback (não streaming, é raro acontecer)
+        logger.warning(f"stream_intelecto_html: validação falhou ({used_model}): {err}, retrying sync")
+        retry_msgs = messages + [
+            {"role": "assistant", "content": accumulated},
+            {"role": "user", "content": (
+                f"O HTML acima tem problema: {err}\n\n"
+                f"Corrija e retorne APENAS o HTML válido (sem markdown wrapper, "
+                f"começando direto na primeira <section class=\"slide\">). "
+                f"Use APENAS classes do css_flg."
+            )},
+        ]
+        try:
+            raw, response_obj = _call_claude(used_model, retry_msgs)
+            html = _extract_html_only(raw)
+            ok, err = _validate_html(html)
+            if not ok:
+                yield ('error', {'message': f'HTML inválido após 2 tentativas: {err}'})
+                return
+        except (anthropic.APIStatusError, anthropic.APIConnectionError, anthropic.APIError) as e:
+            yield ('error', {'message': f'Retry de validação falhou: {e}'})
+            return
+
+    soup = BeautifulSoup(html, "html.parser")
+    num_slides = len(soup.select("section.slide"))
+    usage = response_obj.usage if response_obj else None
+    yield ('done', {
+        'html': html,
+        'num_slides': num_slides,
+        'model_used': used_model,
+        'cached_input_tokens': getattr(usage, "cache_read_input_tokens", 0) or 0 if usage else 0,
+        'input_tokens': getattr(usage, "input_tokens", 0) if usage else 0,
+        'output_tokens': getattr(usage, "output_tokens", 0) if usage else 0,
+    })
+
+
 def _call_claude(model: str, messages: list, max_tokens: int = 16000) -> tuple:
     """Chama Claude e retorna (raw_text, response). SDK faz retry automático
     em 408/409/429/5xx (inclui 529) com exponential backoff jitter (max_retries=5).

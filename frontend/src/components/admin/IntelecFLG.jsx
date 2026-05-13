@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, X, Clock, Image, MessageSquare, ChevronRight, RotateCcw, Wand2, FileText, Code2, Sparkles, Loader2, ExternalLink } from 'lucide-react'
 import { api, uploadImagemEncontro } from '../../lib/api'
+import { supabase } from '../../lib/supabase'
 import { Spinner, PageSpinner } from '../ui/Spinner'
 import { useToast } from '../../lib/toast'
 import { cn, formatDate } from '../../lib/utils'
@@ -311,6 +312,91 @@ Próximo título
   )
 }
 
+// Painel de feedback durante o streaming SSE da geração de HTML.
+// Mostra: progress bar (slides feitos / total estimado), spinner, contador de chars,
+// status textual ("Caindo pra Haiku…", "Validando…") e preview LIVE do HTML chegando.
+function StreamingPanel({ partial, slides, total, chars, status }) {
+  const previewRef = useRef(null)
+
+  // Auto-scroll do preview live conforme tokens chegam
+  useEffect(() => {
+    if (previewRef.current) {
+      previewRef.current.scrollTop = previewRef.current.scrollHeight
+    }
+  }, [partial])
+
+  const pct = total > 0 ? Math.min(100, Math.round((slides / total) * 100)) : null
+  const isIndeterminate = pct === null || pct === 0
+
+  return (
+    <div className="rounded-xl overflow-hidden"
+      style={{ background: 'var(--flg-bg-raised)', border: '1px solid rgba(201,168,76,0.30)' }}>
+      {/* Header — progress bar + métricas */}
+      <div className="px-4 py-3 space-y-2 border-b" style={{ borderColor: 'rgba(201,168,76,0.15)' }}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <Loader2 size={14} className="animate-spin flex-shrink-0" style={{ color: '#C9A84C' }} />
+            <p className="text-sm font-serifdeck text-white/95 truncate">
+              Gerando HTML com Claude
+            </p>
+          </div>
+          <div className="flex items-center gap-3 text-[10px] font-monodeck text-white/45">
+            <span>{(chars || 0).toLocaleString('pt-BR')} chars</span>
+            {total > 0 && (
+              <span className="text-gold-mid">
+                {slides} / {total} slides
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="relative h-1 rounded-full overflow-hidden bg-white/5">
+          {isIndeterminate ? (
+            <div className="absolute inset-y-0 left-0 w-1/3 rounded-full animate-pulse-gold"
+              style={{
+                background: 'linear-gradient(90deg, transparent, #C9A84C, transparent)',
+                animation: 'streamSweep 1.5s ease-in-out infinite',
+              }} />
+          ) : (
+            <div
+              className="h-full transition-all duration-300"
+              style={{
+                width: `${pct}%`,
+                background: 'linear-gradient(90deg, rgba(201,168,76,0.5), #C9A84C)',
+              }}
+            />
+          )}
+        </div>
+
+        {/* Status textual */}
+        <p className="text-[10px] font-monodeck text-white/45 uppercase tracking-wider">
+          {status || 'Processando…'}
+        </p>
+      </div>
+
+      {/* Preview LIVE do código HTML chegando */}
+      <div
+        ref={previewRef}
+        className="px-4 py-3 overflow-auto text-[10px] leading-relaxed font-monodeck text-white/55 whitespace-pre-wrap"
+        style={{ maxHeight: 340, background: '#080808' }}
+      >
+        {partial || (
+          <span className="text-white/30 italic">Aguardando primeiros tokens do Claude…</span>
+        )}
+      </div>
+
+      <style>{`
+        @keyframes streamSweep {
+          0%   { transform: translateX(-100%); }
+          50%  { transform: translateX(200%); }
+          100% { transform: translateX(200%); }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 function HtmlTab({ enc, onSaved }) {
   const toast = useToast()
   const { dispatch } = useApp()
@@ -318,6 +404,13 @@ function HtmlTab({ enc, onSaved }) {
   const [showRaw, setShowRaw] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [savingRaw, setSavingRaw] = useState(false)
+
+  // Estado do streaming (Anthropic SSE)
+  const [streamPartial, setStreamPartial] = useState('')        // HTML chegando em tempo real
+  const [streamSlides, setStreamSlides] = useState(0)           // slides completos detectados
+  const [streamTotal, setStreamTotal] = useState(0)             // total estimado da estrutura
+  const [streamStatus, setStreamStatus] = useState('')          // mensagem de status (ex: "Caiu pra Haiku…")
+  const [streamChars, setStreamChars] = useState(0)             // caracteres recebidos
 
   const hasEstrutura = !!(enc.intelecto_estrutura || '').trim()
   const hasHtml = !!(enc.html_intelecto || '').trim()
@@ -365,25 +458,93 @@ ${html}
       return
     }
     setGenerating(true)
+    setStreamPartial('')
+    setStreamSlides(0)
+    setStreamTotal(0)
+    setStreamStatus('Conectando ao Claude…')
+    setStreamChars(0)
+
     try {
-      const r = await api(`/admin/encontros/${enc.numero}/gerar-html`, { method: 'POST' })
-      // Response agora vem como {...registro_completo, _telemetry: {...}}
-      const telemetry = r._telemetry || {}
-      const updated = { ...r }
-      delete updated._telemetry
-      const novo = { ...enc, ...updated }
+      // SSE direto via fetch + ReadableStream (token JWT do Supabase)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Não autenticado')
+
+      const res = await fetch(`/api/admin/encontros/${enc.numero}/gerar-html-stream`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }))
+        throw new Error(err.detail || `HTTP ${res.status}`)
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let finalRecord = null
+      let finalTelemetry = null
+      let finalError = null
+
+      setStreamStatus('Recebendo do Claude…')
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          let event
+          try { event = JSON.parse(line.slice(6)) } catch { continue }
+
+          if (event.type === 'delta') {
+            setStreamPartial(prev => {
+              const next = prev + event.content
+              return next.length > 50000 ? next.slice(-50000) : next  // cap UI memory
+            })
+          } else if (event.type === 'progress') {
+            if (event.fallback) {
+              setStreamStatus(event.message || 'Caindo pra modelo de fallback…')
+            } else {
+              if (typeof event.slides_completed === 'number') setStreamSlides(event.slides_completed)
+              if (typeof event.estimated_total === 'number' && event.estimated_total > 0) setStreamTotal(event.estimated_total)
+              if (typeof event.output_chars === 'number') setStreamChars(event.output_chars)
+            }
+          } else if (event.type === 'validating') {
+            setStreamStatus('Validando HTML…')
+          } else if (event.type === 'done') {
+            finalRecord = event.record
+            finalTelemetry = event.telemetry || {}
+            setStreamStatus('Concluído ✓')
+          } else if (event.type === 'error') {
+            finalError = event.message || 'Erro desconhecido'
+          }
+        }
+      }
+
+      if (finalError) {
+        throw new Error(finalError)
+      }
+      if (!finalRecord) {
+        throw new Error('Stream terminou sem retornar o HTML final.')
+      }
+
+      const novo = { ...enc, ...finalRecord }
       setHtml(novo.html_intelecto || '')
       onSaved && onSaved(novo)
       dispatch({ type: 'ENCONTRO_UPDATE', payload: novo })
       toast({
-        title: `${telemetry.num_slides || novo.num_slides_intelecto} slides gerados`,
-        description: `Tokens: ${telemetry.input_tokens} in (${telemetry.cached_input_tokens} cached) + ${telemetry.output_tokens} out`,
+        title: `${finalTelemetry.num_slides || novo.num_slides_intelecto} slides gerados${finalTelemetry.model_used ? ` · ${finalTelemetry.model_used.replace('claude-', '')}` : ''}`,
+        description: `Tokens: ${finalTelemetry.input_tokens || 0} in (${finalTelemetry.cached_input_tokens || 0} cached) + ${finalTelemetry.output_tokens || 0} out`,
         variant: 'success',
       })
     } catch (e) {
       toast({ title: 'Erro ao gerar HTML', description: e.message, variant: 'error' })
     } finally {
       setGenerating(false)
+      // Mantém streamPartial visível brevemente; reset será no próximo handleGenerate
     }
   }
 
@@ -432,6 +593,16 @@ ${html}
         </button>
       </div>
 
+      {generating && (
+        <StreamingPanel
+          partial={streamPartial}
+          slides={streamSlides}
+          total={streamTotal}
+          chars={streamChars}
+          status={streamStatus}
+        />
+      )}
+
       {!hasHtml && !generating && (
         <div className="rounded-lg p-8 text-center" style={{ background: 'var(--flg-bg-raised)', border: '1px dashed var(--flg-border)' }}>
           <Code2 size={28} className="mx-auto mb-3 text-white/25" />
@@ -444,7 +615,7 @@ ${html}
         </div>
       )}
 
-      {hasHtml && !showRaw && (
+      {hasHtml && !generating && !showRaw && (
         <button
           onClick={abrirFullscreen}
           className="w-full rounded-xl p-8 transition-all cursor-pointer group hover:scale-[1.005]"
@@ -471,7 +642,7 @@ ${html}
         </button>
       )}
 
-      {showRaw && (
+      {showRaw && !generating && (
         <>
           <textarea
             value={html}
