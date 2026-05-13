@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from deps import get_current_user, supabase_client
-from services.claude_html_generator import generate_intelecto_html
+from services.claude_html_generator import generate_intelecto_html, normalize_asset_paths
 
 logger = logging.getLogger("flg.encontros_intelecto")
 router = APIRouter(tags=["encontros-intelecto"])
@@ -58,7 +58,11 @@ async def get_encontro(numero: int, user=Depends(get_current_user)):
     )
     if not r or not r.data:
         raise HTTPException(status_code=404, detail=f"Encontro {numero} não encontrado")
-    return r.data
+    # Normaliza paths relativos em HTMLs antigos (../assets → /flg-design-system/assets).
+    data = r.data
+    if data.get("html_intelecto"):
+        data["html_intelecto"] = normalize_asset_paths(data["html_intelecto"])
+    return data
 
 
 @router.post("/admin/encontros/{numero}/intelecto")

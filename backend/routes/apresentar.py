@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 
 from deps import supabase_client
+from services.claude_html_generator import normalize_asset_paths
 
 logger = logging.getLogger("flg.apresentar")
 router = APIRouter(tags=["apresentar"])
@@ -107,11 +108,15 @@ async def apresentar(slug: str):
     if not encontro:
         raise HTTPException(status_code=404, detail="Encontro do deck não existe")
 
+    # Normaliza paths relativos em HTMLs antigos do DB (`../assets/` → `/flg-design-system/assets/`).
+    intelecto = normalize_asset_paths(encontro.get("html_intelecto") or "")
+    pratica_html = normalize_asset_paths(pratica.get("html_pratica") or "")
+
     html = _build_deck_html(
         deck_id=f"encontro-{pratica['encontro_numero']}-{slug[:6]}",
         encontro_titulo=encontro.get("nome") or f"Encontro {pratica['encontro_numero']}",
-        html_intelecto=encontro.get("html_intelecto") or "",
-        html_pratica=pratica.get("html_pratica") or "",
+        html_intelecto=intelecto,
+        html_pratica=pratica_html,
     )
 
     # Marca apresentado_at na PRIMEIRA visita (best-effort, não bloqueia render)

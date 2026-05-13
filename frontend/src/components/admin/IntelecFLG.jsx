@@ -408,52 +408,35 @@ ${html}
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={handleGenerate}
             disabled={generating || !hasEstrutura}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: '#C9A84C', color: '#080808' }}
+            style={{ background: hasHtml ? 'rgba(201,168,76,0.12)' : '#C9A84C', color: hasHtml ? '#C9A84C' : '#080808', border: hasHtml ? '1px solid rgba(201,168,76,0.35)' : 'none' }}
           >
             {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
             {generating ? 'Gerando HTML…' : hasHtml ? 'Regerar HTML' : 'Gerar HTML do Design System'}
           </button>
           {enc.num_slides_intelecto > 0 && (
-            <span className="text-xs text-white/55">
+            <span className="text-xs text-white/55 font-monodeck">
               {enc.num_slides_intelecto} slide{enc.num_slides_intelecto === 1 ? '' : 's'}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          {hasHtml && (
-            <button
-              onClick={abrirFullscreen}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-              style={{
-                background: 'rgba(201,168,76,0.10)',
-                border: '1px solid rgba(201,168,76,0.30)',
-                color: '#C9A84C',
-              }}
-              title="Abre o deck navegável em nova aba (com flg-deck.js engine)"
-            >
-              <ExternalLink size={12} />
-              Abrir em fullscreen
-            </button>
-          )}
-          <button
-            onClick={() => setShowRaw(s => !s)}
-            className="text-xs text-white/55 hover:text-white/85 cursor-pointer transition-colors"
-          >
-            {showRaw ? '◄ Preview' : 'Editar HTML raw ►'}
-          </button>
-        </div>
+        <button
+          onClick={() => setShowRaw(s => !s)}
+          className="text-xs text-white/45 hover:text-white/85 cursor-pointer transition-colors"
+        >
+          {showRaw ? '◄ Voltar' : 'Editar HTML raw ►'}
+        </button>
       </div>
 
       {!hasHtml && !generating && (
-        <div className="rounded-lg p-6 text-center" style={{ background: 'var(--flg-bg-raised)', border: '1px dashed var(--flg-border)' }}>
-          <Code2 size={24} className="mx-auto mb-2 text-white/30" />
-          <p className="text-sm text-white/55">Nenhum HTML gerado ainda.</p>
-          <p className="text-xs text-white/35 mt-1">
+        <div className="rounded-lg p-8 text-center" style={{ background: 'var(--flg-bg-raised)', border: '1px dashed var(--flg-border)' }}>
+          <Code2 size={28} className="mx-auto mb-3 text-white/25" />
+          <p className="text-sm text-white/60">Nenhum HTML gerado ainda.</p>
+          <p className="text-xs text-white/35 mt-1.5">
             {hasEstrutura
               ? 'Click em "Gerar HTML do Design System" pra Claude converter a estrutura.'
               : 'Salve a estrutura textual na aba Estrutura primeiro.'}
@@ -462,31 +445,30 @@ ${html}
       )}
 
       {hasHtml && !showRaw && (
-        <iframe
-          /* Override do flg.css: body.flg-deck tem `overflow:hidden` oficialmente — sobrescrevemos
-             pra permitir scroll vertical empilhando todos os slides em aspect-ratio 16:9. */
-          srcDoc={`<!DOCTYPE html><html><head>
-            <link rel="stylesheet" href="/flg-design-system/css/flg.css">
-            <style>
-              html,body{margin:0;background:#080808;overflow:auto !important}
-              body.flg-deck{overflow:auto !important;height:auto}
-              .preview-stack{display:flex;flex-direction:column;gap:16px;padding:16px}
-              .preview-stack > section.slide{position:relative;inset:auto;width:100%;aspect-ratio:16/9;transform:none;opacity:1 !important;visibility:visible !important;display:flex}
-              .preview-stack > section.slide.active{opacity:1 !important;visibility:visible !important}
-              .preview-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(201,168,76,.5);padding:4px 8px}
-            </style>
-          </head>
-          <body class="flg-deck">
-            <div class="preview-stack">
-              <div class="preview-label">Pré-visualização · ${(html.match(/<section[^>]*class=["'][^"']*\bslide\b/g) || []).length} slides · role pra ver todos</div>
-              ${html}
+        <button
+          onClick={abrirFullscreen}
+          className="w-full rounded-xl p-8 transition-all cursor-pointer group hover:scale-[1.005]"
+          style={{
+            background: 'linear-gradient(135deg, rgba(201,168,76,0.10) 0%, rgba(201,168,76,0.04) 100%)',
+            border: '1px solid rgba(201,168,76,0.30)',
+          }}
+          title="Abre o deck navegável em nova aba (com flg-deck.js engine)"
+        >
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ background: 'rgba(201,168,76,0.18)', border: '1px solid rgba(201,168,76,0.45)' }}>
+              <ExternalLink size={24} style={{ color: '#C9A84C' }} />
             </div>
-          </body></html>`}
-          sandbox="allow-same-origin"
-          className="w-full rounded-lg"
-          style={{ height: 720, border: '1px solid var(--flg-border)', background: 'var(--flg-bg-raised)' }}
-          title="Preview do HTML intelectual"
-        />
+            <div className="text-center">
+              <p className="text-base font-serifdeck font-medium text-white/95 mb-1">
+                Abrir apresentação em fullscreen
+              </p>
+              <p className="text-[11px] text-white/40 font-monodeck tracking-wider uppercase">
+                {(html.match(/<section[^>]*class=["'][^"']*\bslide\b/g) || []).length} slides · setas · espaço · swipe
+              </p>
+            </div>
+          </div>
+        </button>
       )}
 
       {showRaw && (

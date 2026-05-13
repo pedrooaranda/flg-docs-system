@@ -436,6 +436,13 @@ async def delete_conhecimento(item_id: int, user=Depends(get_current_user)):
 @app.get("/encontros-base")
 async def list_encontros_base(user=Depends(get_current_user)):
     result = _supabase.table("encontros_base").select("*").order("numero").execute()
+    # Normaliza paths relativos em HTMLs antigos (../assets → /flg-design-system/assets).
+    # Garante que IntelecFLG e PreviewIntelecto sempre vejam URLs absolutas que resolvem
+    # via Nginx do frontend em qualquer rota do app.
+    from services.claude_html_generator import normalize_asset_paths as _norm
+    for row in (result.data or []):
+        if row.get("html_intelecto"):
+            row["html_intelecto"] = _norm(row["html_intelecto"])
     return result.data
 
 

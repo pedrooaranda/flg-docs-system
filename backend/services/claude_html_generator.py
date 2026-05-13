@@ -128,16 +128,21 @@ def _build_system_prompt() -> list:
                 "<output_rules>\n"
                 "1. Retorne APENAS HTML válido. Sem markdown, sem ```html, sem texto fora das tags.\n"
                 "2. Cada slide é uma <section class=\"slide\" data-screen-label=\"NN Título\">.\n"
-                "3. Slide 1 é capa: use .stage--center + logo FLG centralizada (.flg-mark) + .d-mega + .gold-divider.\n"
-                "4. Slides intermediários: logo no canto via <img class=\"flg-mark--corner\"> + .stage com .stage-bg.\n"
-                "5. Último slide: logo centralizada novamente + frase de fechamento sóbria.\n"
-                "6. Use APENAS classes que existem no css_flg acima. Não invente classes.\n"
-                "7. Para listas numeradas (1./2./3.): use componente .entries com .entry/.entry-num/.entry-text.\n"
-                "8. Para 2-4 pilares com título+descrição: use .pillars com .pillar.\n"
-                "9. Para citações/destaques: use .body-lg com <em> dourado pra grifo (max 1-3 por slide).\n"
-                "10. SEM travessões longos (—). Use pontos ou vírgulas.\n"
-                "11. SEM nome de cliente nos slides (HTML é reutilizável pra qualquer founder).\n"
-                "12. Saída completa começa com a primeira <section class=\"slide\"> e termina com a última </section>. NÃO inclua <html>, <head>, <body> wrapper — o backend monta o documento completo.\n"
+                "3. **TODOS os slides DEVEM mostrar a logo FLG**:\n"
+                "   - Slide 1 (capa): logo grande centralizada → <img src=\"/flg-design-system/assets/logo-flg.png\" alt=\"FLG Brasil\" class=\"flg-mark reveal d0\"> dentro de .stage--center.\n"
+                "   - Slides intermediários: logo discreta no canto → <img src=\"/flg-design-system/assets/logo-flg.png\" alt=\"FLG\" class=\"flg-mark--corner\"> NO INÍCIO DA <section>, antes do .stage.\n"
+                "   - Último slide: logo grande centralizada NOVAMENTE como na capa (.flg-mark reveal d0 dentro de .stage--center).\n"
+                "4. **SEMPRE use path absoluto pra logo**: /flg-design-system/assets/logo-flg.png (NÃO use ../assets/ — paths relativos quebram quando o HTML é servido em rotas diferentes).\n"
+                "5. Slide 1 (capa): .stage--center + .flg-mark + .eyebrow + .d-mega + .gold-divider + frase de gancho.\n"
+                "6. Slides intermediários: .flg-mark--corner + .stage com .stage-bg + conteúdo.\n"
+                "7. Último slide: .stage--center + .flg-mark + .d-md/.d-lg com frase de fechamento sóbria + .gold-divider.\n"
+                "8. Use APENAS classes que existem no css_flg acima. Não invente classes.\n"
+                "9. Para listas numeradas (1./2./3.): use componente .entries com .entry/.entry-num/.entry-text.\n"
+                "10. Para 2-4 pilares com título+descrição: use .pillars com .pillar.\n"
+                "11. Para citações/destaques: use .body-lg com <em> dourado pra grifo (max 1-3 por slide).\n"
+                "12. SEM travessões longos (—). Use pontos ou vírgulas.\n"
+                "13. SEM nome de cliente nos slides (HTML é reutilizável pra qualquer founder).\n"
+                "14. Saída completa começa com a primeira <section class=\"slide\"> e termina com a última </section>. NÃO inclua <html>, <head>, <body> wrapper — o backend monta o documento completo.\n"
                 "</output_rules>"
             ),
         },
@@ -188,10 +193,39 @@ def _validate_html(html: str) -> Tuple[bool, str]:
     return True, ""
 
 
+def normalize_asset_paths(html: str) -> str:
+    """Alias público — endpoints podem chamar isso pra blindar HTMLs antigos do DB."""
+    return _normalize_asset_paths(html)
+
+
+def _normalize_asset_paths(html: str) -> str:
+    """Reescreve paths relativos do design system (../assets/ etc.) pra absolutos.
+
+    Por que: o template oficial usa `../assets/logo-flg.png` (relativo ao arquivo de template).
+    Quando o HTML é servido em outras rotas (/api/apresentar/:slug, blob URL fullscreen,
+    iframe srcDoc), o relativo aponta pra lugares errados e a logo não carrega.
+
+    Normaliza pra `/flg-design-system/assets/logo-flg.png` que resolve sempre via Nginx
+    (mesma origem em todas as rotas do app + apresentação pública).
+    """
+    if not html:
+        return html
+    # ../assets/X → /flg-design-system/assets/X
+    html = re.sub(r'(["\'])\.\./assets/', r'\1/flg-design-system/assets/', html)
+    # assets/X (sem dois pontos) no início de src/href → /flg-design-system/assets/X
+    html = re.sub(r'(src|href)=(["\'])assets/', r'\1=\2/flg-design-system/assets/', html)
+    # ../css/X → /flg-design-system/css/X (raro mas pra blindar)
+    html = re.sub(r'(["\'])\.\./css/', r'\1/flg-design-system/css/', html)
+    # ../js/X → /flg-design-system/js/X
+    html = re.sub(r'(["\'])\.\./js/', r'\1/flg-design-system/js/', html)
+    return html
+
+
 def _extract_html_only(raw: str) -> str:
     """
     Claude pode retornar com markdown wrapper ou texto extra antes/depois.
     Extrai apenas a primeira <section> até a última </section>.
+    Normaliza paths de assets pra absolutos (resiliente contra paths relativos).
     """
     raw = raw.strip()
     # Remove markdown wrapper se houver
@@ -200,9 +234,8 @@ def _extract_html_only(raw: str) -> str:
         raw = re.sub(r"\n?```$", "", raw)
     # Pega tudo entre primeira <section e última </section>
     match = re.search(r"<section[^>]*class=[\"']slide[\"'][^>]*>.*</section>", raw, re.DOTALL)
-    if match:
-        return match.group(0).strip()
-    return raw.strip()
+    html = match.group(0).strip() if match else raw.strip()
+    return _normalize_asset_paths(html)
 
 
 def _call_claude(model: str, messages: list, max_tokens: int = 16000) -> tuple:
