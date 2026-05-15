@@ -11,11 +11,11 @@
  * Phase 4 vai polir: empty states ricos, loading skeletons, isOwner() helper extraído.
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { UserCog, Plus, Search } from 'lucide-react'
 import { api } from '../../lib/api'
-import { isAdmin } from '../../lib/utils'
+import { isAdmin, isOwner as isOwnerFn } from '../../lib/utils'
 import { useToast } from '../../lib/toast'
 import ColaboradorRow from './shared/ColaboradorRow'
 import ColaboradorFormModal from './shared/ColaboradorFormModal'
@@ -54,10 +54,10 @@ export default function Colaboradores({ session }) {
   // Permissões UI derivadas
   const user = session?.user
   const isAdminPlus = isAdmin(user)
-  const isOwner = user?.user_metadata?.role === 'owner' || user?.email?.includes('pedro')
+  const isOwner = isOwnerFn(user)
   const currentUserEmail = user?.email
 
-  function loadColaboradores() {
+  const loadColaboradores = useCallback(() => {
     setLoading(true)
     setError(null)
     return api('/colaboradores')
@@ -67,11 +67,11 @@ export default function Colaboradores({ session }) {
         setError(e.message || 'Erro ao carregar colaboradores')
       })
       .finally(() => setLoading(false))
-  }
+  }, [])
 
   useEffect(() => {
     loadColaboradores()
-  }, [])
+  }, [loadColaboradores])
 
   function handleTabClick(key) {
     const next = new URLSearchParams(searchParams)
@@ -218,7 +218,7 @@ export default function Colaboradores({ session }) {
 
       {/* Conteúdo */}
       {loading ? (
-        <p className="text-white/40 text-sm">Carregando colaboradores…</p>
+        <ColaboradoresSkeleton />
       ) : error ? (
         <div className="rounded-xl p-6" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
           <p className="text-sm font-semibold text-red-400">Erro ao carregar</p>
@@ -289,6 +289,49 @@ export default function Colaboradores({ session }) {
         nome={passwordReveal?.nome || ''}
         onClose={() => setPasswordReveal(null)}
       />
+    </div>
+  )
+}
+
+// Skeleton de loading — 5 linhas placeholder com pulse sutil.
+// Estrutura espelha a table real pra evitar layout shift.
+function ColaboradoresSkeleton() {
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ background: 'var(--flg-bg-raised)', border: '1px solid var(--flg-border)' }}>
+      <div className="overflow-hidden">
+        <div className="border-b px-4 py-3" style={{ borderColor: 'var(--flg-border)' }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr) 80px 80px minmax(0,1fr) 64px' }}>
+            <div className="h-3 bg-white/8 rounded animate-pulse" />
+            <div className="h-3 bg-white/8 rounded animate-pulse hidden md:block" />
+            <div className="h-3 bg-white/8 rounded animate-pulse" />
+            <div className="h-3 bg-white/8 rounded animate-pulse" />
+            <div className="h-3 bg-white/8 rounded animate-pulse hidden lg:block" />
+            <div />
+          </div>
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="border-b px-4 py-4 last:border-b-0"
+            style={{ borderColor: 'var(--flg-border)', animationDelay: `${i * 50}ms` }}>
+            <div className="grid items-center gap-4" style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr) 80px 80px minmax(0,1fr) 64px' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-white/6 animate-pulse" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 bg-white/10 rounded animate-pulse" style={{ width: '60%' }} />
+                  <div className="h-2 bg-white/6 rounded animate-pulse" style={{ width: '40%' }} />
+                </div>
+              </div>
+              <div className="h-3 bg-white/8 rounded animate-pulse hidden md:block" />
+              <div className="h-5 w-14 bg-white/8 rounded animate-pulse" />
+              <div className="h-5 w-14 bg-white/8 rounded animate-pulse" />
+              <div className="h-3 bg-white/8 rounded animate-pulse hidden lg:block" />
+              <div className="flex justify-end gap-1">
+                <div className="w-6 h-6 bg-white/6 rounded animate-pulse" />
+                <div className="w-6 h-6 bg-white/6 rounded animate-pulse" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

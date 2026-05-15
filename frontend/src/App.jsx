@@ -6,7 +6,9 @@ import { AppProvider } from './contexts/AppContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import Layout from './components/layout/Layout'
 import Login from './components/Login'
+import PasswordChangeRequired from './components/auth/PasswordChangeRequired'
 import { PageSpinner } from './components/ui/Spinner'
+import { needsPasswordChange } from './lib/utils'
 
 // Lazy-loaded routes
 const Dashboard        = lazy(() => import('./components/Dashboard'))
@@ -70,6 +72,21 @@ export default function App() {
   }, [])
 
   if (session === undefined) return <PageSpinner />
+
+  // Gate: usuários com senha temporária precisam trocar antes de acessar qualquer coisa.
+  // Backend seta needs_password_change=true ao auto-criar conta via POST /colaboradores.
+  // Exceções: páginas legais públicas + login + onboarding Instagram não passam pelo gate
+  // (são tratadas como rotas públicas no BrowserRouter abaixo). Como needsPasswordChange só
+  // é true quando há session, e essas rotas públicas não exigem session, não conflitam.
+  if (session && needsPasswordChange(session.user)) {
+    return (
+      <ThemeProvider>
+      <ToastProvider>
+        <PasswordChangeRequired session={session} />
+      </ToastProvider>
+      </ThemeProvider>
+    )
+  }
 
   return (
     <ThemeProvider>
