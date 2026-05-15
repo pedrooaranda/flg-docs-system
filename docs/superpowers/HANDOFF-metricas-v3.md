@@ -1,6 +1,6 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-12 (Reuniões A→D + refactor Materiais com cliente como hub central + design tokens FLG)
+**Última atualização:** 2026-05-13 (Phase 4 Colaboradores entregue: PasswordChangeRequired + isOwner helper + skeleton. Próximo: trackeamento Redes Sociais + Meta App publishing)
 **Status:** 4 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 ---
@@ -81,14 +81,15 @@ Spec: [specs/2026-05-10-colaboradores-design.md](specs/2026-05-10-colaboradores-
 - Frontend `PasswordRevealModal.jsx` — mostra senha com copy-to-clipboard. **Não fecha com backdrop/ESC** (acidente perderia senha). Só fecha via botão "Entendi, senha salva" ou X.
 - `_validate_email_domain` usa `split("@")` em vez de `endswith` (rejeita `foo@evil.com@grupoguglielmi.com`).
 
-### Phase 4 — pendente (não planejada ainda)
-**Escopo:** 
-- Tela de trocar senha no primeiro login (UI que detecta `user.user_metadata.needs_password_change=true` após login e força change).
-- Extrair `isOwner()` helper em `lib/utils.js` (hoje inline derivado em vários lugares).
-- Yellow nits do code review de Phase 3 (useCallback em `loadColaboradores`, `onClose` stable ref).
-- Loading skeletons + empty states polish + mobile responsive.
+### Phase 4 (entregue 2026-05-13, em produção, SHA `ad6e67e`)
+- **`components/auth/PasswordChangeRequired.jsx`** — tela bloqueante quando `session.user.user_metadata.needs_password_change === true` (flag setada pelo backend auto-provisioning). Email readonly + nova senha + confirmar + validação (8+ chars, ≥1 lower/UPPER/digit). Chama `supabase.auth.updateUser({password, data:{needs_password_change:false}})`. Botão "Sair" via `signOut`.
+- **`App.jsx`** — gate condicional: depois de carregar sessão, se `needsPasswordChange(user)` → renderiza só PasswordChangeRequired (sem AppProvider/rotas). Após updateUser, `onAuthStateChange` detecta novo metadata e libera nav automaticamente.
+- **`lib/utils.js`** — `isOwner(user)` extraído (match EXATO de email pra fallback, não `includes('pedro')`). `needsPasswordChange(user)` helper.
+- **Refactor:** inline `isOwner` derivado em `Colaboradores/index.jsx` agora usa o helper.
+- **Yellow nits:** `useCallback` em `loadColaboradores` + dep array do `useEffect` corrigida.
+- **Loading skeleton novo:** 5 linhas placeholder com `animate-pulse`, estrutura espelhando a table real (zero layout shift). Substituiu o texto "Carregando colaboradores…".
 
-**Estimativa:** ~4h. Sem plan escrito ainda.
+**Pendente da Phase 4:** mobile responsive (table → cards em telas <768px), `onClose` stable ref via useCallback (yellow nit menor). Não bloqueia uso.
 
 ---
 
@@ -248,11 +249,11 @@ Pedro pediu reorganização: filtro por consultor, cliente como entrada principa
 1. **Lê este arquivo.**
 
 2. **Pergunta pro Pedro:** qual stream priorizar?
+   - **Trackeamento Redes Sociais — publicação App Meta** (Sessão 2026-05-13 priorizada por Pedro)
    - Métricas V3 → Phase 3B (sub-página todos os posts) ou 3D (polish shadcn/radix)
    - Ranking Tabs → Phase 2 (backend endpoint consultores)
-   - Colaboradores → Phase 4 (tela de trocar senha primeiro login + isOwner extraction + polish)
-   - **Reuniões da Jornada → Phase C2** (frontend editor split preview/chat streaming consumindo endpoints da C1) **← provável próximo passo**
-   - **⚠️ Pendência operacional:** Migration 006 (`encontros_pratica`) ainda não aplicada — Pedro precisa rodar SQL no Supabase Dashboard antes da Phase C1 funcionar end-to-end. Arquivo: `docs/migrations/006-encontros-pratica.sql`.
+   - Reuniões da Jornada → Phase E polish (regerar slide N, copy URL, mobile, Traefik /apresentar/* sem /api/)
+   - Colaboradores → mobile responsive (último item pendente da Phase 4)
 
 3. **Workflow padrão:** brainstorming → spec → plan → subagent-driven-development.
 
