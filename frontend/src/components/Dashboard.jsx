@@ -11,12 +11,12 @@
  */
 
 import { useMemo, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Users, TrendingUp, PauseCircle, UserCheck, ArrowRight, AlertTriangle,
   Calendar, CheckCircle2, Clock, Sparkles, Send, Search, FileText, Layers,
-  ChevronDown,
+  ChevronDown, Eye,
 } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
 import { api } from '../lib/api'
@@ -24,6 +24,8 @@ import { Avatar } from './ui/Avatar'
 import { StatusBadge } from './ui/Badge'
 import { SkeletonCard } from './ui/Skeleton'
 import { progressPercent } from '../lib/utils'
+import { isAdminFromSession, matchConsultor } from './Materiais/shared/consultor-utils'
+import ConsultorFilter from './Materiais/shared/ConsultorFilter'
 
 const TIPOS_NOTA = [
   { value: 'geral',     label: 'Geral',      color: '#C9A84C' },
@@ -588,8 +590,10 @@ function MateriaisAPreparar({ clientes }) {
 export default function Dashboard({ session }) {
   const { clientes: allClientes, loading } = useApp()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const userEmail = session?.user?.email
+  const admin = isAdminFromSession(session)
   const greeting = getGreeting()
 
   // Acha o nome canônico do consultor (puxa do consultor_responsavel real)
@@ -598,16 +602,46 @@ export default function Dashboard({ session }) {
     () => findMyConsultorName(allClientes, userEmail),
     [allClientes, userEmail]
   )
-  const displayName = myConsultorNome || fallbackName(userEmail)
 
-  // Home é SEMPRE a view do consultor logado (mesmo admin) — admin pra ver
-  // tudo vai em "Clientes" no menu lateral.
-  // Compara consultor_responsavel === nome canônico encontrado (match exato,
-  // mesmo padrão usado na aba Clientes quando filtra por consultor).
+  // Consultor cuja Home está sendo visualizada:
+  //   - não-admin: forçado ao próprio (sem URL param, sem dropdown)
+  //   - admin: vem de ?consultor= (default = própria Home; aceita nome de consultor ou 'todos')
+  const consultorFiltro = admin
+    ? (searchParams.get('consultor') || myConsultorNome || 'todos')
+    : 'self'
+
+  function setConsultor(val) {
+    const next = new URLSearchParams(searchParams)
+    // Volta pra própria Home → limpa param (URL fica /)
+    if (val === myConsultorNome) next.delete('consultor')
+    else next.set('consultor', val)
+    setSearchParams(next, { replace: true })
+  }
+
+  // Nome do consultor sendo visualizado (pra header dinâmico).
+  // 'todos' = agregado da casa; null = não consigo derivar
+  const viewingNome = consultorFiltro === 'todos'
+    ? null
+    : consultorFiltro === 'self'
+      ? myConsultorNome
+      : consultorFiltro
+  const isViewingOther = admin && viewingNome && viewingNome !== myConsultorNome
+  const isViewingAll = admin && consultorFiltro === 'todos'
+  const displayName = viewingNome || myConsultorNome || fallbackName(userEmail)
+
+  // Lista de clientes filtrada pela view selecionada:
+  //   - 'todos' (só admin): todos os clientes da casa
+  //   - 'self' (não-admin): match exato com consultor canônico
+  //   - nome de consultor (admin viewing outro): matchConsultor normalizado
   const myClientes = useMemo(() => {
-    if (!myConsultorNome) return []
-    return allClientes.filter(c => c.consultor_responsavel === myConsultorNome)
-  }, [allClientes, myConsultorNome])
+    if (consultorFiltro === 'todos') return allClientes
+    if (consultorFiltro === 'self') {
+      if (!myConsultorNome) return []
+      return allClientes.filter(c => c.consultor_responsavel === myConsultorNome)
+    }
+    // admin viewing consultor escolhido
+    return allClientes.filter(c => matchConsultor(c.consultor_responsavel, consultorFiltro))
+  }, [allClientes, consultorFiltro, myConsultorNome])
 
   // Métricas
   const ativos = myClientes.filter(c => (c.status || 'ativo') === 'ativo').length
@@ -646,19 +680,42 @@ export default function Dashboard({ session }) {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-3"
+        className="space-y-4"
       >
-        <div className="w-11 h-11 rounded-xl gold-gradient flex items-center justify-center flex-shrink-0">
-          <Sparkles size={18} className="text-[#080808]" />
-        </div>
-        <div>
-          <h1 className="font-display text-2xl font-bold text-white">
-            {greeting}{displayName && `, ${displayName}`}.
-          </h1>
-          <p className="text-xs text-white/35 mt-0.5">
-            Você tem <strong className="text-white/65">{myClientes.length} clientes</strong> ativos
-            {alertas.length > 0 && <> · <span className="text-orange-400">{alertas.length} precisa{alertas.length > 1 ? 'm' : ''} de atenção</span></>}
-          </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl gold-gradient flex items-center justify-center flex-shrink-0">
+              <Sparkles size={18} className="text-[#080808]" />
+            </div>
+            <div>
+              <h1 className="font-display text-2xl font-bold text-white">
+                {isViewingAll
+                  ? <>Home da casa <span className="text-white/40 font-normal">· todos os consultores</span></>
+                  : isViewingOther
+                    ? <>Home de <span className="text-gold-mid">{displayName}</span></>
+                    : <>{greeting}{displayName && `, ${displayName}`}.</>
+                }
+              </h1>
+              <p className="text-xs text-white/35 mt-0.5">
+                {isViewingOther && <span className="inline-flex items-center gap-1 text-gold-mid/80 mr-2"><Eye size={10} /> Visualizando como admin ·</span>}
+                {isViewingAll
+                  ? <><strong className="text-white/65">{myClientes.length} clientes</strong> na casa</>
+                  : <>Você tem <strong className="text-white/65">{myClientes.length} clientes</strong> ativos</>
+                }
+                {alertas.length > 0 && <> · <span className="text-orange-400">{alertas.length} precisa{alertas.length > 1 ? 'm' : ''} de atenção</span></>}
+              </p>
+            </div>
+          </div>
+
+          {admin && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <ConsultorFilter
+                value={consultorFiltro === 'self' ? myConsultorNome : consultorFiltro}
+                onChange={setConsultor}
+                clientes={allClientes}
+              />
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -758,7 +815,7 @@ export default function Dashboard({ session }) {
             Ver todos <ArrowRight size={11} />
           </button>
         }>
-          Meus clientes
+          {isViewingAll ? 'Todos os clientes' : isViewingOther ? `Clientes de ${displayName}` : 'Meus clientes'}
         </SectionTitle>
 
         {loading && myClientes.length === 0 ? (
@@ -766,7 +823,13 @@ export default function Dashboard({ session }) {
             {[1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} className="h-32" />)}
           </div>
         ) : myClientes.length === 0 ? (
-          <p className="text-sm text-white/30 text-center py-8">Você ainda não tem clientes alocados.</p>
+          <p className="text-sm text-white/30 text-center py-8">
+            {isViewingOther
+              ? `${displayName} ainda não tem clientes alocados.`
+              : isViewingAll
+                ? 'Nenhum cliente cadastrado ainda.'
+                : 'Você ainda não tem clientes alocados.'}
+          </p>
         ) : (
           <div className="space-y-4">
             {clientesPriorizados.prioridade.length > 0 && (
