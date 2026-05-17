@@ -1,6 +1,6 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-17 (Meta App publishing — callbacks data-deletion + deauthorize entregues. Faltando só painel Meta + screencast + Business Verification do lado do Pedro)
+**Última atualização:** 2026-05-17 tarde (Meta App publishing — Pedro avançou painel: 3 permissões com descrições + Data Handling Questions form Tech Provider + 2 operadores declarados Supabase+Hostinger. Faltando confirmação região Supabase + screencast + Business Verification)
 **Status:** 4 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 ---
@@ -38,7 +38,49 @@ Callbacks obrigatórios da App Review entregues em `backend/routes/meta_callback
 
 Smoke validado: signed_request inválido → 400 (HMAC fail), missing field → 422.
 
-**Pendência operacional (Pedro):** configurar URLs no painel Meta (Privacy/Terms/Data Deletion + callbacks), subir App Icon 1024×1024, gravar screencast 1-2min demonstrando OAuth + insights + comments, submeter App Review das 3 permissões `instagram_business_*`, iniciar Business Verification do Grupo Guglielmi. Prazo total ~2 semanas até modo Live.
+### Painel Meta App Review — progresso 2026-05-17 tarde
+
+Pedro está preenchendo manualmente o submission form no painel developers.facebook.com. Decisões consolidadas:
+
+**Permissões finais (3 cards, removido `instagram_basic` legacy):**
+- `instagram_business_basic` — descrição oficial colada no card ① ("identificar conta IG conectada + listar mídias publicadas; pré-requisito das demais permissões")
+- `instagram_business_manage_insights` — descrição oficial colada ("popular dashboard de performance: reach/profile_views/follows/demografia agregados + KPIs por publicação/story; consultor usa em encontros mensais pra decisão estratégica de conteúdo")
+- `instagram_business_manage_comments` — descrição oficial colada, ênfase em **LEITURA SOMENTE** ("análise qualitativa de sentimento manual + direcionamento de pauta editorial + identificação de fricções; NÃO respondemos/deletamos/ocultamos/moderamos")
+
+Os 3 checkboxes de conformidade marcados. Screencast (~2min) único cobre as 3 permissões e sobe nos 3 cards (mesmo MP4).
+
+**Data Handling Questions form (Tech Provider path):**
+- Q1 "Integração pra múltiplos clientes empresariais gerenciarem próprios dados FB?" → ✅ Sim (FLG é SaaS multi-tenant)
+- Q2 "Integração em nome de cliente individual?" → ❌ Não
+
+**Operadores/processors declarados (apenas 2, decisão validada via grep):**
+1. **Supabase Inc.** — categoria "Para fornecer serviços de jogos ou soluções de TI, incluindo armazenamento e processamento em nuvem". Países: Estados Unidos + região AWS atual (Pedro precisa confirmar via Supabase Dashboard → Settings → General).
+2. **Hostinger International Ltd.** — mesma categoria. Países: Brasil + Lituânia (HQ). VPS confirmada via `ipinfo.io 72.61.54.192`: `srv1475950.hstgr.cloud`, AS47583, São Paulo BR.
+
+**Anthropic/Claude NÃO declarado** — validado por `grep "instagram|metric|insights|post|comment|reach|follower"` em `backend/services/` + `backend/prompts/` + `backend/agents/` → resultado vazio. Os prompts Claude (chat-materiais, chat-copywriter, chat-intelecto, gerador de decks, chat-pratica de Reuniões) só recebem dados internos FLG (nome cliente, empresa, tom de voz, intelecto textual). **Caveat futuro:** se algum dia rodar análise de sentimento de comentários IG via Claude ou pedir resumo de performance, voltar nesse formulário e adicionar Anthropic PBC (categoria TI/cloud, EUA).
+
+**Controlador / responsible-1:**
+- Founders Led Growth Brazil (Grupo Guglielmi)
+- CNPJ: 21.468.097/0001-XX (Pedro vai substituir XX pelos dígitos reais do Cartão CNPJ)
+- Endereço: Av. Engenheiro Luís Carlos Berrini, 550 — Sala 08, São Paulo/SP, CEP 04571-000
+- DPO: Pedro Aranda — `presidencia@grupoguglielmi.com`
+- País (responsible-2): Brasil
+
+**Solicitações de autoridades:**
+- requests-3 (forneceu nos últimos 12 meses?): ❌ Não
+- requests-4 (processos/políticas): 4 primeiras marcadas (análise legitimidade + contestação ilegais + minimização + registro). NÃO marcar "Nenhuma das opções" nem "Somos proibidos por lei".
+
+**Pendências operacionais restantes (Pedro):**
+1. Confirmar região AWS do Supabase no Dashboard (Settings → General) — define se países do Supabase são apenas EUA ou +Brasil/Reino Unido/etc
+2. Substituir `XX` do CNPJ pelos dígitos reais
+3. Configurar URLs no painel Meta (Privacy/Terms/Data Deletion + callbacks já no backend)
+4. Subir App Icon 1024×1024
+5. Gravar screencast (~2min) seguindo roteiro definido (Login → Clientes → Métricas → header IG → KPIs+demografia → Posts list → Post detail → Comentários reais → /legal/privacy → Desconectar IG)
+6. Subir o MESMO MP4 nos 3 cards de permissão
+7. Iniciar Business Verification do Grupo Guglielmi
+8. Submeter App Review — Meta responde em 3-14 dias úteis
+
+Prazo total ~2 semanas até modo Live.
 
 ---
 
@@ -259,16 +301,21 @@ Pedro pediu reorganização: filtro por consultor, cliente como entrada principa
 
 1. **Lê este arquivo.**
 
-2. **Pergunta pro Pedro:** qual stream priorizar?
-   - **Trackeamento Redes Sociais — publicação App Meta** (Sessão 2026-05-13 priorizada por Pedro)
+2. **Estado em curso (Meta App Publishing):** Pedro está no painel developers.facebook.com preenchendo o submission form. Pendências imediatas do lado dele:
+   - Próxima tela esperada após Data Handling Questions: provavelmente "Instruções para o analista" (credenciais Test User + passos pra Meta reproduzir o screencast). Quando Pedro mandar print, orientar campo por campo.
+   - Confirmar região AWS do Supabase (Dashboard → Settings → General) pra finalizar `processor-2b` do operador Supabase.
+   - Gravar 1 screencast cobrindo as 3 permissões + subir mesmo MP4 nos 3 cards.
+   - Iniciar Business Verification do Grupo Guglielmi (paralelizável com App Review).
+
+3. **Outros streams disponíveis (se Pedro mudar prioridade):**
    - Métricas V3 → Phase 3B (sub-página todos os posts) ou 3D (polish shadcn/radix)
    - Ranking Tabs → Phase 2 (backend endpoint consultores)
    - Reuniões da Jornada → Phase E polish (regerar slide N, copy URL, mobile, Traefik /apresentar/* sem /api/)
    - Colaboradores → mobile responsive (último item pendente da Phase 4)
 
-3. **Workflow padrão:** brainstorming → spec → plan → subagent-driven-development.
+4. **Workflow padrão:** brainstorming → spec → plan → subagent-driven-development.
 
-4. **Auto mode** está ativo na maioria das sessões — minimize interruptions, prefer action over planning. Mas mantém spec/plan/review gates da subagent-driven-development pra qualidade.
+5. **Auto mode** está ativo na maioria das sessões — minimize interruptions, prefer action over planning. Mas mantém spec/plan/review gates da subagent-driven-development pra qualidade.
 
 ---
 
