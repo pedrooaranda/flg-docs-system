@@ -1,6 +1,6 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-13 (Phase 4 Colaboradores entregue: PasswordChangeRequired + isOwner helper + skeleton. Próximo: trackeamento Redes Sociais + Meta App publishing)
+**Última atualização:** 2026-05-17 (Meta App publishing — callbacks data-deletion + deauthorize entregues. Faltando só painel Meta + screencast + Business Verification do lado do Pedro)
 **Status:** 4 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 ---
@@ -28,6 +28,17 @@ Meta API deprecou em **2025-04-21** múltiplas métricas pra TODAS as versões: 
 - Métricas atualizadas (FEED/REELS/STORY) + `views` substitui `impressions`/`plays` em `_build_post_row` + STORY ganha 2ª chamada com `breakdown=story_navigation_action_type`.
 - **Auto-recovery**: posts finalizados com `engagement_rate=NULL` E `likes>0` são re-fetchados automaticamente (cap em 40/sync).
 - `force_refresh=True` em `sync_cliente` + endpoint `POST /instagram/oauth/sync/{cid}?force=true`.
+
+### Meta App Publishing — backend pronto 2026-05-17 (SHA `9c5c009`)
+
+Callbacks obrigatórios da App Review entregues em `backend/routes/meta_callbacks.py`:
+- **`POST /api/meta/data-deletion`** — recebe `signed_request`, valida HMAC-SHA256 com `ig_app_secret` (fallback `meta_app_secret`). Localiza `instagram_conexoes` por `instagram_user_id`, marca `status='deletado'`, limpa `access_token`, purga `metricas_diarias_instagram`. Retorna `{url, confirmation_code}` padrão Meta.
+- **`GET /api/meta/data-deletion/status/{code}`** — página HTML pública mostrando confirmação de recebimento + prazo 30 dias LGPD. `X-Robots-Tag: noindex`.
+- **`POST /api/meta/deauthorize`** — webhook quando user desconecta. Marca `status='desautorizado'` + limpa token. Retorna 200 OK.
+
+Smoke validado: signed_request inválido → 400 (HMAC fail), missing field → 422.
+
+**Pendência operacional (Pedro):** configurar URLs no painel Meta (Privacy/Terms/Data Deletion + callbacks), subir App Icon 1024×1024, gravar screencast 1-2min demonstrando OAuth + insights + comments, submeter App Review das 3 permissões `instagram_business_*`, iniciar Business Verification do Grupo Guglielmi. Prazo total ~2 semanas até modo Live.
 
 ---
 
