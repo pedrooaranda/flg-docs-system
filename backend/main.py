@@ -37,6 +37,7 @@ from routes.colaboradores import router as colaboradores_router
 from routes.encontros_intelecto import router as encontros_intelecto_router
 from routes.reunioes import router as reunioes_router
 from routes.apresentar import router as apresentar_router
+from routes.meta_callbacks import router as meta_callbacks_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -219,6 +220,7 @@ app.include_router(colaboradores_router)
 app.include_router(encontros_intelecto_router)
 app.include_router(reunioes_router)
 app.include_router(apresentar_router)
+app.include_router(meta_callbacks_router)
 
 # Migration 005 (encontros_base ganha intelecto_estrutura, html_intelecto,
 # num_slides_intelecto, html_gerado_at) é aplicada manualmente via Supabase
