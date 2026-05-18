@@ -181,10 +181,10 @@ function Collapsible({ title, icon: Icon, defaultOpen = false, children }) {
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          className="px-5 pb-5 text-sm text-white/70 leading-relaxed space-y-3"
+          className="px-5 pb-5 text-sm text-white/70 leading-relaxed"
           style={{ borderTop: '1px solid var(--flg-border)' }}
         >
-          <div className="pt-4">{children}</div>
+          <div className="pt-4 space-y-3">{children}</div>
         </motion.div>
       )}
     </div>
