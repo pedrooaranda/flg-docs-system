@@ -20,7 +20,7 @@ const consultantNav = [
   { icon: FileText,       label: 'Materiais',      path: '/materiais', matchPrefix: true },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
   { icon: UserCog,        label: 'Colaboradores',  path: '/colaboradores' },
-  { icon: BookOpen,       label: 'Conectar IG (tutorial)', path: '/tutoriais/conectar-instagram-cliente' },
+  { icon: BookOpen,       label: 'Tutoriais',              path: '/tutoriais', matchPrefix: true },
 ]
 
 const adminNav = [
@@ -31,7 +31,7 @@ const adminNav = [
   { icon: FileText,       label: 'Materiais',    path: '/materiais', matchPrefix: true },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
   { icon: UserCog,        label: 'Colaboradores',  path: '/colaboradores' },
-  { icon: BookOpen,       label: 'Conectar IG (tutorial)', path: '/tutoriais/conectar-instagram-cliente' },
+  { icon: BookOpen,       label: 'Tutoriais',              path: '/tutoriais', matchPrefix: true },
 ]
 
 const adminOnlyNav = [

@@ -15,7 +15,7 @@ import { motion } from 'framer-motion'
 import {
   Instagram, Facebook, Copy, Check, ExternalLink, ChevronDown,
   CheckCircle2, AlertCircle, Clock, Users, MessageSquare, Sparkles,
-  HelpCircle, ArrowRight,
+  HelpCircle, ArrowRight, ArrowLeft,
 } from 'lucide-react'
 
 const META_APP_NAME = 'FLG Jornada System'
@@ -215,6 +215,15 @@ export default function ConectarInstagramCliente() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 lg:p-10 space-y-8">
+      {/* Breadcrumb */}
+      <button
+        type="button"
+        onClick={() => navigate('/tutoriais')}
+        className="inline-flex items-center gap-1.5 text-xs text-white/45 hover:text-gold-mid transition-colors cursor-pointer -mb-4"
+      >
+        <ArrowLeft size={11} /> Tutoriais
+      </button>
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
