@@ -238,14 +238,14 @@ export default function TutoriaisHub() {
         </div>
         <div className="flex-1">
           <h3 className="font-serifdeck text-base text-white/90 mb-1">
-            Falta algum tutorial?
+            Falta algum tutorial ou gostaria de algum outro específico?
           </h3>
           <p className="text-xs text-white/55 leading-relaxed">
-            Manda mensagem pro <strong className="text-gold-mid">Pedro</strong> em{' '}
-            <a href="mailto:presidencia@grupoguglielmi.com" className="text-gold-mid hover:underline">
-              presidencia@grupoguglielmi.com
+            Entre em contato com <strong className="text-gold-mid">Pedro Aranda</strong> via Slack no Canal de Tecnologia ou via e-mail{' '}
+            <a href="mailto:pedroaranda@grupoguglielmi.com" className="text-gold-mid hover:underline">
+              pedroaranda@grupoguglielmi.com
             </a>{' '}
-            descrevendo o fluxo que precisa de documentação. Tutoriais novos vão aparecendo aqui à medida que a equipe sinaliza demanda.
+            descrevendo a solicitação que precisa de uma documentação e Tutorial. Tutoriais novos vão aparecendo aqui à medida que a equipe sinaliza demanda.
           </p>
         </div>
       </motion.div>
