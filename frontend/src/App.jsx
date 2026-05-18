@@ -40,6 +40,7 @@ const MetricasTTVideos  = lazy(() => import('./components/Metricas/MetricasTTVid
 const Ranking          = lazy(() => import('./components/Ranking'))
 const LegalPage        = lazy(() => import('./components/LegalPage'))
 const ConectarInstagram = lazy(() => import('./components/ConectarInstagram'))
+const TutorialConectarIG = lazy(() => import('./components/Tutoriais/ConectarInstagramCliente'))
 
 // Resolve qual componente renderizar baseado em ?plataforma= da URL.
 // Mesma rota (ex: /metricas/:id/posts) serve Instagram E LinkedIn — distingue por query param.
@@ -229,6 +230,12 @@ export default function App() {
           <Route path="/admin/agentes" element={
             <AuthGuard session={session} title="Agentes FLG">
               <AgentesConfig />
+            </AuthGuard>
+          } />
+
+          <Route path="/tutoriais/conectar-instagram-cliente" element={
+            <AuthGuard session={session} title="Tutorial · Conectar Instagram">
+              <TutorialConectarIG />
             </AuthGuard>
           } />
 

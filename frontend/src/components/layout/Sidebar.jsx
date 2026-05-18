@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Users, FileText, PenTool,
   Brain, Bot, Settings, LogOut,
-  ChevronLeft, ChevronRight, BarChart2, Trophy, UserCog,
+  ChevronLeft, ChevronRight, BarChart2, Trophy, UserCog, BookOpen,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { Avatar } from '../ui/Avatar'
@@ -20,6 +20,7 @@ const consultantNav = [
   { icon: FileText,       label: 'Materiais',      path: '/materiais', matchPrefix: true },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
   { icon: UserCog,        label: 'Colaboradores',  path: '/colaboradores' },
+  { icon: BookOpen,       label: 'Conectar IG (tutorial)', path: '/tutoriais/conectar-instagram-cliente' },
 ]
 
 const adminNav = [
@@ -30,6 +31,7 @@ const adminNav = [
   { icon: FileText,       label: 'Materiais',    path: '/materiais', matchPrefix: true },
   { icon: PenTool,        label: 'Copywriter FLG', path: '/copywriter' },
   { icon: UserCog,        label: 'Colaboradores',  path: '/colaboradores' },
+  { icon: BookOpen,       label: 'Conectar IG (tutorial)', path: '/tutoriais/conectar-instagram-cliente' },
 ]
 
 const adminOnlyNav = [
