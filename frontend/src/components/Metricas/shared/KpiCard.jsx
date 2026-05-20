@@ -85,7 +85,7 @@ export default function KpiCard({ icon: Icon, label, value, decimals = 0, suffix
         <Icon size={14} style={{ color }} className="opacity-60" />
       </div>
       <div className="flex items-end justify-between gap-2">
-        <div className="text-2xl font-bold text-white leading-tight" style={{ fontFamily: 'Playfair Display, serif' }}>
+        <div className="text-2xl font-bold text-white leading-tight tabular-nums">
           <AnimatedNumber value={value} decimals={decimals} prefix={prefix} suffix={suffix} />
         </div>
         {history && history.length > 1 && (
