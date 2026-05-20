@@ -23,26 +23,19 @@ const META_APP_NAME = 'FLG Jornada System'
 // URLs canônicas validadas (vide memory: meta_tester_acceptance_url.md)
 const URL_FB_APP_TESTERS = 'https://developers.facebook.com/apps/'
 const URL_FB_DEV_PORTAL = 'https://developers.facebook.com/'
-const URL_FB_ACCEPT_INVITE = 'https://www.facebook.com/settings?tab=applications'
 const URL_IG_ACCEPT_INVITE = 'https://www.instagram.com/accounts/manage_access/'
 
 const MENSAGEM_PADRAO = `Olá [NOME DO FOUNDER]!
 
-Para começarmos a analizarmos e direcionarmos as próximas estratégias a partir das suas métricas de Instagram nos encontros, eu preciso que você autorize o acesso em 2 lugares (leva 1 minuto cada):
+Para começarmos a analisar e direcionar as próximas estratégias a partir das suas métricas de Instagram nos encontros, eu preciso que você autorize o acesso (leva menos de 1 minuto):
 
-1️⃣ ABRIR NO FACEBOOK (no celular ou computador):
-   ${URL_FB_ACCEPT_INVITE}
-
-   → Vai aparecer um convite para ser "Testador" do ${META_APP_NAME}
-   → Clique em ACEITAR
-
-2️⃣ ABRIR NO INSTAGRAM (precisa ser pelo Aplicativo do celular):
+📲 ABRIR NO INSTAGRAM (precisa ser pelo Aplicativo do celular):
    ${URL_IG_ACCEPT_INVITE}
 
-   → Vai aparecer convite para ser "Testador Instagram" do ${META_APP_NAME}
-   → Clique também em ACEITAR
+   → Vai aparecer um convite para ser "Testador Instagram" do ${META_APP_NAME}
+   → Clique em ACEITAR
 
-Quando aceitar os 2, me avise por aqui que eu finalizo a conexão para começarmos a acompanhar as métricas juntos.
+Quando aceitar, me avise por aqui que eu finalizo a conexão para começarmos a acompanhar as métricas juntos.
 
 Qualquer dúvida que tiver, me chame por aqui!
 
@@ -244,9 +237,9 @@ export default function ConectarInstagramCliente() {
           Passo a passo para autorizar o Instagram de um Founder nas Métricas FLG.
         </p>
         <div className="flex items-center justify-center gap-6 mt-4 text-xs text-white/45">
-          <span className="flex items-center gap-1.5"><Clock size={11} /> ~10 minutos</span>
+          <span className="flex items-center gap-1.5"><Clock size={11} /> ~6 minutos</span>
           <span className="text-white/15">·</span>
-          <span className="flex items-center gap-1.5"><Users size={11} /> 5 minutos seu + 5 minutos do Founder</span>
+          <span className="flex items-center gap-1.5"><Users size={11} /> 3 minutos seu + 3 minutos do Founder</span>
         </div>
       </motion.div>
 
@@ -276,7 +269,7 @@ export default function ConectarInstagramCliente() {
         </p>
         <p>
           Enquanto a Meta não aprova, cada Founder precisa ser explicitamente adicionado como
-          <strong className="text-white/90"> "Tester"</strong> no painel do app, para autorizar o acesso ao Instagram dele.
+          <strong className="text-white/90"> "Instagram Tester"</strong> no painel do app, para autorizar o acesso ao Instagram dele.
           É a forma operacional disponível neste momento para atender Founders reais.
         </p>
         <p>
@@ -294,14 +287,9 @@ export default function ConectarInstagramCliente() {
         </div>
 
         {/* Passo 1 */}
-        <StepCard num="1" title="Colete os dados do Founder" time="1 minuto">
-          <p>Você vai precisar de 2 informações antes de acessar o painel da Meta:</p>
+        <StepCard num="1" title="Colete o @handle do Instagram do Founder" time="1 minuto">
+          <p>Você vai precisar de 1 informação antes de acessar o painel da Meta:</p>
           <ul className="space-y-2 ml-1">
-            <li className="flex gap-2">
-              <span className="text-gold-mid font-bold">→</span>
-              <span><strong className="text-white/90">Nome completo do dono da conta Facebook</strong> do Founder
-              (geralmente o sócio ou dono da empresa)</span>
-            </li>
             <li className="flex gap-2">
               <span className="text-gold-mid font-bold">→</span>
               <span><strong className="text-white/90">@handle do Instagram da empresa</strong> (exemplo: @grupoguglielmi.
@@ -309,46 +297,26 @@ export default function ConectarInstagramCliente() {
             </li>
           </ul>
           <InfoBox variant="info">
-            <strong>Dica:</strong> envie mensagem para o Founder ANTES de começar, pedindo essas 2 informações.
+            <strong>Dica:</strong> envie mensagem para o Founder ANTES de começar, pedindo essa informação.
             Ele responde em 1 minuto e você não interrompe seu fluxo no painel da Meta depois.
           </InfoBox>
         </StepCard>
 
         {/* Passo 2 */}
-        <StepCard num="2" title="Adicionar como App Tester (Facebook)" time="2 minutos">
+        <StepCard num="2" title="Adicionar como Instagram Tester" time="2 minutos">
           <p>
-            <strong className="text-white/90">App Tester</strong> é a função que dá ao Founder
-            permissão para autorizar o app FLG no fluxo OAuth.
+            <strong className="text-white/90">Instagram Tester</strong> é a função que libera
+            a conta Instagram do Founder para ser acessada via API e autorizar o app FLG no fluxo OAuth.
           </p>
           <ol className="space-y-2 ml-1 list-decimal list-inside">
-            <li>Abra o painel Meta abaixo:</li>
+            <li>Abra o painel Meta for Developers abaixo:</li>
           </ol>
           <ExternalLinkBtn href={URL_FB_APP_TESTERS} primary>
             <Facebook size={12} /> Abrir painel Meta for Developers
           </ExternalLinkBtn>
           <ol start="2" className="space-y-2 ml-1 list-decimal list-inside">
             <li>Clique no app <strong className="text-gold-mid">{META_APP_NAME}</strong> na lista de apps</li>
-            <li>No menu lateral esquerdo, clique em <strong className="text-white/90">Funções do app</strong> e depois em <strong className="text-white/90">Testadores</strong></li>
-            <li>Clique no botão azul <strong className="text-white/90">"Adicionar testadores"</strong> (canto superior direito)</li>
-            <li>Digite o <strong className="text-white/90">nome completo Facebook</strong> do Founder. Vai aparecer uma sugestão com a foto do perfil</li>
-            <li>Clique no nome correto, confirme e o convite será enviado ✅</li>
-          </ol>
-          <InfoBox variant="warning">
-            <strong>Não acha o nome do Founder na busca?</strong> Confirme com ele se o nome do perfil Facebook é
-            exatamente esse (pode estar com sobrenome diferente, sem acento, entre outros). A busca da Meta é sensível.
-            Última opção: peça para o Founder enviar o link do perfil Facebook dele e tente localizar por ali.
-          </InfoBox>
-        </StepCard>
-
-        {/* Passo 3 */}
-        <StepCard num="3" title="Adicionar como Instagram Tester" time="2 minutos">
-          <p>
-            <strong className="text-white/90">Instagram Tester</strong> é a função específica que libera
-            a CONTA IG do Founder para ser acessada via API. <em>Sem isso, mesmo com App Tester aceito,
-            o OAuth retorna o erro "Invalid scopes".</em>
-          </p>
-          <ol className="space-y-2 ml-1 list-decimal list-inside">
-            <li>Ainda dentro do app <strong className="text-gold-mid">{META_APP_NAME}</strong>, no menu lateral esquerdo, vá em <strong className="text-white/90">Produtos</strong>, depois <strong className="text-white/90">Instagram</strong>, depois <strong className="text-white/90">Configuração da API com login do Instagram</strong></li>
+            <li>No menu lateral esquerdo, vá em <strong className="text-white/90">Produtos</strong>, depois <strong className="text-white/90">Instagram</strong>, depois <strong className="text-white/90">Configuração da API com login do Instagram</strong></li>
             <li>Procure a seção <strong className="text-white/90">"Instagram Testers"</strong> (geralmente no fim da página)</li>
             <li>Clique em <strong className="text-white/90">"Adicionar Instagram Testers"</strong></li>
             <li>Digite o <strong className="text-white/90">@handle</strong> do Founder (exemplo: <code className="text-gold-mid">grupoguglielmi</code>, sem o @)</li>
@@ -360,22 +328,22 @@ export default function ConectarInstagramCliente() {
           </InfoBox>
         </StepCard>
 
-        {/* Passo 4 */}
-        <StepCard num="4" title="Envie a mensagem padrão para o Founder" time="1 minuto">
+        {/* Passo 3 */}
+        <StepCard num="3" title="Envie a mensagem padrão para o Founder" time="1 minuto">
           <p>
-            Os 2 convites estão pendentes. Agora o Founder precisa aceitar nos 2 lugares.
+            O convite está pendente. Agora o Founder precisa aceitar.
             Copie a mensagem abaixo, substitua <code className="text-gold-mid">[NOME DO FOUNDER]</code> e <code className="text-gold-mid">[SEU NOME]</code>,
             e envie pelo WhatsApp ou email dele:
           </p>
           <CopyBox text={MENSAGEM_PADRAO} />
           <InfoBox variant="info">
-            <strong>O Instagram Tester PRECISA ser aceito pelo aplicativo mobile do Instagram</strong>,
+            <strong>O convite PRECISA ser aceito pelo aplicativo mobile do Instagram</strong>,
             não pelo navegador. Avise o Founder disso na mensagem caso ele seja menos técnico.
           </InfoBox>
         </StepCard>
 
-        {/* Passo 5 */}
-        <StepCard num="5" title="Aguardar o Founder aceitar os 2 convites" time="5 minutos a 24h">
+        {/* Passo 4 */}
+        <StepCard num="4" title="Aguardar o Founder aceitar o convite" time="5 minutos a 24h">
           <p>
             A Meta <strong className="text-white/90">não notifica</strong> quando o Founder aceita.
             Você fica dependente da resposta dele no WhatsApp.
@@ -386,15 +354,15 @@ export default function ConectarInstagramCliente() {
             <li className="flex gap-2"><MessageSquare size={13} className="text-white/40 mt-0.5 flex-shrink-0" /> <span>Se não responder em 24 horas, envie um lembrete amigável</span></li>
           </ul>
           <InfoBox variant="info">
-            <strong>Quer conferir se o Founder já aceitou?</strong> Volte no painel Meta, vá em Funções do app, depois Testadores.
-            Se ainda estiver "Pendente", ele não aceitou. Se estiver "Aceito" ✅, pode passar para o Passo 6.
+            <strong>Quer conferir se o Founder já aceitou?</strong> Volte no painel Meta, vá em Produtos, Instagram, Configuração da API com login do Instagram, seção Instagram Testers.
+            Se ainda estiver "Pendente", ele não aceitou. Se estiver "Aceito" ✅, pode passar para o Passo 5.
           </InfoBox>
         </StepCard>
 
-        {/* Passo 6 */}
-        <StepCard num="6" title="Conecte o Instagram dentro do FLG" time="2 minutos">
+        {/* Passo 5 */}
+        <StepCard num="5" title="Conecte o Instagram dentro do FLG" time="2 minutos">
           <p>
-            O Founder confirmou que aceitou os 2 convites? Agora é só finalizar dentro do FLG:
+            O Founder confirmou que aceitou o convite? Agora é só finalizar dentro do FLG:
           </p>
           <ol className="space-y-2 ml-1 list-decimal list-inside">
             <li>Vá em <strong className="text-white/90">Clientes</strong> no menu lateral</li>
@@ -423,7 +391,7 @@ export default function ConectarInstagramCliente() {
         <p className="text-white/85 mb-3">
           A implementação ideal deste fluxo de Tracking acontece durante a reunião de{' '}
           <strong className="text-gold-mid">Organização de Mídias</strong> com o Founder. Nesse momento ele está atento,
-          tem acesso ao computador e celular simultaneamente, e você consegue acompanhar os 2 cliques de aceitação em tempo real,
+          tem o celular em mãos, e você consegue acompanhar o clique de aceitação em tempo real,
           garantindo que a conexão fique pronta antes do encontro terminar.
         </p>
         <p className="text-white/85 mb-3">
@@ -443,7 +411,7 @@ export default function ConectarInstagramCliente() {
             <span>
               <strong className="text-white/90">Marque um alinhamento complementar de 15 minutos</strong> via Google Meet ou Zoom
               para fazer o passo a passo junto com o Founder. Esta opção é especialmente recomendada quando o Founder
-              relata dificuldade em encontrar os botões nas configurações do Facebook ou Instagram pelo WhatsApp.
+              relata dificuldade em encontrar o convite no aplicativo do Instagram.
             </span>
           </li>
         </ul>
@@ -457,28 +425,23 @@ export default function ConectarInstagramCliente() {
       <Collapsible title="FAQ Rápido" icon={AlertCircle}>
         <div className="space-y-4">
           <div>
-            <p className="font-semibold text-white/90 mb-1">❌ "Não acho o nome do Founder na busca de testadores"</p>
-            <p>O nome no Facebook pode ter espaços, sobrenomes ou acentos diferentes. Peça para o Founder enviar o link do perfil
-            Facebook dele (formato <code>facebook.com/nome.sobrenome</code>) e busque exatamente assim.</p>
+            <p className="font-semibold text-white/90 mb-1">❌ "Não acho o @handle do Founder ao adicionar Instagram Tester"</p>
+            <p>Confirme com o Founder se o @handle está escrito exatamente igual ao do perfil Instagram dele (sem o @, sem espaços).
+            Tente também copiar e colar direto do perfil dele para evitar erro de digitação.</p>
           </div>
           <div>
             <p className="font-semibold text-white/90 mb-1">❌ "Founder diz que aceitou mas o OAuth ainda apresenta erro"</p>
-            <p>Provavelmente ele aceitou apenas um dos 2 convites (App Tester ou Instagram Tester). Confira no painel Meta:
-            os dois precisam estar com status "Aceito". Se faltar o Instagram Tester, ele precisa aceitar no aplicativo do Instagram
-            (não funciona no navegador desktop).</p>
+            <p>O convite de Instagram Tester precisa ser aceito pelo aplicativo mobile do Instagram, não pelo navegador desktop.
+            Confirme com o Founder se ele abriu o link {URL_IG_ACCEPT_INVITE} dentro do app do celular e clicou em ACEITAR.</p>
           </div>
           <div>
             <p className="font-semibold text-white/90 mb-1">❌ "Erro: Invalid scopes" ou "App em modo de desenvolvimento"</p>
-            <p>O Founder NÃO foi adicionado como Tester ou ainda não aceitou. Volte no painel Meta e confirme o status.</p>
+            <p>O Founder NÃO foi adicionado como Instagram Tester ou ainda não aceitou. Volte no painel Meta em Produtos, Instagram, Configuração da API com login do Instagram, seção Instagram Testers, e confirme o status.</p>
           </div>
           <div>
             <p className="font-semibold text-white/90 mb-1">❌ "Conta IG do Founder é Personal"</p>
             <p>Não funciona com IG Personal, apenas Business ou Creator. O Founder precisa trocar em
             Configurações do Instagram, Conta, Mudar para conta comercial. Gratuito, leva 30 segundos, sem perder seguidores.</p>
-          </div>
-          <div>
-            <p className="font-semibold text-white/90 mb-1">❌ "Founder não encontra o convite no Facebook"</p>
-            <p>Envie este link diretamente: <code className="text-gold-mid">{URL_FB_ACCEPT_INVITE}</code></p>
           </div>
           <div>
             <p className="font-semibold text-white/90 mb-1">❌ "Tudo certo e ainda não funciona"</p>
