@@ -22,6 +22,7 @@ const META_APP_NAME = 'FLG Jornada System'
 
 // URLs canônicas validadas (vide memory: meta_tester_acceptance_url.md)
 const URL_FB_APP_TESTERS = 'https://developers.facebook.com/apps/'
+const URL_FB_DEV_PORTAL = 'https://developers.facebook.com/'
 const URL_FB_ACCEPT_INVITE = 'https://www.facebook.com/settings?tab=applications'
 const URL_IG_ACCEPT_INVITE = 'https://www.instagram.com/accounts/manage_access/'
 
@@ -258,7 +259,7 @@ export default function ConectarInstagramCliente() {
         <ul className="space-y-2 list-none">
           <li className="flex gap-2"><span className="text-gold-mid">✓</span> Você tem conta no Facebook ativa (com seu nome real)</li>
           <li className="flex gap-2"><span className="text-gold-mid">✓</span> Pedro te adicionou como Developer no Meta App da FLG</li>
-          <li className="flex gap-2"><span className="text-gold-mid">✓</span> Você abriu <a href={URL_FB_ACCEPT_INVITE} target="_blank" rel="noopener noreferrer" className="text-gold-mid underline">facebook.com/settings → Aplicativos</a> e aceitou o convite</li>
+          <li className="flex gap-2"><span className="text-gold-mid">✓</span> Você abriu <a href={URL_FB_DEV_PORTAL} target="_blank" rel="noopener noreferrer" className="text-gold-mid underline">developers.facebook.com</a> e aceitou o convite de Developer</li>
         </ul>
         <InfoBox variant="warning">
           <strong>Ainda não tem acesso?</strong> Chama o Pedro no Slack solicitando
