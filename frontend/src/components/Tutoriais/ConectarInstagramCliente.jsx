@@ -29,7 +29,7 @@ const MENSAGEM_PADRAO = `Olá [NOME DO FOUNDER]!
 
 Para começarmos a analisar e direcionar as próximas estratégias a partir das suas métricas de Instagram nos encontros, precisamos que você autorize o acesso (leva menos de 1 minuto):
 
-📲 ABRIR NO INSTAGRAM (precisa ser pelo Aplicativo do celular):
+💻 ABRIR NO INSTAGRAM (precisa ser pelo computador com o Instagram conectado):
    ${URL_IG_ACCEPT_INVITE}
 
    → Vai aparecer um convite para ser "Testador Instagram" do ${META_APP_NAME}
@@ -335,8 +335,8 @@ export default function ConectarInstagramCliente() {
           </p>
           <CopyBox text={MENSAGEM_PADRAO} />
           <InfoBox variant="info">
-            <strong>O convite PRECISA ser aceito pelo aplicativo mobile do Instagram</strong>,
-            não pelo navegador. Avise o Founder disso na mensagem caso ele seja menos técnico.
+            <strong>O convite PRECISA ser aceito pelo computador, com o Instagram conectado no navegador</strong>.
+            Quando o Founder abre o link pelo celular, o Instagram redireciona para a home e o convite não aparece. Avise o Founder disso na mensagem caso ele seja menos técnico.
           </InfoBox>
         </StepCard>
 
@@ -429,8 +429,9 @@ export default function ConectarInstagramCliente() {
           </div>
           <div>
             <p className="font-semibold text-white/90 mb-1">❌ "Founder diz que aceitou mas o OAuth ainda apresenta erro"</p>
-            <p>O convite de Instagram Tester precisa ser aceito pelo aplicativo mobile do Instagram, não pelo navegador desktop.
-            Confirme com o Founder se ele abriu o link {URL_IG_ACCEPT_INVITE} dentro do app do celular e clicou em ACEITAR.</p>
+            <p>O convite de Instagram Tester precisa ser aceito pelo computador, com o Instagram conectado no navegador.
+            Se o Founder abrir o link pelo celular, o Instagram redireciona para a home e o convite não aparece.
+            Confirme com o Founder se ele abriu o link {URL_IG_ACCEPT_INVITE} pelo navegador do computador e clicou em ACEITAR.</p>
           </div>
           <div>
             <p className="font-semibold text-white/90 mb-1">❌ "Erro: Invalid scopes" ou "App em modo de desenvolvimento"</p>
