@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useParams, useNavigate, useSearchParams, useLocation, Outlet, NavLink } from 'react-router-dom'
 import { useApp } from '../../contexts/AppContext'
 import { isAdmin as checkAdmin } from '../../lib/utils'
+import { matchConsultor } from '../Materiais/shared/consultor-utils'
 import { DateRangePicker } from '../MetricasParts'
 import { IGProfileBadge } from './shared/banners'
 import SyncButton from './shared/SyncButton'
@@ -18,9 +19,11 @@ export default function MetricasLayout({ session }) {
   const user = session?.user
   const admin = checkAdmin(user)
   const { clientes: allClientes } = useApp()
+  // Admin vê todos; consultor vê só seus clientes (match normalizado por
+  // matchConsultor — lida com espaços/acentos pra ligar "lucasnery" ↔ "Lucas Nery").
   const clientes = admin
     ? allClientes
-    : allClientes.filter(c => c.consultor_responsavel?.toLowerCase().includes(user?.email?.split('@')[0] || ''))
+    : allClientes.filter(c => matchConsultor(c.consultor_responsavel, user?.email || ''))
 
   const platform = searchParams.get('plataforma') || 'instagram'
   const platConfig = PLATFORMS[platform] || PLATFORMS.instagram
