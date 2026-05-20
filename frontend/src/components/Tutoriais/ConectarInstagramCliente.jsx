@@ -27,7 +27,7 @@ const URL_IG_ACCEPT_INVITE = 'https://www.instagram.com/accounts/manage_access/'
 
 const MENSAGEM_PADRAO = `Olá [NOME DO FOUNDER]!
 
-Para começarmos a analisar e direcionar as próximas estratégias a partir das suas métricas de Instagram nos encontros, eu preciso que você autorize o acesso (leva menos de 1 minuto):
+Para começarmos a analisar e direcionar as próximas estratégias a partir das suas métricas de Instagram nos encontros, precisamos que você autorize o acesso (leva menos de 1 minuto):
 
 📲 ABRIR NO INSTAGRAM (precisa ser pelo Aplicativo do celular):
    ${URL_IG_ACCEPT_INVITE}
@@ -35,13 +35,11 @@ Para começarmos a analisar e direcionar as próximas estratégias a partir das 
    → Vai aparecer um convite para ser "Testador Instagram" do ${META_APP_NAME}
    → Clique em ACEITAR
 
-Quando aceitar, me avise por aqui que eu finalizo a conexão para começarmos a acompanhar as métricas juntos.
+Quando aceitar, nos avise por aqui que vamos finalizar a conexão para começarmos a acompanhar as métricas juntos.
 
-Qualquer dúvida que tiver, me chame por aqui!
+Qualquer dúvida que tiver, nos chame por aqui!
 
-Obrigado.
-[SEU NOME]
-FLG`
+A FLG Brasil agradece.`
 
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -332,7 +330,7 @@ export default function ConectarInstagramCliente() {
         <StepCard num="3" title="Envie a mensagem padrão para o Founder" time="1 minuto">
           <p>
             O convite está pendente. Agora o Founder precisa aceitar.
-            Copie a mensagem abaixo, substitua <code className="text-gold-mid">[NOME DO FOUNDER]</code> e <code className="text-gold-mid">[SEU NOME]</code>,
+            Copie a mensagem abaixo, substitua <code className="text-gold-mid">[NOME DO FOUNDER]</code> pelo nome do Founder
             e envie pelo WhatsApp ou email dele:
           </p>
           <CopyBox text={MENSAGEM_PADRAO} />
