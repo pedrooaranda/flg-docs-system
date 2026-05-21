@@ -42,6 +42,8 @@ const LegalPage        = lazy(() => import('./components/LegalPage'))
 const ConectarInstagram = lazy(() => import('./components/ConectarInstagram'))
 const TutoriaisHub       = lazy(() => import('./components/Tutoriais'))
 const TutorialConectarIG = lazy(() => import('./components/Tutoriais/ConectarInstagramCliente'))
+const DebriefingsHub     = lazy(() => import('./components/Debriefings'))
+const DebriefingViewer   = lazy(() => import('./components/Debriefings/Viewer'))
 
 // Resolve qual componente renderizar baseado em ?plataforma= da URL.
 // Mesma rota (ex: /metricas/:id/posts) serve Instagram E LinkedIn — distingue por query param.
@@ -231,6 +233,18 @@ export default function App() {
           <Route path="/admin/agentes" element={
             <AuthGuard session={session} title="Agentes FLG">
               <AgentesConfig />
+            </AuthGuard>
+          } />
+
+          <Route path="/clientes/:clientId/debriefings" element={
+            <AuthGuard session={session} title="Debriefings">
+              <DebriefingsHub />
+            </AuthGuard>
+          } />
+
+          <Route path="/clientes/:clientId/debriefings/:debriefingId" element={
+            <AuthGuard session={session} title="Debriefing">
+              <DebriefingViewer />
             </AuthGuard>
           } />
 

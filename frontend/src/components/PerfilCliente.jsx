@@ -10,6 +10,7 @@ import { Spinner, PageSpinner } from './ui/Spinner'
 import { useToast } from '../lib/toast'
 import { formatDate, progressPercent, cn } from '../lib/utils'
 import { useAutoSave, AutoSaveIndicator } from '../hooks/useAutoSave.jsx'
+import DebriefingsHub from './Debriefings'
 
 const CAMPOS_PERFIL = [
   { key: 'tom_de_voz',          label: 'Tom de Voz' },
@@ -324,10 +325,11 @@ export default function PerfilCliente() {
       <Tabs.Root defaultValue="perfil">
         <Tabs.List className="flex gap-1 p-1 rounded-lg bg-white/3 border border-white/5 mb-6 w-fit">
           {[
-            { value: 'perfil',      label: 'Perfil' },
-            { value: 'notas',       label: 'Notas' },
-            { value: 'jornada',     label: 'Jornada' },
-            { value: 'documentos',  label: 'Documentos' },
+            { value: 'perfil',       label: 'Perfil' },
+            { value: 'notas',        label: 'Notas' },
+            { value: 'jornada',      label: 'Jornada' },
+            { value: 'documentos',   label: 'Documentos' },
+            { value: 'debriefings',  label: 'Debriefings' },
           ].map(tab => (
             <Tabs.Trigger
               key={tab.value}
@@ -408,6 +410,10 @@ export default function PerfilCliente() {
             </div>
           </div>
           <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleFileChange} />
+        </Tabs.Content>
+
+        <Tabs.Content value="debriefings">
+          <DebriefingsHub />
         </Tabs.Content>
       </Tabs.Root>
     </motion.div>

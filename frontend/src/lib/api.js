@@ -68,6 +68,52 @@ export async function apiStream(path, body, onChunk, onDone, signal) {
   }
 }
 
+/**
+ * SSE consumer pra endpoints GET que precisam de Authorization header
+ * (EventSource nativa não suporta headers customizados, daí fetch + stream).
+ *
+ * onEvent recebe cada evento parseado como objeto: { type, data }.
+ * Encerra automaticamente quando recebe event com type === 'done' ou 'error'.
+ * Retorna uma promise que resolve quando a conexão fecha.
+ */
+export async function apiStreamGet(path, onEvent, signal) {
+  const token = await getToken()
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'text/event-stream',
+    },
+    signal,
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop()
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        try {
+          const event = JSON.parse(line.slice(6))
+          onEvent(event)
+          if (event.type === 'done' || event.type === 'error') return
+        } catch {}
+      }
+    }
+  } finally {
+    reader.cancel()
+  }
+}
+
 export async function uploadImagemEncontro(encontroNumero, tipo, file) {
   const token = await getToken()
   const form = new FormData()
