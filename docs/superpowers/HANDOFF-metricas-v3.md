@@ -1,7 +1,7 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-17 tarde (Meta App publishing — Pedro avançou painel: 3 permissões com descrições + Data Handling Questions form Tech Provider + 2 operadores declarados Supabase+Hostinger. Faltando confirmação região Supabase + screencast + Business Verification)
-**Status:** 4 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
+**Última atualização:** 2026-05-21 (Debriefings Stream 5 — 6 fases backend+frontend em prod, esperando Pedro: migration 007 + bucket + Drive creds + atualizar Meta App Review com Anthropic. Doc completo em [docs/setup/debriefings-setup.md](../setup/debriefings-setup.md))
+**Status:** 5 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 ---
 
@@ -257,6 +257,68 @@ Pedro pediu reorganização: filtro por consultor, cliente como entrada principa
 **Estimativa:** ~4h. Sem plan escrito ainda.
 
 **Próximo passo:** validar fluxo end-to-end (Pedro testa novo UX) + se OK, iniciar Phase E ou pivotar pra outro stream.
+
+---
+
+---
+
+## Stream 5 — Debriefings Estratégicos (NOVO 2026-05-21)
+
+### Spec aprovada + 6 fases entregues (em produção)
+
+**Objetivo:** time comercial gera debriefing automático do ciclo anterior de um cliente quando ele renova. Backend orquestra extração ClickUp + Google Drive + análise Claude Sonnet 4.6 + render PDF FLG-styled. Cliente seleciona no perfil do cliente (tab Debriefings) ou rota direta `/clientes/:id/debriefings`.
+
+Doc de setup operacional (passos do Pedro pra ativar): [docs/setup/debriefings-setup.md](../setup/debriefings-setup.md).
+
+### Backend (em prod, SHA `25abbcd`)
+
+- **Migration 007** (aguardando aplicação manual): tabela `debriefings` com cliente_id FK, ciclo_numero, periodo, status (gerando/pronto/falhou), markdown_content, pdf_storage_path, audit (tokens, custo USD, num_tasks, num_docs, duracao_s).
+- **`backend/prompts/debriefing_prompt.py`** — system + user prompt XML structured. Template Markdown rígido 11 seções. Baseado no prompt v1.0 do Pedro Aranda.
+- **`backend/services/google_drive_service.py`** — auth via service account JSON, listagem com filtro folder/nome + janela temporal, export GDoc/Sheet/Slides/PDF, categorização automática por nome. Grace-degraded (sem creds → mensagem + segue).
+- **`backend/services/clickup_debriefing.py`** — reusa `list_all_tasks` + `read_clickup_comments`. Filtro temporal (created/updated/closed no período), fallback `find_list_by_name` por workspace_id, formatação agrupada por status. Limita 200 tasks + 20 comments/task.
+- **`backend/services/debriefing_generator.py`** — orquestrador 4 fases com callback de progresso. Claude `messages.stream` com `cache_control` no system. Sonnet 4.6, temp 0.3, max 16000 tokens. Captura usage real (input+cache_creation+cache_read+output). Custo USD: $3/M in + $15/M out.
+- **`backend/services/debriefing_pdf.py`** — Markdown → HTML (python-markdown) → PDF (WeasyPrint) → Supabase Storage. CSS FLG-branded: fundo claro, Georgia serif H1/H2 com accent gold #C9A84C, tabelas escuras, header/footer paginado. Bucket `debriefings`, `get_signed_url(expires=3600)`.
+- **`backend/routes/debriefings.py`** — 5 endpoints:
+  - `POST /debriefings` — cria row + BackgroundTasks dispara geração, retorna 202 + id + stream_url
+  - `GET /debriefings?cliente_id=X` — lista
+  - `GET /debriefings/:id` — detalhe (com markdown_content)
+  - `GET /debriefings/:id/stream` — SSE com eventos phase_start/phase_progress/phase_done/error/done. Queue in-memory por debriefing_id.
+  - `GET /debriefings/:id/pdf` — retorna signed_url do Storage
+- **Deps novas** (instaladas no rebuild): `google-api-python-client>=2.140.0`, `google-auth>=2.34.0`, `markdown>=3.6`. WeasyPrint já estava.
+
+### Frontend (em prod, SHA `9ecc7c7`)
+
+- **`Debriefings/index.jsx`** (Hub) — header com gradiente + counter status + botão "Novo Debriefing". Cards listando ciclos com status badge (gerando/pronto/falhou), grid metrics (tasks, docs, custo USD). Click "gerando" → StreamPanel; click "pronto" → Viewer route.
+- **`Debriefings/NovoDebriefingModal.jsx`** — form com ciclo auto-sugerido (max+1), período default últimos 6 meses, clickup_list_id e drive_folder_id opcionais. POST + onCreated dispara stream.
+- **`Debriefings/StreamPanel.jsx`** — SSE via novo helper `apiStreamGet` (fetch + ReadableStream pq EventSource nativa não suporta Authorization header). 4 fases listadas com Loader2 animado, info extra (tasks, docs, tokens) quando phase_done emite.
+- **`Debriefings/Viewer.jsx`** — render Markdown via parser regex inline (sem dep externa). Header com metrics (custo, duração, tokens, tasks, docs). Botão "Baixar PDF" → fetch signed_url → window.open.
+- **`PerfilCliente.jsx`** — nova tab "Debriefings" embutindo o hub inline.
+- **Rotas** em `App.jsx`: `/clientes/:clientId/debriefings` + `/clientes/:clientId/debriefings/:debriefingId`.
+- **`lib/api.js`** — novo `apiStreamGet(path, onEvent, signal)` pra SSE com auth.
+
+### Pendências operacionais (Pedro) — bloqueiam uso em prod
+
+1. **Aplicar migration 007** no Supabase Dashboard (SQL Editor → cola arquivo)
+2. **Criar bucket `debriefings`** no Supabase Storage (privado)
+3. **Criar Google Cloud service account** + habilitar Drive API + compartilhar pasta raiz com o email do service account + adicionar JSON em `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` na VPS (`.env` do backend, single-line via `jq -c`)
+4. **Adicionar `CLICKUP_WORKSPACE_ID`** no `.env` (opcional, mas habilita find_list_by_name fallback)
+5. **Atualizar Meta App Review** pra incluir Anthropic, PBC como operador de dados (categoria TI/cloud, EUA) — agora que prompts recebem dados originados da Meta API via docs do Drive
+
+Passo a passo detalhado em [docs/setup/debriefings-setup.md](../setup/debriefings-setup.md).
+
+### Custo projetado
+
+- API Anthropic Sonnet 4.6: R$3-12 por debriefing
+- 30 renovações/mês: ~R$90-360/mês total
+
+### Próximos passos (Phase 6 — testing)
+
+Após Pedro completar setup ops:
+- Gerar debriefing teste pra 1 cliente que já renovou (ex: cliente "Letícia" ou "João")
+- Validar Markdown quality, PDF render, custo real
+- Ajustar prompt se necessário (versão v1.1)
+- Documentar caveats descobertos
+- (Futuro) implementar chunking automático pra clientes com >300 tasks (estoura context window)
 
 ---
 
