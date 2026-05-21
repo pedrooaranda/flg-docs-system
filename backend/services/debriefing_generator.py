@@ -23,8 +23,16 @@ from datetime import datetime, timezone
 from typing import Callable, Optional
 
 from prompts.debriefing_prompt import build_system_prompt, build_user_prompt
+from services import google_drive_service, clickup_debriefing, debriefing_pdf
 
 logger = logging.getLogger("flg.debriefing")
+
+# Modelo Claude pra análise estratégica
+_CLAUDE_MODEL = "claude-sonnet-4-6"
+_CLAUDE_MAX_TOKENS = 16000
+# Pricing Sonnet 4.6 (USD/M tokens)
+_PRICE_INPUT_PER_M = 3.0
+_PRICE_OUTPUT_PER_M = 15.0
 
 
 @dataclass
@@ -34,6 +42,7 @@ class DebriefingRequest:
     ciclo_numero: int
     periodo_inicio: str           # ISO date "YYYY-MM-DD"
     periodo_fim: str
+    debriefing_id: str = ""       # gerado pelo caller (rota), usado pelo PDF path
     clickup_list_id: Optional[str] = None
     drive_folder_id: Optional[str] = None
     gerado_por_email: str = ""
@@ -85,15 +94,20 @@ def extract_clickup_data(
     Filtra por período (created_at ou updated_at entre inicio/fim).
 
     Retorna (texto_formatado, num_tasks).
-
-    TODO Phase 3: implementação real. Por ora retorna stub.
     """
+    import os
     _emit(callback, "phase_start", {"phase": 1, "name": "ClickUp"})
-    # TODO: usar tools/clickup_tools.py — buscar list por nome se list_id None,
-    # listar tasks, pra cada task pegar comentários e status, formatar como texto.
-    stub = f"[STUB Phase 1] ClickUp list_id={list_id}, cliente={cliente_nome}"
-    _emit(callback, "phase_done", {"phase": 1, "num_tasks": 0})
-    return stub, 0
+
+    workspace_id = os.getenv("CLICKUP_WORKSPACE_ID") or None
+    texto, num_tasks = clickup_debriefing.extract_for_debriefing(
+        list_id=list_id,
+        cliente_nome=cliente_nome,
+        periodo_inicio=periodo_inicio,
+        periodo_fim=periodo_fim,
+        workspace_id=workspace_id,
+    )
+    _emit(callback, "phase_done", {"phase": 1, "num_tasks": num_tasks})
+    return texto, num_tasks
 
 
 # ─── Fase 2: Google Drive extraction ──────────────────────────────────────────
@@ -112,12 +126,25 @@ def extract_drive_data(
 
     Retorna (texto_formatado, num_docs).
 
-    TODO Phase 2: implementação real via Google Drive API + service account.
+    Grace-degraded: se Google Drive não configurado, retorna mensagem sinalizando
+    e segue (Claude vai trabalhar só com ClickUp).
     """
     _emit(callback, "phase_start", {"phase": 2, "name": "Google Drive"})
-    stub = f"[STUB Phase 2] Drive folder={folder_id}, cliente={cliente_nome}"
-    _emit(callback, "phase_done", {"phase": 2, "num_docs": 0})
-    return stub, 0
+
+    if not google_drive_service.is_configured():
+        _emit(callback, "phase_done", {"phase": 2, "num_docs": 0, "warning": "drive não configurado"})
+        return ("[Google Drive não configurado — debriefing usará apenas ClickUp]", 0)
+
+    texto, num_docs = google_drive_service.extract_for_debriefing(
+        folder_id=folder_id,
+        cliente_nome=cliente_nome,
+        empresa_nome=empresa_nome,
+        periodo_inicio=periodo_inicio,
+        periodo_fim=periodo_fim,
+    )
+
+    _emit(callback, "phase_done", {"phase": 2, "num_docs": num_docs})
+    return texto, num_docs
 
 
 # ─── Fase 3: Claude analysis + Markdown generation ────────────────────────────
@@ -136,12 +163,19 @@ def generate_markdown(
 ) -> tuple[str, int, int]:
     """
     Chama Claude Sonnet 4.6 com prompt completo e dados extraídos.
-    Retorna (markdown, tokens_input, tokens_output).
+    Streaming via SDK Anthropic, eventos de progresso propagados via callback.
+    Prompt caching ativado no system prompt (~90% de economia em re-geração).
 
-    TODO Phase 3: implementação real com anthropic.Anthropic().messages.create
-    + prompt caching no system_prompt + streaming SSE pro callback.
+    Retorna (markdown, tokens_input, tokens_output).
     """
+    import os
+    import anthropic
+
     _emit(callback, "phase_start", {"phase": 3, "name": "Claude analysis"})
+
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY não configurado")
 
     system_prompt = build_system_prompt()
     user_prompt = build_user_prompt(
@@ -156,17 +190,67 @@ def generate_markdown(
         drive_data=drive_data,
     )
 
-    # TODO Phase 3: implementação real
-    logger.info(f"[debriefing] system_prompt len={len(system_prompt)}, user_prompt len={len(user_prompt)}")
-    stub_md = (
-        f"# Debriefing Estratégico — {nome_cliente} | {nome_empresa}\n\n"
-        f"> **Período:** {periodo_inicio} a {periodo_fim}\n"
-        f"> **Consultor responsável:** {consultor}\n\n"
-        f"[STUB Phase 3 — markdown completo virá quando integração Claude estiver pronta]\n"
+    logger.info(
+        f"[debriefing] Claude call: system={len(system_prompt)} chars, "
+        f"user={len(user_prompt)} chars"
     )
 
-    _emit(callback, "phase_done", {"phase": 3, "tokens_input": 0, "tokens_output": 0})
-    return stub_md, 0, 0
+    client = anthropic.Anthropic(api_key=api_key)
+
+    # System prompt com cache_control pra economizar em re-runs
+    system_block = [{
+        "type": "text",
+        "text": system_prompt,
+        "cache_control": {"type": "ephemeral"},
+    }]
+
+    tokens_input = 0
+    tokens_output = 0
+    chunks: list[str] = []
+    last_progress_emit = 0
+
+    try:
+        with client.messages.stream(
+            model=_CLAUDE_MODEL,
+            max_tokens=_CLAUDE_MAX_TOKENS,
+            temperature=0.3,
+            system=system_block,
+            messages=[{"role": "user", "content": user_prompt}],
+        ) as stream:
+            for text in stream.text_stream:
+                chunks.append(text)
+                # Emite progresso a cada ~1000 chars pra não floodar o SSE
+                if len(chunks) - last_progress_emit > 50:
+                    _emit(callback, "phase_progress", {
+                        "phase": 3,
+                        "chars": sum(len(c) for c in chunks),
+                    })
+                    last_progress_emit = len(chunks)
+
+            final = stream.get_final_message()
+            usage = getattr(final, "usage", None)
+            if usage:
+                tokens_input = (
+                    (getattr(usage, "input_tokens", 0) or 0)
+                    + (getattr(usage, "cache_creation_input_tokens", 0) or 0)
+                    + (getattr(usage, "cache_read_input_tokens", 0) or 0)
+                )
+                tokens_output = getattr(usage, "output_tokens", 0) or 0
+    except anthropic.APIError as e:
+        logger.exception(f"[debriefing] Claude API error: {e}")
+        raise RuntimeError(f"Falha ao chamar Claude: {e}")
+
+    markdown = "".join(chunks)
+    if not markdown.strip():
+        raise RuntimeError("Claude retornou markdown vazio")
+
+    _emit(callback, "phase_done", {
+        "phase": 3,
+        "tokens_input": tokens_input,
+        "tokens_output": tokens_output,
+        "chars": len(markdown),
+    })
+    return markdown, tokens_input, tokens_output
 
 
 # ─── Fase 4: PDF generation + storage upload ──────────────────────────────────
@@ -174,18 +258,21 @@ def generate_markdown(
 def generate_pdf_and_upload(
     debriefing_id: str,
     markdown: str,
+    titulo: str = "Debriefing FLG",
     callback: Optional[ProgressCallback] = None,
 ) -> str:
     """
-    Renderiza Markdown -> HTML -> PDF (Chrome headless) e sobe pra Supabase Storage
+    Renderiza Markdown -> HTML -> PDF (WeasyPrint) e sobe pra Supabase Storage
     bucket 'debriefings'. Retorna o storage path.
-
-    TODO Phase 4: implementação real.
     """
     _emit(callback, "phase_start", {"phase": 4, "name": "PDF + Storage"})
-    stub_path = f"debriefings/{debriefing_id}.pdf"
-    _emit(callback, "phase_done", {"phase": 4, "path": stub_path})
-    return stub_path
+    storage_path = debriefing_pdf.render_and_upload(
+        debriefing_id=debriefing_id,
+        markdown_text=markdown,
+        titulo=titulo,
+    )
+    _emit(callback, "phase_done", {"phase": 4, "path": storage_path})
+    return storage_path
 
 
 # ─── Orquestrador top-level ────────────────────────────────────────────────────
@@ -235,20 +322,26 @@ def run_debriefing(
             callback=callback,
         )
 
+        titulo_pdf = (
+            f"Debriefing — {cliente_row.get('nome', '')} | Ciclo {request.ciclo_numero}"
+        )
         pdf_path = generate_pdf_and_upload(
-            debriefing_id=request.cliente_id,  # placeholder, real id vem do caller
+            debriefing_id=request.debriefing_id or request.cliente_id,
             markdown=markdown,
+            titulo=titulo_pdf,
             callback=callback,
         )
 
-        # Custo: Sonnet 4.6 = $3/M input, $15/M output
-        custo_usd = (tokens_in / 1_000_000 * 3.0) + (tokens_out / 1_000_000 * 15.0)
+        custo_usd = (
+            tokens_in / 1_000_000 * _PRICE_INPUT_PER_M
+            + tokens_out / 1_000_000 * _PRICE_OUTPUT_PER_M
+        )
         duracao = int((datetime.now(timezone.utc) - started).total_seconds())
 
         _emit(callback, "complete", {"custo_usd": custo_usd, "duracao_s": duracao})
 
         return DebriefingResult(
-            debriefing_id=request.cliente_id,
+            debriefing_id=request.debriefing_id or request.cliente_id,
             status="pronto",
             markdown_content=markdown,
             pdf_storage_path=pdf_path,
@@ -264,7 +357,7 @@ def run_debriefing(
         logger.exception(f"[debriefing] falhou: {e}")
         _emit(callback, "error", {"erro": str(e)})
         return DebriefingResult(
-            debriefing_id=request.cliente_id,
+            debriefing_id=request.debriefing_id or request.cliente_id,
             status="falhou",
             erro=str(e),
             duracao_segundos=int((datetime.now(timezone.utc) - started).total_seconds()),

@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 
 from deps import get_current_user, supabase_client
 from services.debriefing_generator import DebriefingRequest, run_debriefing
+from services import debriefing_pdf
 
 router = APIRouter(prefix="/debriefings", tags=["debriefings"])
 logger = logging.getLogger("flg.debriefings")
@@ -177,6 +178,7 @@ async def create_debriefing(
         ciclo_numero=body.ciclo_numero,
         periodo_inicio=body.periodo_inicio.isoformat(),
         periodo_fim=body.periodo_fim.isoformat(),
+        debriefing_id=debriefing_id,
         clickup_list_id=body.clickup_list_id,
         drive_folder_id=body.drive_folder_id,
         gerado_por_email=gerado_por,
@@ -267,5 +269,7 @@ async def download_pdf(debriefing_id: str, user=Depends(get_current_user)):
     if not row.data["pdf_storage_path"]:
         raise HTTPException(404, "PDF não disponível")
 
-    # TODO Phase 4: gerar signed URL via supabase storage
-    return {"pdf_storage_path": row.data["pdf_storage_path"], "signed_url": None}
+    signed_url = debriefing_pdf.get_signed_url(row.data["pdf_storage_path"])
+    if not signed_url:
+        raise HTTPException(500, "Falha ao gerar signed URL do PDF")
+    return {"pdf_storage_path": row.data["pdf_storage_path"], "signed_url": signed_url}
