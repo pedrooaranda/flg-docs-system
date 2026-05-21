@@ -30,13 +30,20 @@ Deve retornar vazio (0 rows) — tabela criada com sucesso.
 4. Click "Save"
 
 (O backend tem fallback que cria o bucket automaticamente no primeiro upload, mas
-melhor criar manualmente pra garantir e configurar policies.)
+melhor criar manualmente pra ter controle visual.)
 
-### Policies do bucket (opcional mas recomendado)
+### Policies — NÃO criar nenhuma ❌
 
-Storage → debriefings → Policies → New policy:
-- **SELECT** (download): permitir `authenticated` (todos consultores logados podem baixar)
-- **INSERT** (upload): permitir `service_role` (só backend sobe arquivos)
+Diferente do que docs Supabase costumam sugerir, **este feature não precisa de policies**:
+
+- Backend usa **service_role key** (ver `backend/config.py:12` + `backend/deps.py:11`), que bypassa RLS automaticamente. Uploads funcionam sem policy.
+- Frontend não acessa Storage direto. Backend gera **signed URL** (token embutido, expira em 1h) via `create_signed_url()`. Signed URLs também bypassam RLS — auth está na própria URL.
+
+⚠️ **Cuidado:** se você abrir "Add policy" no Supabase, o modal sugere por default a função `getPublicUrl` (verde no UI). NÃO clique Review/Save com isso — abriria o bucket público pra qualquer pessoa na internet. Fecha o modal sem salvar.
+
+**Resultado seguro:** bucket privado, zero policies, fluxo todo via service_role + signed URLs. É a configuração mais simples e mais segura.
+
+(Se um dia você quiser listar PDFs direto pela UI sem signed URL, aí cria 1 policy de SELECT pra role `authenticated` com expressão `bucket_id = 'debriefings'`. Não é o caso hoje.)
 
 ---
 
