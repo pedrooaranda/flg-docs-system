@@ -14,6 +14,8 @@ Limites:
 
 import logging
 import os
+import re
+import unicodedata
 from datetime import datetime
 from typing import Optional
 
@@ -30,13 +32,58 @@ MAX_CONTENT_PER_TASK_DESC = 1500
 
 # ─── Busca de lista por nome ──────────────────────────────────────────────────
 
-def find_list_by_name(workspace_id: str, query: str) -> Optional[str]:
-    """
-    Busca uma List no workspace por nome (case-insensitive contains).
-    Retorna list_id ou None se não achar.
+# Padrões de lista no workspace FLG (CX usa essas convenções):
+#   `[NOMEDOCLIENTE]`              — cliente sem ciclos múltiplos
+#   `[NOMEDOCLIENTE | CICLO01]`    — cliente com debriefings anteriores (1+ ciclos)
+#
+# Memory ref: flg_clickup_nomenclatura_clientes.md
+_CICLO_PATTERN = re.compile(r"ciclo\s*0*(\d+)", re.IGNORECASE)
 
-    Usa endpoint /team/{workspace_id}/list (não suportado em todos os tiers;
-    fallback via space → folder → list manual se necessário).
+
+def _normalize(s: str) -> str:
+    """Normaliza string pra match: lowercase + sem acentos + sem brackets/pipes + sem espaços extras."""
+    if not s:
+        return ""
+    # Remove acentos
+    s = unicodedata.normalize("NFD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    # Lowercase + remove brackets, pipes, espaços extras
+    s = s.lower().strip()
+    s = re.sub(r"[\[\]|]", " ", s)
+    s = re.sub(r"\s+", " ", s)
+    return s.strip()
+
+
+def _extract_ciclo_from_name(name: str) -> int:
+    """Extrai número do ciclo do nome da lista, ou 0 se não tiver."""
+    if not name:
+        return 0
+    m = _CICLO_PATTERN.search(name)
+    if m:
+        try:
+            return int(m.group(1))
+        except ValueError:
+            return 0
+    return 0
+
+
+def find_list_by_name(
+    workspace_id: str,
+    query: str,
+    ciclo_numero: Optional[int] = None,
+) -> Optional[str]:
+    """
+    Busca uma List no workspace por nome, considerando os padrões da FLG:
+      `[CLIENTE]` ou `[CLIENTE | CICLO0N]`.
+
+    Estratégia:
+      1. Normaliza query (remove brackets, pipes, acentos, lowercase, espaços extras)
+      2. Acha todas as listas cujo nome normalizado contém a query normalizada
+      3. Se `ciclo_numero` fornecido, prefere a lista com ciclo == N
+      4. Senão, prefere a lista com MAIOR ciclo (mais recente)
+      5. Empate / sem ciclo na lista: primeira match
+
+    Retorna list_id ou None se não achar.
     """
     try:
         resp = requests.get(
@@ -47,12 +94,41 @@ def find_list_by_name(workspace_id: str, query: str) -> Optional[str]:
         if resp.status_code != 200:
             logger.warning(f"[clickup] busca de list por workspace retornou {resp.status_code}")
             return None
-        for lst in resp.json().get("lists", []):
-            if query.lower() in (lst.get("name") or "").lower():
-                return lst["id"]
+        all_lists = resp.json().get("lists", []) or []
     except requests.RequestException as e:
         logger.warning(f"[clickup] erro buscando list por nome: {e}")
-    return None
+        return None
+
+    query_norm = _normalize(query)
+    if not query_norm:
+        return None
+
+    # Coleta matches com metadata: (id, name, ciclo_extraído)
+    matches: list[tuple[str, str, int]] = []
+    for lst in all_lists:
+        list_name = lst.get("name") or ""
+        if query_norm in _normalize(list_name):
+            ciclo = _extract_ciclo_from_name(list_name)
+            matches.append((lst["id"], list_name, ciclo))
+
+    if not matches:
+        logger.info(f"[clickup] nenhuma lista matching '{query}' no workspace {workspace_id}")
+        return None
+
+    logger.info(f"[clickup] {len(matches)} listas matching '{query}': {[(n, c) for _, n, c in matches]}")
+
+    # 1ª preferência: ciclo exato
+    if ciclo_numero is not None:
+        exact = [m for m in matches if m[2] == ciclo_numero]
+        if exact:
+            chosen = exact[0]
+            logger.info(f"[clickup] escolhida (ciclo exato {ciclo_numero}): {chosen[1]}")
+            return chosen[0]
+
+    # 2ª preferência: maior ciclo (mais recente)
+    chosen = max(matches, key=lambda m: m[2])
+    logger.info(f"[clickup] escolhida (maior ciclo {chosen[2]}): {chosen[1]}")
+    return chosen[0]
 
 
 # ─── Filtro temporal ──────────────────────────────────────────────────────────
@@ -133,20 +209,22 @@ def extract_for_debriefing(
     periodo_inicio: str,
     periodo_fim: str,
     workspace_id: Optional[str] = None,
+    ciclo_numero: Optional[int] = None,
 ) -> tuple[str, int]:
     """
     Função top-level usada pelo debriefing_generator.
     Retorna (texto_formatado, num_tasks).
 
     Se list_id não fornecido e workspace_id presente, tenta achar list por
-    nome do cliente.
+    nome do cliente. Quando `ciclo_numero` é passado, busca prefere a lista
+    com sufixo `CICLO{N}` (vide flg_clickup_nomenclatura_clientes na memory).
     """
     if not os.getenv("CLICKUP_API_TOKEN"):
         return ("[ClickUp não configurado — defina CLICKUP_API_TOKEN]", 0)
 
     # Fallback: tenta achar lista pelo nome do cliente
     if not list_id and workspace_id:
-        list_id = find_list_by_name(workspace_id, cliente_nome)
+        list_id = find_list_by_name(workspace_id, cliente_nome, ciclo_numero=ciclo_numero)
         if not list_id:
             return (
                 f"[Lista do ClickUp não encontrada para o cliente '{cliente_nome}' "

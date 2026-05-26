@@ -87,11 +87,15 @@ def extract_clickup_data(
     cliente_nome: str,
     periodo_inicio: str,
     periodo_fim: str,
+    ciclo_numero: Optional[int] = None,
     callback: Optional[ProgressCallback] = None,
 ) -> tuple[str, int]:
     """
     Extrai tasks + comentários + status da lista ClickUp do cliente.
     Filtra por período (created_at ou updated_at entre inicio/fim).
+
+    `ciclo_numero` (quando fornecido) é usado pra escolher a lista certa
+    quando há múltiplas (padrão FLG: `[CLIENTE | CICLO0N]`).
 
     Retorna (texto_formatado, num_tasks).
     """
@@ -105,6 +109,7 @@ def extract_clickup_data(
         periodo_inicio=periodo_inicio,
         periodo_fim=periodo_fim,
         workspace_id=workspace_id,
+        ciclo_numero=ciclo_numero,
     )
     _emit(callback, "phase_done", {"phase": 1, "num_tasks": num_tasks})
     return texto, num_tasks
@@ -330,6 +335,7 @@ def run_debriefing(
             cliente_nome=cliente_row.get("nome", ""),
             periodo_inicio=request.periodo_inicio,
             periodo_fim=request.periodo_fim,
+            ciclo_numero=request.ciclo_numero,
             callback=callback,
         )
 
