@@ -41,17 +41,19 @@ _CICLO_PATTERN = re.compile(r"ciclo\s*0*(\d+)", re.IGNORECASE)
 
 
 def _normalize(s: str) -> str:
-    """Normaliza string pra match: lowercase + sem acentos + sem brackets/pipes + sem espaços extras."""
+    """
+    Normalização agressiva pra match: lowercase, sem acentos, SEM espaços/separadores.
+    Funciona pra DB com 'LEONARDOSOUZA' (sem espaço) batendo com '[LEONARDO SOUZA | CICLO01]' do ClickUp.
+    """
     if not s:
         return ""
     # Remove acentos
     s = unicodedata.normalize("NFD", s)
     s = "".join(c for c in s if not unicodedata.combining(c))
-    # Lowercase + remove brackets, pipes, espaços extras
+    # Lowercase + remove TODOS separadores (espaços, brackets, pipes, hífens, underscores)
     s = s.lower().strip()
-    s = re.sub(r"[\[\]|]", " ", s)
-    s = re.sub(r"\s+", " ", s)
-    return s.strip()
+    s = re.sub(r"[\[\]|\s\-_.]+", "", s)
+    return s
 
 
 def _extract_ciclo_from_name(name: str) -> int:

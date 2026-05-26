@@ -97,16 +97,26 @@ def _normalize_name(s: str) -> str:
     return s.strip()
 
 
+def _normalize_for_match(s: str) -> str:
+    """Normalização agressiva: SEM espaços/separadores — match robusto entre 'LEONARDOSOUZA' (DB) e 'LEONARDO SOUZA | BS' (Drive)."""
+    base = _normalize_name(s)
+    return re.sub(r"[\s\-_.]+", "", base)
+
+
 def _cliente_name_matches(client_folder_name: str, cliente_nome_db: str) -> bool:
     """
-    Match nome do cliente do DB com pasta no Drive.
-    Drive pattern: 'LEONARDO SOUZA | BS', 'LETÍCIA TOLEDO | FLG'.
-    DB tem só 'Leonardo Souza' geralmente.
+    Match nome do cliente do DB com pasta no Drive — agressivo, ignora separadores.
 
-    Bidirectional substring match com normalização.
+    Casos cobertos:
+    - DB: 'LEONARDOSOUZA' (sem espaço) ↔ Drive: 'LEONARDO SOUZA | BS' → ✅
+    - DB: 'Leonardo Souza' ↔ Drive: 'LEONARDO SOUZA | BS' → ✅
+    - DB: 'Letícia Toledo' ↔ Drive: 'LETÍCIA TOLEDO | FLG' → ✅
+    - DB: 'João Guglielmi' ↔ Drive: 'JOÃO GUGLIELMI | FLG' → ✅
+
+    Bidirectional substring match após remover TODOS espaços/separadores.
     """
-    norm_drive = _normalize_name(client_folder_name)
-    norm_db = _normalize_name(cliente_nome_db)
+    norm_drive = _normalize_for_match(client_folder_name)
+    norm_db = _normalize_for_match(cliente_nome_db)
     if not norm_drive or not norm_db:
         return False
     return norm_db in norm_drive or norm_drive in norm_db

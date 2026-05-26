@@ -413,6 +413,61 @@ async def create_debriefing(
     }
 
 
+@router.get("/clientes/{cliente_id}/ciclos")
+async def list_ciclos_for_cliente(cliente_id: str, user=Depends(get_current_user)):
+    """
+    Retorna os ciclos disponíveis no Drive pra um cliente, ordenados cronologicamente.
+
+    Cada ciclo: {ciclo_numero, name, created_time, is_current, web_view_link}
+    - is_current=True pra o mais recente (atual em andamento)
+    - Default sugerido pra debriefing = penúltimo (ciclo concluído anterior)
+
+    Se cliente não tem CICLO|* subfolders (padrão "novo"), retorna lista
+    com 1 elemento marcado como ciclo único.
+    """
+    cliente = _load_cliente(cliente_id)
+    cliente_nome = cliente.get("nome", "")
+
+    from services import google_drive_service
+
+    if not google_drive_service.is_configured():
+        return {"ciclos": [], "warning": "Google Drive não configurado"}
+
+    client_folder = google_drive_service.find_client_folder_in_master(cliente_nome)
+    if not client_folder:
+        return {
+            "ciclos": [],
+            "warning": f"Pasta do cliente '{cliente_nome}' não encontrada no Drive",
+            "cliente_folder_searched": cliente_nome,
+        }
+
+    ciclos = google_drive_service.list_ciclos_for_client(client_folder["id"])
+
+    # Se não houver CICLO|* subfolders, retorna ciclo único (a própria pasta)
+    if not ciclos:
+        return {
+            "ciclos": [{
+                "ciclo_numero": 1,
+                "name": client_folder["name"],
+                "created_time": client_folder.get("createdTime"),
+                "is_current": True,
+                "is_single_cycle": True,
+                "web_view_link": client_folder.get("webViewLink"),
+            }],
+            "client_folder_name": client_folder["name"],
+        }
+
+    # Marca o último (mais recente) como atual
+    for i, c in enumerate(ciclos):
+        c["is_current"] = (i == len(ciclos) - 1)
+        c["is_single_cycle"] = False
+
+    return {
+        "ciclos": ciclos,
+        "client_folder_name": client_folder["name"],
+    }
+
+
 @router.get("")
 async def list_debriefings(
     cliente_id: Optional[str] = Query(None),

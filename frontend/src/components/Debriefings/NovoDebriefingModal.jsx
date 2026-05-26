@@ -12,9 +12,9 @@
  * Dispara onCreated com id retornado.
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { X, AlertCircle, Sparkles, PenTool, Type, Paperclip, Trash2 } from 'lucide-react'
+import { X, AlertCircle, Sparkles, PenTool, Type, Paperclip, Trash2, Calendar, Loader2 } from 'lucide-react'
 import { api, createDebriefingMultipart } from '../../lib/api'
 
 const INPUT_CLASS = "w-full px-3 py-2 rounded-lg text-sm bg-white/5 border border-white/10 text-white/90 placeholder:text-white/30 focus:outline-none focus:border-gold-mid/50 transition-colors"
@@ -50,6 +50,16 @@ function fileExt(name) {
   return name.slice(dot + 1).toLowerCase()
 }
 
+function formatCicloDate(iso) {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    return d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+  } catch {
+    return iso.slice(0, 7)
+  }
+}
+
 export default function NovoDebriefingModal({ cliente, cicloSugerido, onClose, onCreated }) {
   const [cicloNumero, setCicloNumero] = useState(cicloSugerido)
   const [periodoInicio, setPeriodoInicio] = useState(sixMonthsAgo())
@@ -59,10 +69,59 @@ export default function NovoDebriefingModal({ cliente, cicloSugerido, onClose, o
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
+  // Lista dinâmica de ciclos do Drive
+  const [ciclos, setCiclos] = useState([])
+  const [loadingCiclos, setLoadingCiclos] = useState(false)
+  const [ciclosWarning, setCiclosWarning] = useState(null)
+
   // Perspectiva do Consultor (opcional)
   const [perspectivaMode, setPerspectivaMode] = useState(null) // null | 'text' | 'file'
   const [perspectivaText, setPerspectivaText] = useState('')
   const [perspectivaFile, setPerspectivaFile] = useState(null) // File object
+
+  // Carrega ciclos do Drive ao montar
+  useEffect(() => {
+    if (!cliente?.id) return
+    setLoadingCiclos(true)
+    setCiclosWarning(null)
+    api(`/debriefings/clientes/${cliente.id}/ciclos`)
+      .then(resp => {
+        setCiclos(resp.ciclos || [])
+        if (resp.warning) setCiclosWarning(resp.warning)
+        // Auto-seleciona o ciclo anterior (penúltimo) ou único se houver só 1
+        const lista = resp.ciclos || []
+        if (lista.length > 1) {
+          // Default: ciclo concluído anterior ao atual (penúltimo cronológico)
+          const anterior = lista[lista.length - 2]
+          if (anterior) {
+            setCicloNumero(anterior.ciclo_numero)
+            // Preenche datas do ciclo (createdTime → ~6 meses depois)
+            if (anterior.created_time) {
+              const start = new Date(anterior.created_time)
+              const end = new Date(start)
+              end.setMonth(end.getMonth() + 6)
+              setPeriodoInicio(start.toISOString().slice(0, 10))
+              setPeriodoFim(end.toISOString().slice(0, 10))
+            }
+          }
+        } else if (lista.length === 1) {
+          setCicloNumero(lista[0].ciclo_numero)
+        }
+      })
+      .catch(e => setCiclosWarning(e.message || 'Erro ao carregar ciclos'))
+      .finally(() => setLoadingCiclos(false))
+  }, [cliente?.id])
+
+  function selectCiclo(c) {
+    setCicloNumero(c.ciclo_numero)
+    if (c.created_time) {
+      const start = new Date(c.created_time)
+      const end = new Date(start)
+      end.setMonth(end.getMonth() + 6)
+      setPeriodoInicio(start.toISOString().slice(0, 10))
+      setPeriodoFim(end.toISOString().slice(0, 10))
+    }
+  }
 
   function selectPerspectivaMode(mode) {
     if (perspectivaMode === mode) {
@@ -202,21 +261,78 @@ export default function NovoDebriefingModal({ cliente, cicloSugerido, onClose, o
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Ciclo + Período */}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-[10px] uppercase tracking-widest text-white/45 font-monodeck mb-1.5 block">
-                Ciclo
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={cicloNumero}
-                onChange={e => setCicloNumero(parseInt(e.target.value) || 1)}
-                className={INPUT_CLASS}
-                required
-              />
-            </div>
+          {/* Ciclo — botões dinâmicos do Drive */}
+          <div>
+            <label className="text-[10px] uppercase tracking-widest text-white/45 font-monodeck mb-1.5 block flex items-center gap-2">
+              <Calendar size={11} />
+              Ciclo
+              {loadingCiclos && <Loader2 size={11} className="animate-spin text-gold-mid" />}
+            </label>
+
+            {loadingCiclos ? (
+              <div className="text-xs text-white/40 py-2">Carregando ciclos do Drive…</div>
+            ) : ciclos.length === 0 ? (
+              <div className="space-y-2">
+                <input
+                  type="number"
+                  min={1}
+                  value={cicloNumero}
+                  onChange={e => setCicloNumero(parseInt(e.target.value) || 1)}
+                  className={INPUT_CLASS}
+                  required
+                />
+                {ciclosWarning && (
+                  <p className="text-[11px] text-orange-300">⚠ {ciclosWarning}</p>
+                )}
+              </div>
+            ) : (
+              <div className="flex gap-2 flex-wrap">
+                {ciclos.map(c => {
+                  const ativo = c.ciclo_numero === cicloNumero
+                  const label = `CICLO ${String(c.ciclo_numero).padStart(2, '0')}`
+                  const sub = c.created_time ? formatCicloDate(c.created_time) : c.name
+                  return (
+                    <button
+                      key={c.ciclo_numero}
+                      type="button"
+                      onClick={() => selectCiclo(c)}
+                      className="inline-flex flex-col items-start gap-0.5 px-3 py-2 rounded-lg text-left transition-all"
+                      style={ativo ? {
+                        background: 'rgba(201,168,76,0.18)',
+                        border: '1px solid rgba(201,168,76,0.50)',
+                        color: '#FACC15',
+                      } : {
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        color: 'rgba(255,255,255,0.65)',
+                      }}
+                    >
+                      <span className="text-[11px] font-bold font-monodeck flex items-center gap-1.5">
+                        {label}
+                        {c.is_current && (
+                          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded"
+                            style={{ background: 'rgba(52,211,153,0.15)', color: '#34D399' }}>
+                            atual
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[10px] text-white/45">{sub}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {ciclos.length > 1 && (
+              <p className="text-[10px] text-white/40 mt-2 italic">
+                Debriefing é gerado pro ciclo concluído (anterior ao atual). O ciclo
+                ATUAL fica disponível mas use só pra debriefings mid-cycle.
+              </p>
+            )}
+          </div>
+
+          {/* Período (auto-preenche ao clicar num ciclo) */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] uppercase tracking-widest text-white/45 font-monodeck mb-1.5 block">
                 Início
