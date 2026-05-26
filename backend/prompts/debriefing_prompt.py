@@ -251,8 +251,16 @@ Dados extraídos do ClickUp (lista do cliente — tasks, comentários, status, t
 </clickup_data>
 
 <drive_data>
-Dados extraídos do Google Drive (documentos do cliente — PEs, scripts, manifestos, propostas, \
-relatórios, atas):
+Dados extraídos do Google Drive — pasta do cliente dentro de BUSINESS STRATEGISTS, ciclo específico.
+
+Estrutura recebida abaixo:
+- Nome real do cliente + pasta + período (ciclo identificado por createdTime cronológico)
+- Lista de subpastas do ciclo (01. CONTRATO, 02. PLANEJAMENTO ESTRATÉGICO, ..., 09. ENTREGAS)
+- ENTREGAS POR SETOR — contagem de arquivos por setor oficial FLG (DESIGN/COPY/AUDIOVISUAL)
+  e por categoria de tipo (design/audiovisual/audio/documento/planilha/...)
+- RELATÓRIO ESTRATÉGICO — planilha mestra do ciclo com TODAS as abas (datas das reuniões,
+  alinhamentos complementares, resumos, descrições). **Esta é a fonte canônica de TUDO
+  relacionado a reuniões (seção 5 do template) e linha do tempo de entregas (seção 3).**
 
 {drive_data}
 </drive_data>
@@ -261,20 +269,37 @@ relatórios, atas):
 Com base nos dados extraídos acima, execute as 4 fases de análise:
 
 FASE 1 — Reconstrução da Jornada
-Cruze ClickUp (tasks, datas, status) com Drive (documentos produzidos) e reconstrua a narrativa \
-completa do ciclo. Identifique: planejado vs executado, atrasos, pivôs, decisões-chave.
+Cruze ClickUp (tasks, datas, status) com o RELATÓRIO ESTRATÉGICO (que tem as datas oficiais de \
+reuniões e marcos) e reconstrua a narrativa completa do ciclo. Identifique: planejado vs \
+executado, atrasos, pivôs, decisões-chave.
 
 FASE 2 — Mapeamento de Entregáveis
-Liste TODOS os entregáveis categorizados por tipo, com status.
+Use **ENTREGAS POR SETOR** do Drive como fonte primária da seção 4 (Inventário de Entregáveis):
+- Subseção 4.1 (Planejamento Estratégico): docs do drive (PE, manifestos)
+- Subseção 4.2 (Conteúdo): contagem do setor COPY + scripts mencionados no Relatório
+- Subseção 4.3 (Mídia Paga): ainda manualmente extraído de Relatório (não há setor próprio)
+- Subseção 4.4 (Materiais Visuais e Criativos): contagem dos setores DESIGN + AUDIOVISUAL
+- Subseção 4.5 (Outros): qualquer entregável fora dos setores acima
 
-FASE 3 — Análise da Dinâmica Consultor-Cliente
-A partir dos comentários e documentos, avalie: engajamento, comunicação, fricções, destaques.
+Sempre cite contagens concretas: "Setor DESIGN entregou X arquivos (Y png + Z mp4)".
 
-FASE 4 — Avaliação Estratégica + Recomendações
-Aplique a metodologia FLG (Cadeira Vazia, Tríades, Schwartz, Progressão de Autoridade) e produza \
-recomendações concretas pro próximo ciclo.
+FASE 3 — Análise de Reuniões (seção 5)
+**A seção 5 (Análise de Reuniões) DEVE ser baseada 100% no RELATÓRIO ESTRATÉGICO**. Não \
+infera reuniões a partir de tasks do ClickUp ou outros docs. Se o RELATÓRIO ESTRATÉGICO não \
+existir ou estiver vazio, escreva explicitamente "Reuniões não documentadas neste ciclo — \
+ausência do RELATÓRIO ESTRATÉGICO" e siga.
+
+FASE 4 — Dinâmica, Avaliação Estratégica + Recomendações
+A partir dos comentários (ClickUp) e percepções (RELATÓRIO + consultor_perspectiva), avalie \
+dinâmica consultor-cliente (seção 6). Aplique a metodologia FLG (Cadeira Vazia, Tríades, \
+Schwartz, Progressão de Autoridade) na seção 8. Produza recomendações concretas na seção 10.
 {perspectiva_task_note}
 Ao final, produza o documento Markdown completo seguindo EXATAMENTE o template abaixo.
+
+**Regra crítica anti-hallucination:**
+- TODAS as datas de reuniões DEVEM vir do RELATÓRIO ESTRATÉGICO (se ausente, escreva "Não documentado")
+- TODAS as contagens de entregáveis DEVEM vir do bloco ENTREGAS POR SETOR (se ausente, escreva 0)
+- NUNCA invente reuniões, marcos ou números — se a fonte não documentou, escreva isso explícito
 </task>
 
 <output_format>

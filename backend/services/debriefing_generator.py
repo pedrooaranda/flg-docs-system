@@ -123,16 +123,21 @@ def extract_drive_data(
     empresa_nome: str,
     periodo_inicio: str,
     periodo_fim: str,
+    ciclo_numero: Optional[int] = None,
     callback: Optional[ProgressCallback] = None,
 ) -> tuple[str, int]:
     """
-    Extrai documentos do Google Drive relacionados ao cliente (filtrados por
-    nome/empresa e período de modificação).
+    Extrai dados do Google Drive (ciclo-aware após 2026-05-26):
 
-    Retorna (texto_formatado, num_docs).
+    1. Resolve pasta do cliente em FLG_DRIVE_MASTER_FOLDER_ID
+    2. Resolve pasta do ciclo (createdTime ASC = ciclo 01, 02, ...; default = atual)
+    3. Inspeciona 09. ENTREGAS — conta por setor (DESIGN/COPY/AUDIOVISUAL)
+    4. Exporta RELATÓRIO ESTRATÉGICO (planilha com abas) integral
 
-    Grace-degraded: se Google Drive não configurado, retorna mensagem sinalizando
-    e segue (Claude vai trabalhar só com ClickUp).
+    Retorna (texto_formatado, num_items).
+
+    Grace-degraded: se Drive não configurado, retorna mensagem e segue (Claude
+    trabalha só com ClickUp + perspectiva do consultor).
     """
     _emit(callback, "phase_start", {"phase": 2, "name": "Google Drive"})
 
@@ -140,16 +145,17 @@ def extract_drive_data(
         _emit(callback, "phase_done", {"phase": 2, "num_docs": 0, "warning": "drive não configurado"})
         return ("[Google Drive não configurado — debriefing usará apenas ClickUp]", 0)
 
-    texto, num_docs = google_drive_service.extract_for_debriefing(
+    texto, num_items = google_drive_service.extract_for_debriefing(
         folder_id=folder_id,
         cliente_nome=cliente_nome,
         empresa_nome=empresa_nome,
         periodo_inicio=periodo_inicio,
         periodo_fim=periodo_fim,
+        ciclo_numero=ciclo_numero,
     )
 
-    _emit(callback, "phase_done", {"phase": 2, "num_docs": num_docs})
-    return texto, num_docs
+    _emit(callback, "phase_done", {"phase": 2, "num_docs": num_items})
+    return texto, num_items
 
 
 # ─── Fase 3: Claude analysis + Markdown generation ────────────────────────────
@@ -345,6 +351,7 @@ def run_debriefing(
             empresa_nome=cliente_row.get("empresa", ""),
             periodo_inicio=request.periodo_inicio,
             periodo_fim=request.periodo_fim,
+            ciclo_numero=request.ciclo_numero,
             callback=callback,
         )
 
