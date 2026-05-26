@@ -355,6 +355,37 @@ def run_debriefing(
             callback=callback,
         )
 
+        # Observabilidade: persiste contexto bruto no Storage pra debugging.
+        # Path: debug/{debriefing_id}/{clickup,drive}.txt — best-effort.
+        if request.debriefing_id:
+            debriefing_pdf.upload_debug_artifact(
+                request.debriefing_id, "clickup.txt", clickup_data or "[vazio]"
+            )
+            debriefing_pdf.upload_debug_artifact(
+                request.debriefing_id, "drive.txt", drive_data or "[vazio]"
+            )
+
+        # Guard de extração vazia — abort com erro claro ANTES de queimar Claude
+        # gerando "Não documentado" em tudo. Pedro pediu detalhamento explícito.
+        if num_tasks == 0 and num_docs == 0:
+            raise RuntimeError(
+                f"Extração vazia: ClickUp retornou 0 tasks E Drive retornou 0 docs/itens "
+                f"pra cliente '{cliente_row.get('nome')}' ciclo {request.ciclo_numero}. "
+                f"Verifique: (1) lista [CLIENTE | CICLO0{request.ciclo_numero}] existe no "
+                f"workspace ClickUp; (2) pasta do cliente está na master FLG_DRIVE_MASTER_FOLDER_ID "
+                f"e o ciclo solicitado existe."
+            )
+        if num_tasks == 0:
+            _emit(callback, "phase_progress", {
+                "phase": 1,
+                "warning": "ClickUp retornou 0 tasks — debriefing seguirá só com Drive",
+            })
+        if num_docs == 0:
+            _emit(callback, "phase_progress", {
+                "phase": 2,
+                "warning": "Drive retornou 0 docs/itens — debriefing seguirá só com ClickUp",
+            })
+
         # Perspectiva qualitativa do consultor (input opcional persistido na
         # rota antes do dispatch — texto inline ou extraído de arquivo).
         consultor_perspectiva = _load_consultor_perspectiva(request.debriefing_id)

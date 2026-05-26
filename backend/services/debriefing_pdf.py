@@ -312,6 +312,31 @@ def upload_pdf(pdf_bytes: bytes, debriefing_id: str) -> str:
     return f"{_BUCKET}/{path}"
 
 
+def upload_debug_artifact(debriefing_id: str, filename: str, content: str) -> Optional[str]:
+    """
+    Sobe um arquivo .txt de debug pro bucket no caminho `debug/{debriefing_id}/{filename}`.
+    Usado pra persistir contexto bruto (clickup_data, drive_data) e permitir
+    inspeção quando debriefing sair vazio/estranho.
+
+    Não levanta — falha silenciosa (debug é best-effort).
+    """
+    from deps import supabase_client
+    path = f"debug/{debriefing_id}/{filename}"
+    try:
+        supabase_client.storage.from_(_BUCKET).upload(
+            path=path,
+            file=content.encode("utf-8"),
+            file_options={
+                "content-type": "text/plain; charset=utf-8",
+                "upsert": "true",
+            },
+        )
+        return f"{_BUCKET}/{path}"
+    except Exception as e:
+        logger.warning(f"[debriefing_pdf] upload debug artifact {filename} falhou: {e}")
+        return None
+
+
 def get_signed_url(storage_path: str, expires_in: int = 3600) -> Optional[str]:
     """
     Gera URL assinada pra download do PDF.

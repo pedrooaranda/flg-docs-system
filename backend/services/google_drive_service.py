@@ -598,6 +598,184 @@ def extract_sheet_all_tabs(file_id: str, max_rows_per_tab: int = 500) -> str:
     return "\n".join(parts)
 
 
+# ─── Extração funda recursiva de docs textuais (estratégicos) ─────────────────
+
+# MIME types que carregam texto extraível
+_TEXTUAL_MIMES = {
+    _MIME_GDOC,
+    _MIME_GSLIDES,
+    _MIME_GSHEET,
+    _MIME_PDF,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # .pptx
+    "text/plain",
+    "text/markdown",
+    "text/csv",
+}
+_TEXTUAL_EXTS = {".docx", ".doc", ".txt", ".md", ".rtf", ".pptx"}
+
+
+def _is_textual_file(meta: dict) -> bool:
+    """True se o file é GDoc/Slides/Sheet/PDF/.docx/.txt/.md — i.e., texto extraível."""
+    mime = meta.get("mimeType", "")
+    if mime in _TEXTUAL_MIMES:
+        return True
+    name = meta.get("name", "")
+    if "." in name:
+        ext = "." + name.rsplit(".", 1)[-1].lower()
+        if ext in _TEXTUAL_EXTS:
+            return True
+    return False
+
+
+def _download_file_bytes(service, file_id: str) -> bytes:
+    """Baixa file binário (PDF, .docx, etc.). Genérico — usa get_media."""
+    try:
+        from googleapiclient.http import MediaIoBaseDownload
+        request = service.files().get_media(fileId=file_id, supportsAllDrives=True)
+        buf = io.BytesIO()
+        downloader = MediaIoBaseDownload(buf, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        return buf.getvalue()
+    except Exception as e:
+        logger.warning(f"[gdrive] falha download {file_id}: {e}")
+        return b""
+
+
+def extract_strategic_docs_content(
+    ciclo_folder_id: str,
+    skip_file_ids: Optional[set] = None,
+    max_docs: int = 40,
+    max_chars_per_doc: int = 5000,
+    max_pdfs: int = 5,
+    max_depth: int = 4,
+) -> tuple[str, int]:
+    """
+    Walk recursivo do `ciclo_folder_id` lendo CONTEÚDO TEXTUAL de TODOS os
+    Google Docs, Slides, Sheets, .docx, PDFs e .txt encontrados nas subpastas.
+
+    Skip por extensão (imagens/vídeos/áudios não entram). Skip por file_id
+    (passe ids já processados externamente — ex.: RELATÓRIO ESTRATÉGICO).
+
+    Limites pra não explodir prompt do Claude:
+    - `max_docs`: total de docs lidos (priorizando GDoc > Slides > .docx > Sheet > PDF)
+    - `max_chars_per_doc`: trunca cada doc
+    - `max_pdfs`: docling é pesado — excesso vira marker textual
+    - `max_depth`: profundidade do walk recursivo
+
+    Retorna (texto_formatado_multi_doc, num_docs_lidos_com_conteudo).
+    """
+    service = _build_service()
+    if service is None:
+        return ("[Drive service indisponível]", 0)
+
+    skip_file_ids = skip_file_ids or set()
+    collected: list[tuple[str, dict]] = []  # (breadcrumb, file_meta)
+
+    def _walk(folder_id: str, breadcrumb: str, depth: int):
+        if depth > max_depth:
+            return
+        for c in _list_folder_children(service, folder_id):
+            if c.get("id") in skip_file_ids:
+                continue
+            mime = c.get("mimeType", "")
+            if mime == _MIME_FOLDER:
+                _walk(c["id"], f"{breadcrumb}/{c['name']}" if breadcrumb else c["name"], depth + 1)
+            elif _is_textual_file(c):
+                collected.append((breadcrumb, c))
+
+    _walk(ciclo_folder_id, "", 0)
+
+    if not collected:
+        return ("[Nenhum doc textual encontrado em subpastas do ciclo]", 0)
+
+    # Prioriza tipos mais ricos primeiro
+    def _priority(pair: tuple[str, dict]) -> int:
+        m = pair[1].get("mimeType", "")
+        if m == _MIME_GDOC: return 1
+        if m == _MIME_GSLIDES: return 2
+        if m.endswith("wordprocessingml.document"): return 3
+        if m == _MIME_GSHEET: return 4
+        if m == _MIME_PDF: return 5
+        return 6
+
+    collected.sort(key=_priority)
+    truncated_count = max(0, len(collected) - max_docs)
+    collected = collected[:max_docs]
+
+    parts: list[str] = []
+    pdfs_processed = 0
+    num_lidos = 0
+
+    for breadcrumb, meta in collected:
+        mime = meta.get("mimeType", "")
+        name = meta.get("name", "")
+        file_id = meta.get("id", "")
+        content = ""
+        nota = ""
+
+        try:
+            if mime == _MIME_GDOC:
+                content = _export_gdoc(service, file_id)
+            elif mime == _MIME_GSLIDES:
+                content = _export_gslides(service, file_id)
+            elif mime == _MIME_GSHEET:
+                content = _export_gsheet(service, file_id)
+            elif mime == _MIME_PDF:
+                if pdfs_processed >= max_pdfs:
+                    nota = f"[PDF não processado — limite de {max_pdfs} PDFs/debriefing]"
+                else:
+                    pdf_bytes = _download_file_bytes(service, file_id)
+                    if pdf_bytes:
+                        try:
+                            from tools.docling_tools import extract_text_from_pdf
+                            content = extract_text_from_pdf(pdf_bytes)
+                            pdfs_processed += 1
+                        except Exception as e:
+                            nota = f"[Falha docling PDF: {e}]"
+                    else:
+                        nota = "[Download PDF vazio]"
+            elif mime.endswith("wordprocessingml.document") or name.lower().endswith(".docx"):
+                docx_bytes = _download_file_bytes(service, file_id)
+                if docx_bytes:
+                    try:
+                        from tools.docling_tools import extract_text_from_pdf
+                        # docling aceita .docx via mesma DocumentConverter
+                        content = extract_text_from_pdf(docx_bytes)
+                    except Exception as e:
+                        nota = f"[Falha docling .docx: {e}]"
+            elif mime in ("text/plain", "text/markdown", "text/csv") or name.lower().endswith((".txt", ".md")):
+                raw = _download_file_bytes(service, file_id)
+                if raw:
+                    content = raw.decode("utf-8", errors="ignore")
+            else:
+                nota = f"[Tipo não tratado: {mime}]"
+        except Exception as e:
+            nota = f"[Erro extraindo {name}: {e}]"
+            logger.warning(f"[gdrive] erro extraindo {name} ({file_id}): {e}")
+
+        path_label = breadcrumb if breadcrumb else "(raiz)"
+        parts.append(f"\n--- DOC: {path_label} / {name} ---")
+        if content and content.strip():
+            num_lidos += 1
+            if len(content) > max_chars_per_doc:
+                content = content[:max_chars_per_doc] + f"\n[…truncado em {max_chars_per_doc} chars]"
+            parts.append(content.strip())
+        else:
+            parts.append(nota or "[Conteúdo vazio]")
+
+    if truncated_count:
+        parts.append(f"\n[+{truncated_count} docs adicionais não lidos — limite max_docs={max_docs}]")
+
+    logger.info(
+        f"[gdrive] extract_strategic_docs_content: {num_lidos}/{len(collected)} docs com conteúdo "
+        f"(PDFs: {pdfs_processed}/{max_pdfs})"
+    )
+    return ("\n".join(parts), num_lidos)
+
+
 # ─── Helpers de categoria ─────────────────────────────────────────────────────
 
 def _classify(name: str, mime_type: str) -> str:
@@ -885,7 +1063,18 @@ def extract_for_debriefing(
         else:
             relatorio_content = f"[Tipo MIME não suportado: {relatorio_meta['mime_type']}]"
 
-    # 5. Lista demais subpastas do ciclo (contexto)
+    # 5. EXTRAÇÃO FUNDA: lê conteúdo textual de TODOS os docs das subpastas
+    # do ciclo (01. CONTEÚDO ESTRATÉGICO, 02. PE, 04. COPY, etc.). Skip por
+    # extensão filtra imagens/vídeos naturalmente. Skip do relatório evita dup.
+    skip_ids = {relatorio_meta["id"]} if relatorio_meta else set()
+    docs_estrategicos_text, num_docs_estrategicos = extract_strategic_docs_content(
+        ciclo_folder_id=ciclo_folder["id"],
+        skip_file_ids=skip_ids,
+        max_docs=max_docs,
+        max_chars_per_doc=max_chars_por_doc,
+    )
+
+    # 6. Lista demais subpastas do ciclo (contexto)
     service = _build_service()
     ciclo_children = _list_folder_children(service, ciclo_folder["id"]) if service else []
     subpastas_ciclo = [
@@ -943,8 +1132,28 @@ def extract_for_debriefing(
         parts.append(relatorio_content or "[Conteúdo não pôde ser extraído]")
     else:
         parts.append("[RELATÓRIO ESTRATÉGICO NÃO encontrado em 09. ENTREGAS deste ciclo]")
+    parts.append("")
 
-    # Conta total de items pra retornar (entregas + 1 se houver relatório)
-    items_count = entregas.get("total_arquivos", 0) + (1 if relatorio_meta else 0)
+    # DOCUMENTOS ESTRATÉGICOS (extração funda recursiva)
+    parts.append("=== DOCUMENTOS ESTRATÉGICOS (conteúdo textual das subpastas) ===")
+    parts.append(
+        f"Total de docs lidos com conteúdo: {num_docs_estrategicos} "
+        f"(Google Docs, Slides, .docx, PDFs e .txt das subpastas numeradas)"
+    )
+    parts.append("")
+    parts.append(docs_estrategicos_text)
+
+    # Conta total de items pra retornar (entregas + relatório + docs estratégicos)
+    items_count = (
+        entregas.get("total_arquivos", 0)
+        + (1 if relatorio_meta else 0)
+        + num_docs_estrategicos
+    )
+
+    logger.info(
+        f"[gdrive] extract_for_debriefing: entregas={entregas.get('total_arquivos', 0)}, "
+        f"relatorio={'sim' if relatorio_meta else 'NÃO'}, "
+        f"docs_estrategicos={num_docs_estrategicos}, total_items={items_count}"
+    )
 
     return ("\n".join(parts), items_count)

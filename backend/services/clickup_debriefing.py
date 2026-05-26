@@ -30,6 +30,43 @@ MAX_COMMENTS_PER_TASK = 20
 MAX_CONTENT_PER_TASK_DESC = 1500
 
 
+# ─── Archived tasks ───────────────────────────────────────────────────────────
+
+def list_archived_tasks(list_id: str) -> list:
+    """
+    Lista tasks ARQUIVADAS (archived=true) de uma List ClickUp.
+    ClickUp API exige chamada separada — `list_all_tasks` (archived=false default)
+    não retorna archived. Pra debriefing de ciclo anterior já encerrado, tasks
+    frequentemente foram movidas pra archive depois da renovação.
+    """
+    tasks = []
+    page = 0
+    while True:
+        try:
+            resp = requests.get(
+                f"{CLICKUP_API_BASE}/list/{list_id}/task",
+                headers=_headers(),
+                params={
+                    "page": page,
+                    "include_closed": "true",
+                    "subtasks": "true",
+                    "archived": "true",
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            logger.warning(f"[clickup] erro listando archived (page {page}): {e}")
+            break
+        batch = resp.json().get("tasks", [])
+        tasks.extend(batch)
+        if len(batch) < 100:
+            break
+        page += 1
+    logger.info(f"[clickup] {len(tasks)} archived tasks na list {list_id}")
+    return tasks
+
+
 # ─── Busca de lista por nome ──────────────────────────────────────────────────
 
 # Padrões de lista no workspace FLG (CX usa essas convenções):
@@ -133,30 +170,6 @@ def find_list_by_name(
     return chosen[0]
 
 
-# ─── Filtro temporal ──────────────────────────────────────────────────────────
-
-def _within_period(task: dict, ini_ms: int, fim_ms: int) -> bool:
-    """True se a task tem qualquer atividade (criação ou update) dentro do período."""
-    date_created = int(task.get("date_created") or 0)
-    date_updated = int(task.get("date_updated") or 0)
-    date_closed = int(task.get("date_closed") or 0)
-
-    # Inclui se criada no período OU atualizada no período OU fechada no período
-    return (
-        (ini_ms <= date_created <= fim_ms)
-        or (ini_ms <= date_updated <= fim_ms)
-        or (ini_ms <= date_closed <= fim_ms)
-    )
-
-
-def _ms_from_iso(iso_date: str, end_of_day: bool = False) -> int:
-    """Converte 'YYYY-MM-DD' em timestamp ms UTC."""
-    dt = datetime.strptime(iso_date, "%Y-%m-%d")
-    if end_of_day:
-        dt = dt.replace(hour=23, minute=59, second=59)
-    return int(dt.timestamp() * 1000)
-
-
 # ─── Formatação por task ──────────────────────────────────────────────────────
 
 def _fmt_ms(ms_str) -> str:
@@ -237,40 +250,54 @@ def extract_for_debriefing(
     if not list_id:
         return ("[clickup_list_id não fornecido e workspace não definido]", 0)
 
+    # Fetch active (inclui closed) + archived em paralelo conceitual
     try:
-        tasks = list_all_tasks(list_id)
+        active_tasks = list_all_tasks(list_id)
     except Exception as e:
-        return (f"[Erro ao listar tasks da lista {list_id}: {e}]", 0)
+        return (f"[Erro ao listar tasks ativas da lista {list_id}: {e}]", 0)
 
-    if not tasks:
-        return (f"[Nenhuma task encontrada na lista {list_id}]", 0)
+    try:
+        archived_tasks = list_archived_tasks(list_id)
+    except Exception as e:
+        logger.warning(f"[clickup] arquivadas falharam, seguindo só com ativas: {e}")
+        archived_tasks = []
 
-    # Filtra por período
-    ini_ms = _ms_from_iso(periodo_inicio)
-    fim_ms = _ms_from_iso(periodo_fim, end_of_day=True)
-    tasks_no_periodo = [t for t in tasks if _within_period(t, ini_ms, fim_ms)]
+    # Dedup por id (algumas podem aparecer em ambos)
+    seen_ids: set[str] = set()
+    all_tasks: list[dict] = []
+    for t in active_tasks + archived_tasks:
+        tid = t.get("id")
+        if tid and tid not in seen_ids:
+            seen_ids.add(tid)
+            all_tasks.append(t)
 
-    # Limita pra evitar overflow
-    tasks_no_periodo.sort(
+    if not all_tasks:
+        return (f"[Nenhuma task encontrada na lista {list_id} (ativas+arquivadas)]", 0)
+
+    # NÃO filtra por período: a lista `[CLIENTE | CICLO0N]` já É o escopo do ciclo.
+    # Filtro temporal anterior descartava tasks legítimas criadas antes/depois.
+    # Tasks ordenadas por última atualização (mais recente primeiro)
+    all_tasks.sort(
         key=lambda t: int(t.get("date_updated") or t.get("date_created") or 0),
         reverse=True,
     )
     truncado = False
-    if len(tasks_no_periodo) > MAX_TASKS:
-        tasks_no_periodo = tasks_no_periodo[:MAX_TASKS]
+    if len(all_tasks) > MAX_TASKS:
+        all_tasks = all_tasks[:MAX_TASKS]
         truncado = True
 
     # Agrupa por status pra Claude organizar melhor
     por_status: dict[str, list[dict]] = {}
-    for t in tasks_no_periodo:
+    for t in all_tasks:
         st = t.get("status", {}).get("status", "sem-status")
         por_status.setdefault(st, []).append(t)
 
     parts: list[str] = [
         f"Lista ClickUp: {list_id}",
-        f"Total de tasks no período: {len(tasks_no_periodo)}"
+        f"Total de tasks na lista (ativas + arquivadas): {len(all_tasks)}"
         + (f" (truncado em {MAX_TASKS} mais recentes)" if truncado else ""),
-        f"Período filtrado: {periodo_inicio} a {periodo_fim}",
+        f"Período do ciclo: {periodo_inicio} a {periodo_fim} (informativo — lista já é o escopo)",
+        f"Tasks ativas/closed: {len(active_tasks)} | arquivadas: {len(archived_tasks)}",
         "",
     ]
 
@@ -279,4 +306,4 @@ def extract_for_debriefing(
         for t in task_list:
             parts.append(_format_task(t, with_comments=True))
 
-    return ("\n".join(parts), len(tasks_no_periodo))
+    return ("\n".join(parts), len(all_tasks))
