@@ -85,7 +85,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_SSH_PASS }}
           envs: IG_APP_ID,IG_APP_SECRET
-          command_timeout: 10m
+          command_timeout: 25m  # docling/torch rebuild + export layers ~12min, +pull+up
           script: |
             set -e
             cd /opt/flg-jornada
