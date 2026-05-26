@@ -187,12 +187,19 @@ def _insert_debriefing(
     body: DebriefingCreate,
     gerado_por_email: str,
 ) -> str:
-    """Insere row inicial com status='gerando' e retorna o id gerado.
+    """
+    Cria (ou substitui) a row do debriefing pra (cliente_id, ciclo_numero).
 
-    Nota sobre perspectiva: o arquivo (se houver) é processado DEPOIS do insert
-    porque precisamos do debriefing_id pra montar o storage path. O texto inline
-    do JSON é persistido aqui; o texto extraído de arquivo é gravado em update
-    subsequente via _update_debriefing.
+    Constraint UNIQUE(cliente_id, ciclo_numero) da migration 007 impede duplicatas.
+    Comportamento: se já existe row pra esse cliente+ciclo, o INSERT NOVO falha;
+    nós então UPDATE a row existente pra "reset" (status='gerando', limpa
+    markdown/pdf/erro etc.) e retorna o id existente.
+
+    Caso de uso: comercial gera debriefing falho, ajusta inputs, gera de novo
+    — deve sobrescrever o anterior, não criar duplicado.
+
+    Perspectiva: texto inline persistido aqui; arquivo é processado DEPOIS
+    (precisa do debriefing_id pra montar storage path).
     """
     payload = {
         "cliente_id": body.cliente_id,
@@ -205,10 +212,43 @@ def _insert_debriefing(
         "gerado_por_email": gerado_por_email,
         "consultor_perspectiva_text": body.consultor_perspectiva_text,
     }
-    result = _supabase.table("debriefings").insert(payload).execute()
-    if not result.data:
-        raise HTTPException(500, "Falha ao criar registro de debriefing")
-    return result.data[0]["id"]
+
+    # Tenta INSERT primeiro
+    try:
+        result = _supabase.table("debriefings").insert(payload).execute()
+        if result.data:
+            return result.data[0]["id"]
+    except Exception as e:
+        # Se for duplicate key, cai pro UPDATE; outros erros sobem
+        err_msg = str(e).lower()
+        if "duplicate" not in err_msg and "23505" not in err_msg:
+            raise HTTPException(500, f"Falha ao criar debriefing: {e}")
+
+    # Duplicate key — busca o id existente e "reseta" pra regeneração
+    existing = _supabase.table("debriefings").select("id").eq(
+        "cliente_id", body.cliente_id
+    ).eq("ciclo_numero", body.ciclo_numero).single().execute()
+
+    if not existing.data:
+        raise HTTPException(500, "Conflito de constraint mas row existente não encontrada")
+
+    existing_id = existing.data["id"]
+    # Update completo — limpa output anterior, sobe nova metadata
+    reset_payload = {
+        **payload,
+        "markdown_content": None,
+        "pdf_storage_path": None,
+        "num_tasks_clickup": None,
+        "num_docs_drive": None,
+        "tokens_input": None,
+        "tokens_output": None,
+        "custo_usd": None,
+        "duracao_segundos": None,
+        "erro": None,
+        "consultor_perspectiva_storage_path": None,
+    }
+    _supabase.table("debriefings").update(reset_payload).eq("id", existing_id).execute()
+    return existing_id
 
 
 def _update_debriefing(debriefing_id: str, fields: dict) -> None:
