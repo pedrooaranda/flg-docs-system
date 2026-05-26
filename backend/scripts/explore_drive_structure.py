@@ -119,8 +119,112 @@ def _get_sheet_first_rows(file_id: str, sheet_name: str, n: int = 5, creds=None)
         return []
 
 
+import re as _re
+
+# Padrões mais robustos baseados nos achados reais (2026-05-26)
+_ENTREGAS_PATTERN = _re.compile(r"^\s*(?:\d+\s*\.\s*)?entregas?\s*$", _re.IGNORECASE)
+_RELATORIO_PATTERN = _re.compile(r"relat[óo]rio.*entregas?", _re.IGNORECASE)
+_CICLO_PATTERN = _re.compile(r"^\s*ciclo\s*\|", _re.IGNORECASE)
+
+
+def _is_entregas_folder(name: str) -> bool:
+    """Match '09. ENTREGAS', '09.ENTREGAS', 'ENTREGAS', '09. entregas ', etc."""
+    return bool(_ENTREGAS_PATTERN.match((name or "").strip()))
+
+
+def _is_ciclo_folder(name: str) -> bool:
+    """Match 'CICLO | 2026.1', 'CICLO | 2025.2', etc."""
+    return bool(_CICLO_PATTERN.match((name or "").strip()))
+
+
+def _summarize_folder_contents(service, folder_id: str) -> dict:
+    """Lista arquivos+subpastas de uma folder e retorna sumário (counts por categoria)."""
+    children = _list_folder(service, folder_id)
+    subfolders = [c for c in children if c.get("mimeType") == "application/vnd.google-apps.folder"]
+    files = [c for c in children if c.get("mimeType") != "application/vnd.google-apps.folder"]
+
+    summary = {
+        "subpastas": [{"name": sf["name"], "id": sf["id"]} for sf in subfolders],
+        "arquivos_count": len(files),
+        "arquivos_por_categoria": {},
+        "samples": [],
+    }
+    for f in files:
+        cat = _categorize(f["name"], f.get("mimeType", ""))
+        summary["arquivos_por_categoria"].setdefault(cat, 0)
+        summary["arquivos_por_categoria"][cat] += 1
+        if len(summary["samples"]) < 3:
+            summary["samples"].append({"name": f["name"], "cat": cat})
+    return summary
+
+
+def _explore_entregas_deep(service, entregas_folder_id: str, entregas_name: str) -> dict:
+    """Inspeciona uma pasta '09. ENTREGAS' a fundo (subpastas + arquivos por categoria)."""
+    summary = _summarize_folder_contents(service, entregas_folder_id)
+    # Cava 1 nível mais fundo nas subpastas (provavelmente são setores)
+    deep_subpastas = []
+    for sub in summary["subpastas"]:
+        sub_summary = _summarize_folder_contents(service, sub["id"])
+        deep_subpastas.append({
+            "name": sub["name"],
+            "id": sub["id"],
+            "arquivos_count": sub_summary["arquivos_count"],
+            "arquivos_por_categoria": sub_summary["arquivos_por_categoria"],
+        })
+    summary["subpastas"] = deep_subpastas
+    summary["folder_name"] = entregas_name
+    summary["folder_id"] = entregas_folder_id
+    return summary
+
+
+def _find_relatorio_recursive(service, folder_id: str, max_depth: int = 3, depth: int = 0, parent_path: str = "") -> list[dict]:
+    """Procura arquivos matching 'Relatório de Entregas' recursivamente até max_depth níveis."""
+    if depth > max_depth:
+        return []
+    found = []
+    children = _list_folder(service, folder_id)
+    for c in children:
+        name = c.get("name", "")
+        cur_path = f"{parent_path}/{name}" if parent_path else name
+        if c.get("mimeType") == "application/vnd.google-apps.folder":
+            found.extend(_find_relatorio_recursive(service, c["id"], max_depth, depth + 1, cur_path))
+        else:
+            if _RELATORIO_PATTERN.search(name):
+                found.append({**c, "_path": cur_path})
+    return found
+
+
+def _enrich_relatorio_info(relat: dict, creds) -> dict:
+    """Enriquece info do arquivo 'Relatório de Entregas' (abas se for sheet)."""
+    relat_info = {
+        "name": relat["name"],
+        "id": relat["id"],
+        "mime_type": relat.get("mimeType"),
+        "modified": relat.get("modifiedTime"),
+        "web_view_link": relat.get("webViewLink"),
+        "path": relat.get("_path", "?"),
+        "abas": [],
+    }
+    if relat.get("mimeType") == "application/vnd.google-apps.spreadsheet":
+        tabs = _list_sheet_tabs(relat["id"], creds)
+        for tab in tabs:
+            tab_name = tab.get("title", "(sem nome)")
+            first_rows = _get_sheet_first_rows(relat["id"], tab_name, n=5, creds=creds)
+            relat_info["abas"].append({
+                "name": tab_name,
+                "row_count": tab.get("gridProperties", {}).get("rowCount"),
+                "col_count": tab.get("gridProperties", {}).get("columnCount"),
+                "primeiras_5_linhas": first_rows,
+            })
+    return relat_info
+
+
 def explore_cliente(service, creds, cliente_folder: dict) -> dict:
-    """Inspeciona estrutura de 1 cliente. Retorna dict relatório."""
+    """
+    Inspeciona estrutura de 1 cliente, lidando com 2 padrões observados:
+      (A) Cliente novo: 01-09 subpastas + BANCO DE DADOS
+      (B) Cliente renovado: CICLO|YYYY.X subpastas + BANCO DE DADOS
+    """
     folder_id = cliente_folder["id"]
     folder_name = cliente_folder["name"]
 
@@ -128,115 +232,60 @@ def explore_cliente(service, creds, cliente_folder: dict) -> dict:
         "cliente": folder_name,
         "folder_id": folder_id,
         "web_view_link": cliente_folder.get("webViewLink"),
-        "subpastas": [],
-        "arquivos_raiz": {"count": 0, "por_categoria": {}, "samples": []},
-        "entregas": None,
-        "relatorio_entregas": None,
+        "padrao": None,  # 'novo' | 'renovado' | 'misto' | 'desconhecido'
+        "subpastas_top_level": [],
+        "ciclos": [],
+        "entregas_consolidadas": [],  # lista de 09. ENTREGAS encontradas (1 ou várias)
+        "relatorio_entregas_encontrados": [],
     }
 
-    children = _list_folder(service, folder_id)
+    top_children = _list_folder(service, folder_id)
+    top_subfolders = [c for c in top_children if c.get("mimeType") == "application/vnd.google-apps.folder"]
 
-    # Separa: pastas vs arquivos
-    subfolders = [c for c in children if c.get("mimeType") == "application/vnd.google-apps.folder"]
-    files = [c for c in children if c.get("mimeType") != "application/vnd.google-apps.folder"]
+    report["subpastas_top_level"] = [{"name": sf["name"], "id": sf["id"]} for sf in top_subfolders]
 
-    # Sumário das subpastas
-    for sf in subfolders:
-        report["subpastas"].append({
-            "name": sf["name"],
-            "id": sf["id"],
-        })
-
-    # Arquivos na raiz (counts por categoria)
-    for f in files:
-        cat = _categorize(f["name"], f.get("mimeType", ""))
-        report["arquivos_raiz"]["por_categoria"].setdefault(cat, 0)
-        report["arquivos_raiz"]["por_categoria"][cat] += 1
-        if len(report["arquivos_raiz"]["samples"]) < 5:
-            report["arquivos_raiz"]["samples"].append({"name": f["name"], "cat": cat})
-    report["arquivos_raiz"]["count"] = len(files)
-
-    # Procura subpasta ENTREGAS (case-insensitive)
-    entregas_folder = next(
-        (sf for sf in subfolders if sf["name"].strip().lower() in ("entregas", "entrega")),
-        None,
-    )
-    if entregas_folder:
-        entregas_children = _list_folder(service, entregas_folder["id"])
-        # Subpastas dentro de ENTREGAS (provavelmente por setor)
-        entregas_subfolders = [
-            c for c in entregas_children if c.get("mimeType") == "application/vnd.google-apps.folder"
-        ]
-        entregas_files = [
-            c for c in entregas_children if c.get("mimeType") != "application/vnd.google-apps.folder"
-        ]
-        report["entregas"] = {
-            "folder_id": entregas_folder["id"],
-            "subpastas": [{"name": s["name"], "id": s["id"]} for s in entregas_subfolders],
-            "arquivos_raiz_count": len(entregas_files),
-            "arquivos_por_categoria": {},
-        }
-        # Conta arquivos diretos de ENTREGAS por categoria
-        for f in entregas_files:
-            cat = _categorize(f["name"], f.get("mimeType", ""))
-            report["entregas"]["arquivos_por_categoria"].setdefault(cat, 0)
-            report["entregas"]["arquivos_por_categoria"][cat] += 1
-        # Pra cada subpasta de ENTREGAS, conta arquivos por categoria
-        for sub in entregas_subfolders:
-            sub_files = _list_folder(service, sub["id"])
-            sub_files = [c for c in sub_files if c.get("mimeType") != "application/vnd.google-apps.folder"]
-            sub_report = {"name": sub["name"], "count": len(sub_files), "por_categoria": {}}
-            for sf in sub_files:
-                cat = _categorize(sf["name"], sf.get("mimeType", ""))
-                sub_report["por_categoria"].setdefault(cat, 0)
-                sub_report["por_categoria"][cat] += 1
-            report["entregas"]["subpastas"] = [
-                s for s in report["entregas"]["subpastas"] if s["id"] != sub["id"]
-            ]
-            report["entregas"]["subpastas"].append(sub_report | {"id": sub["id"]})
-
-    # Procura arquivo "Relatório de Entregas" (em qualquer lugar — raiz, subpastas)
-    import re
-    pattern = re.compile(r"relat[óo]rio.*entregas?", re.IGNORECASE)
-    relatorio_candidates = []
-    # Busca em raiz
-    for f in files:
-        if pattern.search(f["name"]):
-            relatorio_candidates.append(f)
-    # Busca em subpastas tipo "Estratégia" ou "PE" (não vai fundo demais)
-    for sf in subfolders:
-        sf_children = _list_folder(service, sf["id"])
-        for c in sf_children:
-            if pattern.search(c["name"]):
-                relatorio_candidates.append({**c, "_parent": sf["name"]})
-
-    if relatorio_candidates:
-        # Pega o primeiro candidato
-        relat = relatorio_candidates[0]
-        relat_info = {
-            "name": relat["name"],
-            "id": relat["id"],
-            "mime_type": relat.get("mimeType"),
-            "modified": relat.get("modifiedTime"),
-            "web_view_link": relat.get("webViewLink"),
-            "parent": relat.get("_parent", "raiz"),
-            "abas": [],
-        }
-        # Se for Google Sheet, lista abas
-        if relat.get("mimeType") == "application/vnd.google-apps.spreadsheet":
-            tabs = _list_sheet_tabs(relat["id"], creds)
-            for tab in tabs:
-                tab_name = tab.get("title", "(sem nome)")
-                first_rows = _get_sheet_first_rows(relat["id"], tab_name, n=5, creds=creds)
-                relat_info["abas"].append({
-                    "name": tab_name,
-                    "row_count": tab.get("gridProperties", {}).get("rowCount"),
-                    "col_count": tab.get("gridProperties", {}).get("columnCount"),
-                    "primeiras_5_linhas": first_rows,
-                })
-        report["relatorio_entregas"] = relat_info
+    # Detecta padrão
+    has_ciclo = any(_is_ciclo_folder(sf["name"]) for sf in top_subfolders)
+    has_entregas_top = any(_is_entregas_folder(sf["name"]) for sf in top_subfolders)
+    if has_ciclo and has_entregas_top:
+        report["padrao"] = "misto"
+    elif has_ciclo:
+        report["padrao"] = "renovado"
+    elif has_entregas_top:
+        report["padrao"] = "novo"
     else:
-        report["relatorio_entregas"] = "NÃO ENCONTRADO"
+        report["padrao"] = "desconhecido"
+
+    # Caso (A) padrão "novo" — explora 09. ENTREGAS no topo
+    for sf in top_subfolders:
+        if _is_entregas_folder(sf["name"]):
+            report["entregas_consolidadas"].append(
+                _explore_entregas_deep(service, sf["id"], sf["name"])
+            )
+
+    # Caso (B) padrão "renovado" — explora cada CICLO
+    for sf in top_subfolders:
+        if _is_ciclo_folder(sf["name"]):
+            ciclo_report = {
+                "ciclo_name": sf["name"],
+                "ciclo_id": sf["id"],
+                "subpastas": [],
+                "entregas": None,
+            }
+            ciclo_children = _list_folder(service, sf["id"])
+            ciclo_subfolders = [c for c in ciclo_children if c.get("mimeType") == "application/vnd.google-apps.folder"]
+            ciclo_report["subpastas"] = [{"name": cs["name"], "id": cs["id"]} for cs in ciclo_subfolders]
+            # Procura 09. ENTREGAS dentro do ciclo
+            for cs in ciclo_subfolders:
+                if _is_entregas_folder(cs["name"]):
+                    ciclo_report["entregas"] = _explore_entregas_deep(service, cs["id"], cs["name"])
+                    break
+            report["ciclos"].append(ciclo_report)
+
+    # Procura "Relatório de Entregas" recursivo (até 3 níveis de profundidade)
+    relatorios = _find_relatorio_recursive(service, folder_id, max_depth=3)
+    for r in relatorios:
+        report["relatorio_entregas_encontrados"].append(_enrich_relatorio_info(r, creds))
 
     return report
 
