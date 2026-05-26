@@ -123,7 +123,8 @@ import re as _re
 
 # Padrões mais robustos baseados nos achados reais (2026-05-26)
 _ENTREGAS_PATTERN = _re.compile(r"^\s*(?:\d+\s*\.\s*)?entregas?\s*$", _re.IGNORECASE)
-_RELATORIO_PATTERN = _re.compile(r"relat[óo]rio.*entregas?", _re.IGNORECASE)
+# Match QUALQUER "relatório" (estratégico, de entregas, mensal, etc.)
+_RELATORIO_PATTERN = _re.compile(r"relat[óo]rio", _re.IGNORECASE)
 _CICLO_PATTERN = _re.compile(r"^\s*ciclo\s*\|", _re.IGNORECASE)
 
 
@@ -138,7 +139,7 @@ def _is_ciclo_folder(name: str) -> bool:
 
 
 def _summarize_folder_contents(service, folder_id: str) -> dict:
-    """Lista arquivos+subpastas de uma folder e retorna sumário (counts por categoria)."""
+    """Lista arquivos+subpastas de uma folder e retorna sumário (counts por categoria + mime_type por sample)."""
     children = _list_folder(service, folder_id)
     subfolders = [c for c in children if c.get("mimeType") == "application/vnd.google-apps.folder"]
     files = [c for c in children if c.get("mimeType") != "application/vnd.google-apps.folder"]
@@ -148,13 +149,22 @@ def _summarize_folder_contents(service, folder_id: str) -> dict:
         "arquivos_count": len(files),
         "arquivos_por_categoria": {},
         "samples": [],
+        "todos_arquivos": [],  # lista completa com mime_type explícito
     }
     for f in files:
         cat = _categorize(f["name"], f.get("mimeType", ""))
+        mime = f.get("mimeType", "")
         summary["arquivos_por_categoria"].setdefault(cat, 0)
         summary["arquivos_por_categoria"][cat] += 1
+        # Lista completa SEMPRE (precisa mime_type pra debug)
+        summary["todos_arquivos"].append({
+            "name": f["name"],
+            "mime_type": mime,
+            "cat": cat,
+            "web_view_link": f.get("webViewLink"),
+        })
         if len(summary["samples"]) < 3:
-            summary["samples"].append({"name": f["name"], "cat": cat})
+            summary["samples"].append({"name": f["name"], "mime_type": mime, "cat": cat})
     return summary
 
 
