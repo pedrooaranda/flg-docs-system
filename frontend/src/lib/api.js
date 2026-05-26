@@ -133,6 +133,33 @@ export async function uploadImagemEncontro(encontroNumero, tipo, file) {
   return res.json()
 }
 
+/**
+ * POST /debriefings via multipart/form-data — usado quando o consultor anexa
+ * um arquivo de perspectiva (PDF/DOCX/MD/TXT). O backend (T2) detecta o
+ * content-type e desempacota o form em DebriefingCreate + file opcional.
+ *
+ * payload: campos JSON-like do DebriefingCreate (cliente_id, ciclo_numero, etc).
+ * file:    File object (browser põe o boundary automaticamente; não setar Content-Type).
+ */
+export async function createDebriefingMultipart(payload, file) {
+  const token = await getToken()
+  const form = new FormData()
+  for (const [key, value] of Object.entries(payload)) {
+    if (value !== null && value !== undefined) form.append(key, String(value))
+  }
+  if (file) form.append('file', file)
+  const res = await fetch(`${API_URL}/debriefings`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: form,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(err.detail || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function uploadPdf(clientId, docType, file) {
   const token = await getToken()
   const form = new FormData()

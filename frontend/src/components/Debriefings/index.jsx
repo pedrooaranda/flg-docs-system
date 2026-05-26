@@ -13,7 +13,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   FileText, Plus, Sparkles, Clock, CheckCircle2, AlertCircle, ChevronRight,
-  Download, Loader2,
+  Download, Loader2, PenTool,
 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApp } from '../../contexts/AppContext'
@@ -95,7 +95,21 @@ function DebriefingCard({ debriefing, onClick }) {
             </p>
           </div>
         </div>
-        <StatusBadge status={debriefing.status} />
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          <StatusBadge status={debriefing.status} />
+          {(debriefing.consultor_perspectiva_text || debriefing.consultor_perspectiva_storage_path) && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-full uppercase font-monodeck"
+              style={{
+                background: 'rgba(168,85,247,0.10)',
+                color: '#A855F7',
+                border: '1px solid rgba(168,85,247,0.30)',
+              }}
+            >
+              <PenTool size={10} /> com perspectiva
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2 pt-3" style={{ borderTop: '1px solid var(--flg-border)' }}>

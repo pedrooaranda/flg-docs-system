@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  ArrowLeft, Download, Clock, FileText, Loader2, AlertCircle,
+  ArrowLeft, Download, Clock, FileText, Loader2, AlertCircle, PenTool,
 } from 'lucide-react'
 import { api } from '../../lib/api'
 
@@ -203,6 +203,36 @@ export default function DebriefingViewer() {
           </button>
         </div>
       </motion.div>
+
+      {/* Perspectiva do Consultor (se houver) */}
+      {(debriefing.consultor_perspectiva_text || debriefing.consultor_perspectiva_storage_path) && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl p-5"
+          style={{
+            background: 'rgba(168,85,247,0.05)',
+            border: '1px solid rgba(168,85,247,0.25)',
+          }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <PenTool size={14} style={{ color: '#A855F7' }} />
+            <p className="text-[10px] tracking-[0.25em] uppercase font-monodeck" style={{ color: 'rgba(168,85,247,0.85)' }}>
+              Perspectiva do Consultor
+            </p>
+          </div>
+          {debriefing.consultor_perspectiva_text && (
+            <p className="text-sm text-white/75 leading-relaxed whitespace-pre-wrap">
+              {debriefing.consultor_perspectiva_text}
+            </p>
+          )}
+          {debriefing.consultor_perspectiva_storage_path && !debriefing.consultor_perspectiva_text && (
+            <p className="text-xs text-white/45 italic">
+              Anexo: {debriefing.consultor_perspectiva_storage_path.split('/').pop()}
+            </p>
+          )}
+        </motion.div>
+      )}
 
       {/* Markdown render */}
       <div
