@@ -1,8 +1,16 @@
 """
 Google Drive service para extrair documentos relacionados a um cliente.
 
-Autenticação: service account JSON via env var `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`
-(conteúdo do arquivo JSON do service account criado no Google Cloud Console).
+Autenticação: service account JSON. Suporta DOIS modos (path-based preferido):
+
+1. **Path-based (recomendado):** env var `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH`
+   apontando pra arquivo `.json` montado como volume read-only no container.
+   Padrão Google + indústria — evita problemas de parser env, evita exposição
+   de credenciais em logs/echo.
+
+2. **Inline (legacy/fallback):** env var `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON`
+   com o conteúdo JSON inteiro como string. Mantido por compatibilidade.
+
 O service account precisa ter acesso de leitura à pasta raiz da FLG no Drive
 (compartilhar manualmente a pasta com o email do service account).
 
@@ -65,26 +73,65 @@ class DriveDoc:
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 
-def _build_service():
+def _load_credentials():
     """
-    Constrói o cliente Drive v3. Retorna None se creds não configuradas.
+    Carrega credentials do service account. Tenta path-based primeiro
+    (GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH), fallback pra inline JSON
+    (GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON).
+
+    Retorna service_account.Credentials ou None se não configurado/inválido.
     """
-    raw = os.getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON", "")
-    if not raw:
-        logger.warning("[gdrive] GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON não configurado")
+    try:
+        from google.oauth2 import service_account
+    except ImportError:
+        logger.error("[gdrive] google-auth não instalado")
         return None
+
+    # Modo 1 (preferido): path-based
+    path = os.getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH", "").strip()
+    if path:
+        if not os.path.isfile(path):
+            logger.error(f"[gdrive] GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH aponta pra arquivo inexistente: {path}")
+            return None
+        try:
+            return service_account.Credentials.from_service_account_file(path, scopes=_SCOPES)
+        except Exception as e:
+            logger.error(f"[gdrive] falha ao carregar credentials de {path}: {e}")
+            return None
+
+    # Modo 2 (legacy): inline JSON
+    raw = os.getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON", "").strip()
+    if not raw:
+        logger.warning("[gdrive] Nenhuma credencial configurada (nem PATH nem JSON inline)")
+        return None
+
+    # Remove aspas externas se docker compose deixou (single ou double)
+    if (raw.startswith("'") and raw.endswith("'")) or (raw.startswith('"') and raw.endswith('"')):
+        raw = raw[1:-1]
 
     try:
         info = json.loads(raw)
     except json.JSONDecodeError as e:
-        logger.error(f"[gdrive] JSON inválido em GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON: {e}")
+        logger.error(f"[gdrive] JSON inline inválido: {e}")
         return None
 
     try:
-        from google.oauth2 import service_account
-        from googleapiclient.discovery import build
+        return service_account.Credentials.from_service_account_info(info, scopes=_SCOPES)
+    except Exception as e:
+        logger.error(f"[gdrive] falha ao construir credentials de JSON inline: {e}")
+        return None
 
-        creds = service_account.Credentials.from_service_account_info(info, scopes=_SCOPES)
+
+def _build_service():
+    """
+    Constrói o cliente Drive v3. Retorna None se creds não configuradas.
+    """
+    creds = _load_credentials()
+    if creds is None:
+        return None
+
+    try:
+        from googleapiclient.discovery import build
         return build("drive", "v3", credentials=creds, cache_discovery=False)
     except Exception as e:
         logger.exception(f"[gdrive] falha ao construir service: {e}")
@@ -92,7 +139,11 @@ def _build_service():
 
 
 def is_configured() -> bool:
-    return bool(os.getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON", ""))
+    """True se path-based OU inline está configurado."""
+    return bool(
+        os.getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON_PATH", "").strip()
+        or os.getenv("GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON", "").strip()
+    )
 
 
 # ─── Helpers de categoria ─────────────────────────────────────────────────────
