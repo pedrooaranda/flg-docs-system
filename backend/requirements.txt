@@ -15,6 +15,7 @@ sqlalchemy>=2.0.0               # requerido por agno.db.postgres
 
 # ─── Processamento de documentos ──────────────────────────────────────────────
 docling>=2.15.0                 # extração de texto de PDFs
+openpyxl>=3.1.0                 # leitura de .xlsx (debriefings — relatórios em Excel)
 
 # ─── Geração de PDF ───────────────────────────────────────────────────────────
 weasyprint>=62.3

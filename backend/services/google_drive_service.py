@@ -49,6 +49,9 @@ _MIME_GSHEET = "application/vnd.google-apps.spreadsheet"
 _MIME_GSLIDES = "application/vnd.google-apps.presentation"
 _MIME_PDF = "application/pdf"
 _MIME_FOLDER = "application/vnd.google-apps.folder"
+_MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+_MIME_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
 # Padrões de pasta FLG (vide flg_clickup_nomenclatura_clientes na memory)
 _CICLO_FOLDER_PATTERN = re.compile(r"^\s*ciclo\s*\|", re.IGNORECASE)
@@ -547,6 +550,64 @@ def find_relatorio_estrategico(ciclo_folder_id: str) -> Optional[dict]:
     return None
 
 
+def extract_xlsx_all_sheets(file_id_or_bytes, max_rows_per_sheet: int = 500) -> str:
+    """
+    Lê .xlsx (Excel binário, não Google Sheet) com openpyxl e retorna TODAS as
+    abas como texto formatado tab-separated. Aceita file_id (Drive) ou bytes.
+
+    Por que existe: arquivos `.xlsx` upadados no Drive ficam com mime
+    `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+    A Drive API `export` NÃO converte xlsx pra csv (só converte Google Docs).
+    Sheets API v4 também não lê xlsx — só Google Sheet nativo. Precisamos
+    baixar bytes e parsear com openpyxl.
+
+    Caso real (Leonardo Souza | BS | Relatório Estratégico): planilha de
+    encontros com 15+ linhas. Antes, código retornava "Tipo MIME não suportado"
+    e Claude punha "Não documentado" em meetings. Agora extrai integral.
+    """
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        return "[openpyxl não instalado — não consigo ler .xlsx]"
+
+    # Aceita bytes direto ou baixa via Drive
+    if isinstance(file_id_or_bytes, (bytes, bytearray)):
+        xlsx_bytes = bytes(file_id_or_bytes)
+    else:
+        service = _build_service()
+        if service is None:
+            return "[Drive service indisponível pra baixar xlsx]"
+        xlsx_bytes = _download_file_bytes(service, file_id_or_bytes)
+        if not xlsx_bytes:
+            return "[Download xlsx vazio]"
+
+    try:
+        wb = load_workbook(io.BytesIO(xlsx_bytes), data_only=True, read_only=True)
+    except Exception as e:
+        return f"[Erro ao abrir .xlsx: {e}]"
+
+    parts = [f"=== ARQUIVO XLSX ({len(wb.sheetnames)} abas) ==="]
+    for sheet_name in wb.sheetnames:
+        try:
+            ws = wb[sheet_name]
+            parts.append(f"\n--- ABA: {sheet_name} ---")
+            rows_emitted = 0
+            for row in ws.iter_rows(values_only=True):
+                # Pula linhas totalmente vazias
+                if not any(cell is not None and str(cell).strip() for cell in row):
+                    continue
+                parts.append("\t".join("" if c is None else str(c) for c in row))
+                rows_emitted += 1
+                if rows_emitted >= max_rows_per_sheet:
+                    parts.append(f"[…truncado em {max_rows_per_sheet} linhas]")
+                    break
+            if rows_emitted == 0:
+                parts.append("(aba vazia)")
+        except Exception as e:
+            parts.append(f"[Erro lendo aba {sheet_name}: {e}]")
+    return "\n".join(parts)
+
+
 def extract_sheet_all_tabs(file_id: str, max_rows_per_tab: int = 500) -> str:
     """
     Exporta TODAS as abas de um Google Sheet como texto formatado.
@@ -606,13 +667,14 @@ _TEXTUAL_MIMES = {
     _MIME_GSLIDES,
     _MIME_GSHEET,
     _MIME_PDF,
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # .pptx
+    _MIME_DOCX,
+    _MIME_PPTX,
+    _MIME_XLSX,  # Excel binário — openpyxl
     "text/plain",
     "text/markdown",
     "text/csv",
 }
-_TEXTUAL_EXTS = {".docx", ".doc", ".txt", ".md", ".rtf", ".pptx"}
+_TEXTUAL_EXTS = {".docx", ".doc", ".txt", ".md", ".rtf", ".pptx", ".xlsx", ".xls"}
 
 
 def _is_textual_file(meta: dict) -> bool:
@@ -648,7 +710,7 @@ def extract_strategic_docs_content(
     ciclo_folder_id: str,
     skip_file_ids: Optional[set] = None,
     max_docs: int = 40,
-    max_chars_per_doc: int = 5000,
+    max_chars_per_doc: int = 8000,
     max_pdfs: int = 5,
     max_depth: int = 4,
 ) -> tuple[str, int]:
@@ -722,7 +784,13 @@ def extract_strategic_docs_content(
             elif mime == _MIME_GSLIDES:
                 content = _export_gslides(service, file_id)
             elif mime == _MIME_GSHEET:
-                content = _export_gsheet(service, file_id)
+                # Google Sheet nativo — TODAS as abas (não só a 1ª como _export_gsheet)
+                content = extract_sheet_all_tabs(file_id)
+            elif mime == _MIME_XLSX or name.lower().endswith(".xlsx"):
+                # Excel binário — openpyxl, TODAS as abas
+                xlsx_bytes = _download_file_bytes(service, file_id)
+                if xlsx_bytes:
+                    content = extract_xlsx_all_sheets(xlsx_bytes)
             elif mime == _MIME_PDF:
                 if pdfs_processed >= max_pdfs:
                     nota = f"[PDF não processado — limite de {max_pdfs} PDFs/debriefing]"
@@ -737,7 +805,7 @@ def extract_strategic_docs_content(
                             nota = f"[Falha docling PDF: {e}]"
                     else:
                         nota = "[Download PDF vazio]"
-            elif mime.endswith("wordprocessingml.document") or name.lower().endswith(".docx"):
+            elif mime == _MIME_DOCX or name.lower().endswith(".docx"):
                 docx_bytes = _download_file_bytes(service, file_id)
                 if docx_bytes:
                     try:
@@ -1052,16 +1120,42 @@ def extract_for_debriefing(
     relatorio_meta = find_relatorio_estrategico(ciclo_folder["id"])
     relatorio_content = ""
     if relatorio_meta:
-        if relatorio_meta["mime_type"] == _MIME_GSHEET:
+        mime = relatorio_meta["mime_type"]
+        if mime == _MIME_GSHEET:
             relatorio_content = extract_sheet_all_tabs(relatorio_meta["id"])
-        elif relatorio_meta["mime_type"] == _MIME_GDOC:
+        elif mime == _MIME_XLSX:
+            # .xlsx upload — openpyxl pega todas abas (caso Leonardo Souza)
+            relatorio_content = extract_xlsx_all_sheets(relatorio_meta["id"])
+        elif mime == _MIME_GDOC:
             service = _build_service()
             relatorio_content = _export_gdoc(service, relatorio_meta["id"]) if service else ""
-        elif relatorio_meta["mime_type"] == _MIME_GSLIDES:
+        elif mime == _MIME_GSLIDES:
             service = _build_service()
             relatorio_content = _export_gslides(service, relatorio_meta["id"]) if service else ""
+        elif mime == _MIME_PDF:
+            service = _build_service()
+            pdf_bytes = _download_file_bytes(service, relatorio_meta["id"]) if service else b""
+            if pdf_bytes:
+                try:
+                    from tools.docling_tools import extract_text_from_pdf
+                    relatorio_content = extract_text_from_pdf(pdf_bytes)
+                except Exception as e:
+                    relatorio_content = f"[Falha docling no relatório PDF: {e}]"
+        elif mime == _MIME_DOCX:
+            service = _build_service()
+            docx_bytes = _download_file_bytes(service, relatorio_meta["id"]) if service else b""
+            if docx_bytes:
+                try:
+                    from tools.docling_tools import extract_text_from_pdf
+                    relatorio_content = extract_text_from_pdf(docx_bytes)
+                except Exception as e:
+                    relatorio_content = f"[Falha docling no relatório docx: {e}]"
         else:
-            relatorio_content = f"[Tipo MIME não suportado: {relatorio_meta['mime_type']}]"
+            relatorio_content = f"[Tipo MIME não suportado: {mime}]"
+        logger.info(
+            f"[gdrive] relatório lido: name='{relatorio_meta['name']}' mime={mime} "
+            f"content_chars={len(relatorio_content)}"
+        )
 
     # 5. EXTRAÇÃO FUNDA: lê conteúdo textual de TODOS os docs das subpastas
     # do ciclo (01. CONTEÚDO ESTRATÉGICO, 02. PE, 04. COPY, etc.). Skip por
