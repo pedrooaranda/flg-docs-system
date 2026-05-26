@@ -159,12 +159,17 @@ def generate_markdown(
     reunioes_contratadas: int,
     clickup_data: str,
     drive_data: str,
+    consultor_perspectiva: Optional[str] = None,
     callback: Optional[ProgressCallback] = None,
 ) -> tuple[str, int, int]:
     """
     Chama Claude Sonnet 4.6 com prompt completo e dados extraídos.
     Streaming via SDK Anthropic, eventos de progresso propagados via callback.
     Prompt caching ativado no system prompt (~90% de economia em re-geração).
+
+    `consultor_perspectiva` é a leitura qualitativa do consultor (input
+    complementar opcional). Quando presente, é incluída em XML section
+    própria no prompt e Claude é instruído a citá-la nas seções 6, 8 e 10.
 
     Retorna (markdown, tokens_input, tokens_output).
     """
@@ -188,6 +193,7 @@ def generate_markdown(
         data_geracao=datetime.now(timezone.utc).strftime("%d/%m/%Y"),
         clickup_data=clickup_data,
         drive_data=drive_data,
+        consultor_perspectiva=consultor_perspectiva,
     )
 
     logger.info(
@@ -277,6 +283,32 @@ def generate_pdf_and_upload(
 
 # ─── Orquestrador top-level ────────────────────────────────────────────────────
 
+def _load_consultor_perspectiva(debriefing_id: str) -> Optional[str]:
+    """
+    Lê consultor_perspectiva_text do debriefing recém-criado (já populado pela
+    rota POST, seja via texto inline ou texto extraído de arquivo via Docling).
+    Retorna None se não houver perspectiva ou em caso de falha (graceful).
+    """
+    if not debriefing_id:
+        return None
+    try:
+        from deps import supabase_client
+        row = (
+            supabase_client.table("debriefings")
+            .select("consultor_perspectiva_text")
+            .eq("id", debriefing_id)
+            .single()
+            .execute()
+        )
+        if not row.data:
+            return None
+        text = row.data.get("consultor_perspectiva_text")
+        return text if (text and text.strip()) else None
+    except Exception as e:
+        logger.warning(f"[debriefing] falha ao carregar perspectiva: {e}")
+        return None
+
+
 def run_debriefing(
     request: DebriefingRequest,
     cliente_row: dict,
@@ -310,6 +342,10 @@ def run_debriefing(
             callback=callback,
         )
 
+        # Perspectiva qualitativa do consultor (input opcional persistido na
+        # rota antes do dispatch — texto inline ou extraído de arquivo).
+        consultor_perspectiva = _load_consultor_perspectiva(request.debriefing_id)
+
         markdown, tokens_in, tokens_out = generate_markdown(
             nome_cliente=cliente_row.get("nome", ""),
             nome_empresa=cliente_row.get("empresa", ""),
@@ -319,6 +355,7 @@ def run_debriefing(
             reunioes_contratadas=cliente_row.get("reunioes_contratadas", 15),
             clickup_data=clickup_data,
             drive_data=drive_data,
+            consultor_perspectiva=consultor_perspectiva,
             callback=callback,
         )
 

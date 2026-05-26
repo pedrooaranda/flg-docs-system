@@ -20,7 +20,15 @@ import logging
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -48,6 +56,10 @@ class DebriefingCreate(BaseModel):
     periodo_fim: date
     clickup_list_id: Optional[str] = None
     drive_folder_id: Optional[str] = None
+    # Perspectiva do consultor (input qualitativo complementar ao ClickUp/Drive).
+    # Quando o usuário usa multipart com arquivo, este campo permanece None e o
+    # backend popula consultor_perspectiva_text a partir do conteúdo extraído.
+    consultor_perspectiva_text: Optional[str] = Field(default=None, max_length=50000)
 
 
 class DebriefingResponse(BaseModel):
@@ -68,6 +80,98 @@ class DebriefingResponse(BaseModel):
     erro: Optional[str] = None
     gerado_por_email: str
     gerado_at: str
+    consultor_perspectiva_text: Optional[str] = None
+    consultor_perspectiva_storage_path: Optional[str] = None
+
+
+# ─── Perspectiva (upload) helpers ─────────────────────────────────────────────
+
+# Limites e tipos aceitos para o arquivo de perspectiva do consultor.
+_PERSPECTIVA_MAX_BYTES = 5 * 1024 * 1024  # 5 MB
+_PERSPECTIVA_MAX_TEXT_CHARS = 50_000
+_PERSPECTIVA_ALLOWED_EXTS = {".pdf", ".docx", ".md", ".txt"}
+_PERSPECTIVA_BUCKET = "debriefings"
+
+
+def _perspectiva_ext(filename: str) -> str:
+    """Retorna a extensão normalizada (com ponto, lowercase) ou string vazia."""
+    if not filename or "." not in filename:
+        return ""
+    return "." + filename.rsplit(".", 1)[-1].lower()
+
+
+def _extract_perspectiva_text(file_bytes: bytes, ext: str) -> str:
+    """
+    Extrai texto bruto do arquivo de perspectiva de acordo com a extensão.
+    PDF/DOCX passa por Docling; MD/TXT é decodificado direto.
+    """
+    if ext in (".md", ".txt"):
+        try:
+            return file_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            return file_bytes.decode("utf-8", errors="replace")
+
+    if ext in (".pdf", ".docx"):
+        # Docling lida com PDF e DOCX (formato unificado). Reusa o wrapper já
+        # existente pra PDF; pra DOCX, escreve em arquivo temporário e converte.
+        if ext == ".pdf":
+            from tools.docling_tools import extract_text_from_pdf
+            return extract_text_from_pdf(file_bytes)
+
+        # DOCX
+        import tempfile
+        from pathlib import Path
+        try:
+            from docling.document_converter import DocumentConverter
+        except ImportError as e:
+            raise RuntimeError("Docling não disponível para DOCX") from e
+
+        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
+            tmp.write(file_bytes)
+            tmp_path = Path(tmp.name)
+        try:
+            converter = DocumentConverter()
+            result = converter.convert(str(tmp_path))
+            return result.document.export_to_markdown()
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+    # Defensivo — chamada após validação, mas evita comportamento implícito.
+    raise HTTPException(400, f"Extensão '{ext}' não suportada para perspectiva")
+
+
+def _upload_perspectiva_file(file_bytes: bytes, debriefing_id: str, ext: str) -> str:
+    """
+    Sobe o arquivo original de perspectiva pro bucket 'debriefings' sob
+    perspectivas/<debriefing_id>.<ext>. Retorna o storage path no formato
+    'bucket/path' pra coerência com debriefing_pdf.upload_pdf.
+    """
+    content_type_map = {
+        ".pdf": "application/pdf",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".md": "text/markdown",
+        ".txt": "text/plain",
+    }
+    path = f"perspectivas/{debriefing_id}{ext}"
+    content_type = content_type_map.get(ext, "application/octet-stream")
+    try:
+        _supabase.storage.from_(_PERSPECTIVA_BUCKET).upload(
+            path=path,
+            file=file_bytes,
+            file_options={"content-type": content_type, "upsert": "true"},
+        )
+    except Exception as e:
+        logger.warning(f"[debriefings] upload perspectiva falhou ({e}); tentando criar bucket")
+        try:
+            _supabase.storage.create_bucket(_PERSPECTIVA_BUCKET, options={"public": False})
+            _supabase.storage.from_(_PERSPECTIVA_BUCKET).upload(
+                path=path,
+                file=file_bytes,
+                file_options={"content-type": content_type, "upsert": "true"},
+            )
+        except Exception as e2:
+            raise HTTPException(500, f"Falha ao subir arquivo de perspectiva: {e2}")
+    return f"{_PERSPECTIVA_BUCKET}/{path}"
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -83,7 +187,13 @@ def _insert_debriefing(
     body: DebriefingCreate,
     gerado_por_email: str,
 ) -> str:
-    """Insere row inicial com status='gerando' e retorna o id gerado."""
+    """Insere row inicial com status='gerando' e retorna o id gerado.
+
+    Nota sobre perspectiva: o arquivo (se houver) é processado DEPOIS do insert
+    porque precisamos do debriefing_id pra montar o storage path. O texto inline
+    do JSON é persistido aqui; o texto extraído de arquivo é gravado em update
+    subsequente via _update_debriefing.
+    """
     payload = {
         "cliente_id": body.cliente_id,
         "ciclo_numero": body.ciclo_numero,
@@ -93,6 +203,7 @@ def _insert_debriefing(
         "clickup_list_id": body.clickup_list_id,
         "drive_folder_id": body.drive_folder_id,
         "gerado_por_email": gerado_por_email,
+        "consultor_perspectiva_text": body.consultor_perspectiva_text,
     }
     result = _supabase.table("debriefings").insert(payload).execute()
     if not result.data:
@@ -152,28 +263,137 @@ def _run_debriefing_job(debriefing_id: str, cliente_row: dict, request: Debriefi
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 
+async def _parse_create_payload(request: Request) -> tuple[DebriefingCreate, Optional[UploadFile]]:
+    """
+    Detecta Content-Type e desempacota o body em (DebriefingCreate, UploadFile|None).
+
+    - application/json (ou ausente) → JSON puro (campo opcional consultor_perspectiva_text).
+    - multipart/form-data           → campos como Form fields + arquivo opcional 'file'.
+    """
+    content_type = (request.headers.get("content-type") or "").lower()
+
+    if content_type.startswith("multipart/form-data"):
+        form = await request.form()
+
+        def _get(name: str) -> Optional[str]:
+            raw = form.get(name)
+            if raw is None:
+                return None
+            # No multipart, valores vêm como str ou UploadFile; só interessa str aqui.
+            return str(raw) if not isinstance(raw, UploadFile) else None
+
+        try:
+            ciclo_raw = _get("ciclo_numero")
+            payload_dict = {
+                "cliente_id": _get("cliente_id"),
+                "ciclo_numero": int(ciclo_raw) if ciclo_raw is not None else None,
+                "periodo_inicio": _get("periodo_inicio"),
+                "periodo_fim": _get("periodo_fim"),
+                "clickup_list_id": _get("clickup_list_id"),
+                "drive_folder_id": _get("drive_folder_id"),
+                "consultor_perspectiva_text": _get("consultor_perspectiva_text"),
+            }
+        except (TypeError, ValueError) as e:
+            raise HTTPException(400, f"Campos do form inválidos: {e}")
+
+        # Pydantic valida os campos obrigatórios e tipos (date).
+        body = DebriefingCreate(**{k: v for k, v in payload_dict.items() if v is not None})
+
+        uploaded = form.get("file")
+        if isinstance(uploaded, UploadFile):
+            return body, uploaded
+        return body, None
+
+    # Default: JSON puro (preserva comportamento atual).
+    try:
+        json_body = await request.json()
+    except Exception as e:
+        raise HTTPException(400, f"JSON inválido: {e}")
+    return DebriefingCreate(**json_body), None
+
+
 @router.post("", status_code=202)
 async def create_debriefing(
-    body: DebriefingCreate,
+    request: Request,
     background_tasks: BackgroundTasks,
     user=Depends(get_current_user),
 ):
     """
     Cria um debriefing e dispara a geração em background.
     Retorna 202 Accepted com o id pro frontend abrir o SSE stream.
+
+    Aceita dois content-types:
+      - application/json: body = DebriefingCreate; perspectiva opcional via
+        campo `consultor_perspectiva_text` (texto inline, max 50k chars).
+      - multipart/form-data: campos como form fields + opcional `file`
+        (PDF/DOCX/MD/TXT, max 5MB) com a perspectiva extraída via Docling.
     """
+    body, uploaded_file = await _parse_create_payload(request)
+
     if body.periodo_fim < body.periodo_inicio:
         raise HTTPException(400, "periodo_fim deve ser >= periodo_inicio")
+
+    # Validação adicional do texto inline (Pydantic já cobre max_length, mas
+    # vale defesa em profundidade caso a regra mude).
+    if body.consultor_perspectiva_text and len(body.consultor_perspectiva_text) > _PERSPECTIVA_MAX_TEXT_CHARS:
+        raise HTTPException(400, f"consultor_perspectiva_text excede {_PERSPECTIVA_MAX_TEXT_CHARS} chars")
+
+    # Se o usuário mandou os dois (texto inline + arquivo), priorizamos o arquivo:
+    # o texto extraído sobrescreve o inline ao persistir. Isso simplifica o
+    # contrato com o frontend (T3 pode oferecer um campo OU outro mas se vier
+    # arquivo a leitura final é dele).
+    file_bytes: Optional[bytes] = None
+    file_ext: Optional[str] = None
+    if uploaded_file is not None:
+        filename = uploaded_file.filename or ""
+        file_ext = _perspectiva_ext(filename)
+        if file_ext not in _PERSPECTIVA_ALLOWED_EXTS:
+            raise HTTPException(
+                400,
+                f"Extensão '{file_ext or 'desconhecida'}' não aceita. "
+                f"Use: {', '.join(sorted(_PERSPECTIVA_ALLOWED_EXTS))}.",
+            )
+
+        file_bytes = await uploaded_file.read()
+        if len(file_bytes) > _PERSPECTIVA_MAX_BYTES:
+            raise HTTPException(
+                413,
+                f"Arquivo de perspectiva excede {_PERSPECTIVA_MAX_BYTES // (1024 * 1024)} MB",
+            )
 
     cliente = _load_cliente(body.cliente_id)
     gerado_por = getattr(user, "email", "") or ""
 
     debriefing_id = _insert_debriefing(body, gerado_por)
 
+    # Processa arquivo de perspectiva (depois do insert, precisamos do id).
+    if file_bytes is not None and file_ext is not None:
+        try:
+            extracted_text = _extract_perspectiva_text(file_bytes, file_ext)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception(f"[debriefings] falha ao extrair perspectiva: {e}")
+            raise HTTPException(500, f"Falha ao extrair texto da perspectiva: {e}")
+
+        # Trunca texto extraído pra mesma cota do inline (proteção do prompt).
+        if len(extracted_text) > _PERSPECTIVA_MAX_TEXT_CHARS:
+            logger.warning(
+                f"[debriefings] perspectiva extraída ({len(extracted_text)} chars) "
+                f"truncada pra {_PERSPECTIVA_MAX_TEXT_CHARS}"
+            )
+            extracted_text = extracted_text[:_PERSPECTIVA_MAX_TEXT_CHARS]
+
+        storage_path = _upload_perspectiva_file(file_bytes, debriefing_id, file_ext)
+        _update_debriefing(debriefing_id, {
+            "consultor_perspectiva_text": extracted_text,
+            "consultor_perspectiva_storage_path": storage_path,
+        })
+
     # Prepara queue de eventos pra SSE
     _event_queues[debriefing_id] = asyncio.Queue(maxsize=100)
 
-    request = DebriefingRequest(
+    debriefing_req = DebriefingRequest(
         cliente_id=body.cliente_id,
         ciclo_numero=body.ciclo_numero,
         periodo_inicio=body.periodo_inicio.isoformat(),
@@ -184,7 +404,7 @@ async def create_debriefing(
         gerado_por_email=gerado_por,
     )
 
-    background_tasks.add_task(_run_debriefing_job, debriefing_id, cliente, request)
+    background_tasks.add_task(_run_debriefing_job, debriefing_id, cliente, debriefing_req)
 
     return {
         "id": debriefing_id,

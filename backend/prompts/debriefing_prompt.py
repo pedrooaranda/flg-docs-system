@@ -7,6 +7,8 @@ Estrutura em XML tags pra delimitar contexto, fases e regras. Variáveis
 Versão 1.0 — baseado em prompt-debriefing-ciclo-cliente.md (Pedro Aranda).
 """
 
+from typing import Optional
+
 
 SYSTEM_CONTEXT = """\
 Você é o Estrategista de Debriefing da FLG Brasil (Founders Led Growth), uma consultoria de \
@@ -188,6 +190,7 @@ def build_user_prompt(
     data_geracao: str,
     clickup_data: str,
     drive_data: str,
+    consultor_perspectiva: Optional[str] = None,
 ) -> str:
     """
     Monta o prompt completo a ser enviado ao Claude com os dados extraídos
@@ -195,6 +198,10 @@ def build_user_prompt(
 
     clickup_data e drive_data são strings pré-formatadas pelo orquestrador
     contendo tasks/comentários e documentos/conteúdo respectivamente.
+
+    consultor_perspectiva (opcional) é a leitura qualitativa do consultor
+    sobre o ciclo — quando presente, vai como XML section própria e o Claude
+    é instruído a integrá-la nas seções 6, 8 e 10 com citação explícita.
     """
     template_preenchido = OUTPUT_TEMPLATE.format(
         nome_cliente=nome_cliente,
@@ -205,6 +212,27 @@ def build_user_prompt(
         reunioes_contratadas=reunioes_contratadas,
         data_geracao=data_geracao,
     )
+
+    # Bloco da perspectiva (só presente quando há input do consultor).
+    perspectiva_block = ""
+    perspectiva_task_note = ""
+    if consultor_perspectiva and consultor_perspectiva.strip():
+        perspectiva_block = f"""
+<consultor_perspectiva>
+Leitura qualitativa do consultor sobre o ciclo (input complementar ao ClickUp/Drive — captura \
+impressões e percepções estratégicas que documentos formais não capturam):
+
+{consultor_perspectiva}
+</consultor_perspectiva>
+"""
+        perspectiva_task_note = (
+            "\nINTEGRAÇÃO DA PERSPECTIVA DO CONSULTOR\n"
+            "Integre a `consultor_perspectiva` (quando presente) especialmente nas seções 6 "
+            "(Dinâmica Consultor↔Cliente), 8 (Avaliação Estratégica) e 10 (Recomendações). "
+            "Cite-a explicitamente com `[fonte: perspectiva do consultor]` sempre que utilizá-la "
+            "para fundamentar uma análise ou recomendação. Trate-a como input subjetivo de alta "
+            "confiança — não a confunda com fatos documentais extraídos de ClickUp/Drive.\n"
+        )
 
     return f"""\
 <client_identification>
@@ -228,7 +256,7 @@ relatórios, atas):
 
 {drive_data}
 </drive_data>
-
+{perspectiva_block}
 <task>
 Com base nos dados extraídos acima, execute as 4 fases de análise:
 
@@ -245,7 +273,7 @@ A partir dos comentários e documentos, avalie: engajamento, comunicação, fric
 FASE 4 — Avaliação Estratégica + Recomendações
 Aplique a metodologia FLG (Cadeira Vazia, Tríades, Schwartz, Progressão de Autoridade) e produza \
 recomendações concretas pro próximo ciclo.
-
+{perspectiva_task_note}
 Ao final, produza o documento Markdown completo seguindo EXATAMENTE o template abaixo.
 </task>
 
