@@ -291,15 +291,56 @@ def find_client_folder_in_master(cliente_nome: str, master_folder_id: Optional[s
     return candidates[0]
 
 
+# Padrão pra extrair semestre do nome: "CICLO | 2026.1", "CICLO | 2025.2"
+_CICLO_SEMESTRE_PATTERN = re.compile(r"(\d{4})\s*\.\s*([12])", re.IGNORECASE)
+
+_MES_PT = {1: "jan", 2: "fev", 3: "mar", 4: "abr", 5: "mai", 6: "jun",
+           7: "jul", 8: "ago", 9: "set", 10: "out", 11: "nov", 12: "dez"}
+
+
+def _parse_ciclo_periodo(folder_name: str) -> Optional[dict]:
+    """
+    Parseia 'CICLO | YYYY.X' do nome retornando período real (semestre).
+    Jornada FLG = 6 meses. Semestre 1 = jan-jun, Semestre 2 = jul-dez.
+
+    Retorna dict {ano, semestre, periodo_inicio, periodo_fim, periodo_humano}
+    ou None se não casar com o padrão.
+    """
+    m = _CICLO_SEMESTRE_PATTERN.search(folder_name or "")
+    if not m:
+        return None
+    ano = int(m.group(1))
+    semestre = int(m.group(2))
+    if semestre == 1:
+        inicio_m, fim_m = 1, 6
+    else:
+        inicio_m, fim_m = 7, 12
+    return {
+        "ano": ano,
+        "semestre": semestre,
+        "periodo_inicio": f"{ano}-{inicio_m:02d}-01",
+        "periodo_fim": f"{ano}-{fim_m:02d}-{30 if fim_m in (4,6,9,11) else 31}",
+        "periodo_humano": f"{_MES_PT[inicio_m]}-{_MES_PT[fim_m]} {ano}",
+    }
+
+
 def list_ciclos_for_client(client_folder_id: str) -> list[dict]:
     """
-    Lista subpastas 'CICLO | YYYY.X' ordenadas por createdTime ASC, atribuindo
+    Lista subpastas 'CICLO | YYYY.X' ordenadas cronologicamente, atribuindo
     ciclo_numero sequencial 1-based.
 
-    Retorna lista de dicts: [{ciclo_numero, name, id, created_time, web_view_link}, ...]
+    Ordenação híbrida:
+      1. Se TODOS os ciclos têm `YYYY.X` parseável no nome → ordena por (ano, semestre) ASC
+      2. Senão → fallback ordenação por createdTime ASC
 
-    Se NÃO houver subpastas CICLO|*, retorna lista vazia (cliente padrão "novo"
-    sem ciclos múltiplos — usa o próprio client_folder como ciclo único).
+    Período no display vem do NOME (mais confiável que createdTime — Drive pode
+    reportar createdTime errado quando pastas foram migradas/criadas em batch).
+
+    Retorna lista de dicts com:
+      - ciclo_numero (1-based)
+      - name (raw do Drive)
+      - id, created_time, web_view_link
+      - periodo_inicio, periodo_fim, periodo_humano (do nome quando parseável)
     """
     service = _build_service()
     if service is None:
@@ -311,19 +352,37 @@ def list_ciclos_for_client(client_folder_id: str) -> list[dict]:
         if c.get("mimeType") == _MIME_FOLDER
         and _CICLO_FOLDER_PATTERN.match(c.get("name", ""))
     ]
-    # Ordena por createdTime ASC (mais antigo primeiro)
-    ciclos.sort(key=lambda c: c.get("createdTime", ""))
 
-    return [
-        {
+    # Tenta parsear todos
+    parsed = [(_parse_ciclo_periodo(c["name"]), c) for c in ciclos]
+
+    if parsed and all(p is not None for p, _ in parsed):
+        # Todos parseáveis: ordena por (ano, semestre) ASC
+        parsed.sort(key=lambda pair: (pair[0]["ano"], pair[0]["semestre"]))
+    else:
+        # Fallback: ordena por createdTime
+        logger.info("[gdrive] alguns ciclos sem 'YYYY.X' parseável — fallback ordenação por createdTime")
+        parsed.sort(key=lambda pair: pair[1].get("createdTime", ""))
+
+    result = []
+    for idx, (periodo_info, c) in enumerate(parsed):
+        entry = {
             "ciclo_numero": idx + 1,
             "name": c["name"],
             "id": c["id"],
             "created_time": c.get("createdTime"),
             "web_view_link": c.get("webViewLink"),
         }
-        for idx, c in enumerate(ciclos)
-    ]
+        if periodo_info:
+            entry.update({
+                "periodo_inicio": periodo_info["periodo_inicio"],
+                "periodo_fim": periodo_info["periodo_fim"],
+                "periodo_humano": periodo_info["periodo_humano"],
+                "ano": periodo_info["ano"],
+                "semestre": periodo_info["semestre"],
+            })
+        result.append(entry)
+    return result
 
 
 def resolve_ciclo_folder(

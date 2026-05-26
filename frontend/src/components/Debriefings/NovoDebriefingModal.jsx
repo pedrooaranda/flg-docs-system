@@ -50,14 +50,19 @@ function fileExt(name) {
   return name.slice(dot + 1).toLowerCase()
 }
 
-function formatCicloDate(iso) {
-  if (!iso) return ''
-  try {
-    const d = new Date(iso)
-    return d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
-  } catch {
-    return iso.slice(0, 7)
+function formatCicloLabel(c) {
+  // Prefere periodo_humano do backend (parseado do nome 'CICLO | YYYY.X')
+  if (c?.periodo_humano) return c.periodo_humano
+  // Fallback: data de criação
+  if (c?.created_time) {
+    try {
+      const d = new Date(c.created_time)
+      return d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+    } catch {
+      return c.created_time.slice(0, 7)
+    }
   }
+  return c?.name || ''
 }
 
 export default function NovoDebriefingModal({ cliente, cicloSugerido, onClose, onCreated }) {
@@ -88,39 +93,35 @@ export default function NovoDebriefingModal({ cliente, cicloSugerido, onClose, o
       .then(resp => {
         setCiclos(resp.ciclos || [])
         if (resp.warning) setCiclosWarning(resp.warning)
-        // Auto-seleciona o ciclo anterior (penúltimo) ou único se houver só 1
         const lista = resp.ciclos || []
-        if (lista.length > 1) {
-          // Default: ciclo concluído anterior ao atual (penúltimo cronológico)
-          const anterior = lista[lista.length - 2]
-          if (anterior) {
-            setCicloNumero(anterior.ciclo_numero)
-            // Preenche datas do ciclo (createdTime → ~6 meses depois)
-            if (anterior.created_time) {
-              const start = new Date(anterior.created_time)
-              const end = new Date(start)
-              end.setMonth(end.getMonth() + 6)
-              setPeriodoInicio(start.toISOString().slice(0, 10))
-              setPeriodoFim(end.toISOString().slice(0, 10))
-            }
-          }
-        } else if (lista.length === 1) {
-          setCicloNumero(lista[0].ciclo_numero)
-        }
+        // Default: ciclo concluído anterior (penúltimo) — caso de uso de renovação
+        // Se só 1 ciclo, seleciona ele
+        const escolhido = lista.length > 1
+          ? lista[lista.length - 2]
+          : (lista.length === 1 ? lista[0] : null)
+        if (escolhido) applyCicloSelection(escolhido)
       })
       .catch(e => setCiclosWarning(e.message || 'Erro ao carregar ciclos'))
       .finally(() => setLoadingCiclos(false))
   }, [cliente?.id])
 
-  function selectCiclo(c) {
+  function applyCicloSelection(c) {
     setCicloNumero(c.ciclo_numero)
-    if (c.created_time) {
+    // Prefere período parseado do nome (semestre real) ao invés do createdTime
+    if (c.periodo_inicio && c.periodo_fim) {
+      setPeriodoInicio(c.periodo_inicio)
+      setPeriodoFim(c.periodo_fim)
+    } else if (c.created_time) {
       const start = new Date(c.created_time)
       const end = new Date(start)
       end.setMonth(end.getMonth() + 6)
       setPeriodoInicio(start.toISOString().slice(0, 10))
       setPeriodoFim(end.toISOString().slice(0, 10))
     }
+  }
+
+  function selectCiclo(c) {
+    applyCicloSelection(c)
   }
 
   function selectPerspectivaMode(mode) {
@@ -222,17 +223,22 @@ export default function NovoDebriefingModal({ cliente, cicloSugerido, onClose, o
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      style={{
+        background: 'rgba(8,8,10,0.88)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}
       onClick={onClose}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         onClick={e => e.stopPropagation()}
-        className="w-full max-w-lg rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-xl rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
         style={{
-          background: 'var(--flg-bg-primary)',
-          border: '1px solid var(--flg-border)',
+          background: '#121214',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,168,76,0.06)',
         }}
       >
         {/* Header */}
@@ -290,7 +296,7 @@ export default function NovoDebriefingModal({ cliente, cicloSugerido, onClose, o
                 {ciclos.map(c => {
                   const ativo = c.ciclo_numero === cicloNumero
                   const label = `CICLO ${String(c.ciclo_numero).padStart(2, '0')}`
-                  const sub = c.created_time ? formatCicloDate(c.created_time) : c.name
+                  const sub = formatCicloLabel(c)
                   return (
                     <button
                       key={c.ciclo_numero}
