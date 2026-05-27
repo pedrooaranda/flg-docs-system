@@ -199,3 +199,43 @@ def test_run_sync_no_token_returns_zero_stats():
 
     assert stats["total"] == 0
     assert stats["errors"] == 0
+
+
+def test_run_sync_archive_via_native_task_status_when_custom_field_empty():
+    """REGRESSÃO: cliente com custom field SITUAÇÃO vazio E task.status='encerrado'
+    nativo deve ser arquivado. Bug reportado pelo Pedro: Fernanda Prado e Melca
+    tinham task.status='encerrado' mas custom field SITUAÇÃO vazio — sync ignorava
+    como 'ativo' e não arquivava."""
+    from services import clickup_sync
+
+    mock_sb, chain = _make_supabase_mock()
+    chain.execute.side_effect = [
+        MagicMock(data=[{"id": "cliente-fernanda", "archived_at": None}]),
+        MagicMock(data=[{"id": "cliente-fernanda"}]),
+    ]
+
+    # task_to_cliente_data retorna SEM situacao_clickup (custom field vazio)
+    fake_data = {
+        "nome": "FERNANDAPRADO",
+        "clickup_task_id": "task-fernanda",
+        "empresa": "FERNANDAPRADO",
+        "status": "concluido",  # mapeado pelo fallback do task_to_cliente_data
+        # situacao_clickup AUSENTE — esse é o cenário do bug
+    }
+
+    # Task com status nativo "encerrado" (kanban column do ClickUp)
+    task_native_encerrada = {
+        "id": "task-fernanda",
+        "name": "FERNANDAPRADO",
+        "status": {"status": "encerrado"},  # ← status NATIVO
+        "assignees": [],
+        "custom_fields": [],  # SITUAÇÃO custom field vazio
+    }
+
+    with patch.object(clickup_sync, "list_all_tasks", return_value=[task_native_encerrada]):
+        with patch.object(clickup_sync, "task_to_cliente_data", return_value=dict(fake_data)):
+            with patch("deps.supabase_client", mock_sb):
+                with patch.dict("os.environ", {"CLICKUP_API_TOKEN": "fake-token"}):
+                    stats = clickup_sync.run_clickup_sync()
+
+    assert stats["archived"] == 1, "Esperado archive via fallback pro status nativo encerrado"
