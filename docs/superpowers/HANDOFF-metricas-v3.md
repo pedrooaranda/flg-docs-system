@@ -1,7 +1,7 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-27 manhã (Stream 8.2 polish cards ENTREGUE em prod — 8 commits, 70 tests verdes. Próximo sprint: Stream 9 export PDF dos slides de reuniões.)
-**Status:** 9 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
+**Última atualização:** 2026-05-27 manhã (Stream 8.2 polish cards ENTREGUE em prod — 8 commits, 70 tests verdes. Próximo sprint: continuar materiais HTML dos encontros restantes Phase A.)
+**Status:** 8 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 **Lições aprendidas Streams 6/7 (anti-recorrência):**
 1. **Rules of Hooks vs early return:** nunca `if (loading) return <…>` ANTES de useMemo/useEffect declarados depois. `esbuild` valida sintaxe mas NÃO Rules of Hooks — só pega em runtime React. Fix: mover early return pra após todos os hooks. Commit `05cbb0b` documentou.
@@ -434,17 +434,9 @@ Spec: [specs/2026-05-27-polish-clientes-design.md](specs/2026-05-27-polish-clien
 - **8.3 Polish Métricas:** ConsultorFilter padrão + skeletons + handle 403 ilustrado.
 - **8.4 Polish Ranking + Dashboard:** mesmo padrão.
 
-### Stream 9 — Export PDF dos slides (FILA 2026-05-27)
+### Próximo sprint — Construir materiais HTML dos encontros (continuação Phase A)
 
-Pedro pediu próximo sprint após cards. Reuniões da Jornada tem HTML deck gerado via Claude + design system FLG, servido em `/apresentar/:slug` pra apresentação fullscreen. Falta gerar PDF do deck pra download/distribuição.
-
-Decisões pendentes (brainstorming):
-- Aspect ratio: 16:9 slide (1920×1080) ou A4 retrato?
-- Engine: WeasyPrint (já instalado) ou Chrome headless?
-- Trigger: botão no editor de reunião OU botão no `/apresentar/:slug`?
-- Destino: download do usuário, anexar ao cliente em Storage, ou ambos?
-
-Skill auxiliar disponível: `export-pdf` (Claude Code, pipeline HTML→PDF via Chrome headless já configurado pra outros projetos do Pedro).
+Pedro 2026-05-27: continuar produção de materiais HTML pros encontros (mesmo pipeline Phase A: estrutura simples no IntelecFLG → Claude Sonnet 4.6 → HTML respeitando design system FLG). Phase A entregou encontro 1 (Onboarding). Próximos: 2, 3, 4, ... 15.
 
 ---
 
