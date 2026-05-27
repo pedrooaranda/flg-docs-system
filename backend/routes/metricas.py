@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from deps import get_current_user, supabase_client
+from lib.auth_scope import UserScope, get_user_scope
 from services.social import get_platform_repository, PLATAFORMAS_VALIDAS
 
 router = APIRouter(prefix="/metricas", tags=["metricas"])
@@ -294,12 +295,19 @@ _SPARKLINE_FIELDS = {
 @router.get("/ranking")
 async def get_ranking(
     plataforma: str = "instagram",
-    user=Depends(get_current_user),
+    scope: UserScope = Depends(get_user_scope),
 ):
     repo = _get_repo(plataforma, None)
-    clientes = _supabase.table("clientes").select(
-        "id, nome, empresa, consultor_responsavel, encontro_atual"
-    ).order("nome").execute()
+
+    # Filtra clientes por scope: consultor regular só vê os seus
+    clientes_query = _supabase.table("clientes").select(
+        "id, nome, empresa, consultor_responsavel, consultor_id, encontro_atual"
+    )
+    if not scope.can_see_all:
+        if scope.consultor_id is None:
+            return {"ranking": [], "total": 0, "plataforma": plataforma}
+        clientes_query = clientes_query.eq("consultor_id", scope.consultor_id)
+    clientes = clientes_query.order("nome").execute()
 
     # Última data de post por cliente (pra calcular dias_sem_postar)
     # Faz 1 query batch quando possível (Instagram tem tabela; outras plataformas usam mock)
@@ -383,8 +391,18 @@ async def get_overview(
     plataforma: str = "instagram",
     dias: int = 30,
     tipo: str = "all",
-    user=Depends(get_current_user),
+    scope: UserScope = Depends(get_user_scope),
 ):
+    # Auth: consultor regular só acessa overview dos próprios clientes
+    if not scope.can_see_all:
+        cliente_auth = _supabase.table("clientes").select("consultor_id").eq(
+            "id", cliente_id
+        ).single().execute()
+        if not cliente_auth.data:
+            raise HTTPException(404, "Cliente não encontrado")
+        if cliente_auth.data.get("consultor_id") != scope.consultor_id:
+            raise HTTPException(403, "Sem acesso a esse cliente")
+
     if dias < 1 or dias > 365:
         raise HTTPException(400, "dias deve estar entre 1 e 365")
     if tipo.lower() not in ("all", "feed", "reels", "story"):
