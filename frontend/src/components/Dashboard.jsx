@@ -19,12 +19,13 @@ import {
   ChevronDown, Eye,
 } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
+import { useUserScope } from '../hooks/useUserScope'
 import { api } from '../lib/api'
 import { Avatar } from './ui/Avatar'
 import { StatusBadge } from './ui/Badge'
 import { SkeletonCard } from './ui/Skeleton'
 import { progressPercent } from '../lib/utils'
-import { isAdminFromSession, matchConsultor } from './Materiais/shared/consultor-utils'
+import { matchConsultor } from './Materiais/shared/consultor-utils'
 import ConsultorFilter from './Materiais/shared/ConsultorFilter'
 
 const TIPOS_NOTA = [
@@ -45,30 +46,7 @@ function getGreeting() {
   return 'Boa noite'
 }
 
-// Normaliza string pra match: lowercase + só alfanuméricos.
-// "Pedro Aranda" → "pedroaranda" · "pedro_aranda" → "pedroaranda"
-function normalize(s) {
-  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '')
-}
-
-// Acha o nome canônico do consultor logado na lista de clientes (tabela é fonte da verdade).
-// Email "pedroaranda@..." → procura cliente cujo consultor_responsavel normaliza pra "pedroaranda".
-function findMyConsultorName(allClientes, email) {
-  if (!email) return null
-  const handle = normalize(email.split('@')[0])
-  if (!handle) return null
-  for (const c of allClientes) {
-    const nome = c.consultor_responsavel
-    if (!nome) continue
-    const norm = normalize(nome)
-    if (norm === handle || norm.includes(handle) || handle.includes(norm)) {
-      return nome
-    }
-  }
-  return null
-}
-
-// Fallback: capitaliza handle bruto "pedroaranda" → "Pedroaranda" (feio, mas evita string vazia)
+// Helper: fallback name if useUserScope doesn't resolve a name
 function fallbackName(email) {
   if (!email) return ''
   const local = email.split('@')[0]
@@ -591,17 +569,16 @@ export default function Dashboard({ session }) {
   const { clientes: allClientes, loading } = useApp()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const { canSeeAll, myConsultorNome, isLoading: scopeLoading } = useUserScope()
 
   const userEmail = session?.user?.email
-  const admin = isAdminFromSession(session)
+  const admin = canSeeAll
   const greeting = getGreeting()
 
-  // Acha o nome canônico do consultor (puxa do consultor_responsavel real)
-  // pra usar tanto no greeting quanto pro filtro — uma fonte da verdade.
-  const myConsultorNome = useMemo(
-    () => findMyConsultorName(allClientes, userEmail),
-    [allClientes, userEmail]
-  )
+  // Loading state from scope hook
+  if (scopeLoading) {
+    return <div className="p-6 animate-pulse text-white/30 text-sm">Carregando…</div>
+  }
 
   // Consultor cuja Home está sendo visualizada:
   //   - não-admin: forçado ao próprio (sem URL param, sem dropdown)
