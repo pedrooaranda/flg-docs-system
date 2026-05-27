@@ -14,6 +14,7 @@ import { useUserScope } from '../hooks/useUserScope'
 import { Avatar } from './ui/Avatar'
 import { StatusBadge } from './ui/Badge'
 import { SkeletonCard } from './ui/Skeleton'
+import ConsultorFilter from './ui/ConsultorFilter'
 import { progressPercent, formatDate, cn } from '../lib/utils'
 import { api } from '../lib/api'
 
@@ -315,12 +316,6 @@ export default function Clientes({ session }) {
   // canSeeAll=true → vê todos + dropdown ativo; false → backend já filtrou pra mostrar só os seus.
   const { canSeeAll, myConsultorNome, isLoading: scopeLoading } = useUserScope()
 
-  // Lista de consultores no dropdown — só clientes com consultor_responsavel definido.
-  const consultores = useMemo(
-    () => [...new Set(allClientes.map(c => c.consultor_responsavel).filter(Boolean))],
-    [allClientes]
-  )
-
   const filtered = useMemo(() => allClientes.filter(c => {
     const matchSearch    = !search || c.nome?.toLowerCase().includes(search.toLowerCase()) || c.empresa?.toLowerCase().includes(search.toLowerCase())
     const matchStatus    = filterStatus === 'todos' || (c.status || 'ativo') === filterStatus
@@ -440,13 +435,18 @@ export default function Clientes({ session }) {
           <option value="ativo">Ativos</option>
           <option value="pausado">Pausados</option>
         </select>
-        {canSeeAll && (
-          <select value={filterConsultor} onChange={e => setFilterConsultor(e.target.value)} className="input-flg w-auto pr-8 cursor-pointer">
-            <option value="todos">Todos os consultores</option>
-            {consultores.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        )}
       </div>
+
+      {/* Filtro de consultor — só admin/diretor vê (consultor regular já recebe lista filtrada do backend) */}
+      {canSeeAll && (
+        <div className="mb-6">
+          <ConsultorFilter
+            value={filterConsultor}
+            onChange={setFilterConsultor}
+            clientes={allClientes}
+          />
+        </div>
+      )}
 
       {/* Conteúdo */}
       {loading && allClientes.length === 0 ? (
