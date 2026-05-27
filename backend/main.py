@@ -845,7 +845,7 @@ async def chat_intelecto(
 async def trigger_clickup_sync(scope: UserScope = Depends(get_user_scope)):
     """
     Dispara ClickUp sync síncrono. Admin/diretor only.
-    Retorna stats: {archived, reactivated, paused, ativos, errors, total, duration_ms}
+    Retorna stats: {archived, reactivated, paused, ativos, created, updated, errors, total, duration_ms}
     """
     if not scope.can_see_all:
         raise HTTPException(
@@ -854,3 +854,76 @@ async def trigger_clickup_sync(scope: UserScope = Depends(get_user_scope)):
         )
     stats = run_clickup_sync()
     return stats
+
+
+@app.get("/admin/clickup/diagnose")
+async def diagnose_clickup_cliente(
+    nome: str,
+    scope: UserScope = Depends(get_user_scope),
+):
+    """
+    Diagnóstico cirúrgico de 1 cliente: compara estado no ClickUp vs DB.
+    Admin only. Útil quando sync parece não atualizar campos esperados.
+
+    Exemplo: GET /admin/clickup/diagnose?nome=Fernanda
+    Retorna match no DB (todas as linhas com nome similar) + task no ClickUp
+    se achar, + decisão que evaluate_lifecycle tomaria.
+    """
+    if not scope.can_see_all:
+        raise HTTPException(403, "Operação restrita a admin/diretor.")
+    if not nome or len(nome.strip()) < 2:
+        raise HTTPException(400, "Forneça `nome` com pelo menos 2 caracteres.")
+
+    from services.clickup_sync import (
+        evaluate_lifecycle, _normalize_name, LIST_CLIENTES_BS,
+    )
+    from tools.clickup_tools import list_all_tasks, task_to_cliente_data
+
+    nome_query = nome.strip()
+    nome_norm = _normalize_name(nome_query)
+
+    # DB: pega todos clientes e filtra por nome normalizado (case+accent+space insensitive)
+    all_clientes = _supabase.table("clientes").select(
+        "id, nome, empresa, status, archived_at, encontro_atual, "
+        "consultor_responsavel, clickup_task_id, updated_at, created_at"
+    ).execute().data or []
+    matches_db = [
+        c for c in all_clientes
+        if nome_norm in _normalize_name(c.get("nome", ""))
+    ]
+
+    # ClickUp: lista tasks e filtra por nome (substring case-insensitive)
+    matches_clickup = []
+    try:
+        tasks = list_all_tasks(LIST_CLIENTES_BS)
+    except Exception as e:
+        matches_clickup = [{"error": str(e)}]
+        tasks = []
+
+    for t in tasks:
+        if nome_norm in _normalize_name(t.get("name", "")):
+            situacao_nativa = (t.get("status") or {}).get("status", "")
+            status_db, should_archive = evaluate_lifecycle(situacao_nativa)
+            extracted = task_to_cliente_data(t)
+            matches_clickup.append({
+                "task_id": t.get("id"),
+                "nome": t.get("name"),
+                "native_status": situacao_nativa,
+                "lifecycle_decision": {
+                    "status_db": status_db,
+                    "should_archive": should_archive,
+                },
+                "extracted_data": {
+                    k: v for k, v in extracted.items()
+                    if k in ("encontro_atual", "consultor_responsavel", "empresa", "estrategista")
+                },
+            })
+
+    return {
+        "query_nome": nome_query,
+        "query_nome_normalized": nome_norm,
+        "db_matches_count": len(matches_db),
+        "db_matches": matches_db,
+        "clickup_matches_count": len([m for m in matches_clickup if "task_id" in m]),
+        "clickup_matches": matches_clickup,
+    }
