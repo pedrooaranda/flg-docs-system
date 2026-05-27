@@ -575,10 +575,9 @@ export default function Dashboard({ session }) {
   const admin = canSeeAll
   const greeting = getGreeting()
 
-  // Loading state from scope hook
-  if (scopeLoading) {
-    return <div className="p-6 animate-pulse text-white/30 text-sm">Carregando…</div>
-  }
+  // NOTA: NÃO retornar cedo aqui (`if (scopeLoading) return …`) — quebra Rules of Hooks
+  // porque os useMemo abaixo deixam de ser chamados no primeiro render. O loading
+  // é tratado dentro do JSX final via render condicional.
 
   // Consultor cuja Home está sendo visualizada:
   //   - não-admin: forçado ao próprio (sem URL param, sem dropdown)
@@ -650,6 +649,11 @@ export default function Dashboard({ session }) {
     const resto = myClientes.filter(c => !idsAlerta.has(c.id) && !idsProximo.has(c.id))
     return { prioridade, resto }
   }, [myClientes, alertas, proximos])
+
+  // Loading do scope (tratado AQUI depois de todos os hooks pra não quebrar Rules of Hooks).
+  if (scopeLoading) {
+    return <div className="p-6 animate-pulse text-white/30 text-sm">Carregando…</div>
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8">
