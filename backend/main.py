@@ -374,27 +374,30 @@ async def generate_slides_endpoint(
 @app.get("/clientes")
 async def list_clientes(
     consultor_id: Optional[str] = None,
+    include_archived: bool = False,
     scope: UserScope = Depends(get_user_scope),
 ):
     """
-    Lista clientes filtrando por scope:
-      - can_see_all=True: retorna todos (admin/diretor/owner). Aceita ?consultor_id=X pra filtrar.
-      - can_see_all=False: força WHERE consultor_id = scope.consultor_id (ignora query param).
+    Lista clientes filtrando por scope + archived_at:
+      - can_see_all=False (consultor regular): força consultor_id=self + archived_at IS NULL
+      - can_see_all=True: aceita ?consultor_id=X e ?include_archived=true
     """
     query = _supabase.table("clientes").select(
         "id, nome, empresa, consultor_responsavel, consultor_id, "
-        "encontro_atual, status, updated_at, created_at"
+        "encontro_atual, status, archived_at, updated_at, created_at"
     )
 
     if not scope.can_see_all:
-        # Consultor regular — força filtro pelo próprio id
         if scope.consultor_id is None:
-            # User sem ficha + sem fallback → não vê nada
             return []
         query = query.eq("consultor_id", scope.consultor_id)
-    elif consultor_id:
-        # Admin/diretor com filtro explícito pelo dropdown
-        query = query.eq("consultor_id", consultor_id)
+        # Consultor regular SEMPRE filtra archived (ignora flag)
+        query = query.is_("archived_at", "null")
+    else:
+        if consultor_id:
+            query = query.eq("consultor_id", consultor_id)
+        if not include_archived:
+            query = query.is_("archived_at", "null")
 
     result = query.order("created_at", desc=True).execute()
     return result.data

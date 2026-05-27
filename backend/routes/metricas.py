@@ -307,6 +307,8 @@ async def get_ranking(
         if scope.consultor_id is None:
             return {"ranking": [], "total": 0, "plataforma": plataforma}
         clientes_query = clientes_query.eq("consultor_id", scope.consultor_id)
+    # Ranking sempre esconde archived (mesmo admin) — não faz sentido rankear clientes mortos
+    clientes_query = clientes_query.is_("archived_at", "null")
     clientes = clientes_query.order("nome").execute()
 
     # Última data de post por cliente (pra calcular dias_sem_postar)

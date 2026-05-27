@@ -330,3 +330,52 @@ async def test_patch_cliente_admin_pode_mudar_consultor_id(mock_main_supabase):
     update_call = mock_main_supabase.table().update.call_args
     updated_data = update_call.args[0]
     assert updated_data.get("consultor_id") == "novo-consultor"
+
+
+# ─── include_archived ──────────────────────────────────────────────────────────
+
+async def test_list_clientes_filtra_archived_por_default(mock_main_supabase):
+    """GET /clientes sem include_archived retorna só clientes com archived_at IS NULL."""
+    from main import list_clientes
+
+    mock_main_supabase.chain.execute.return_value = MagicMock(data=[])
+
+    result = await list_clientes(consultor_id=None, include_archived=False, scope=_scope_admin())
+
+    assert result == []
+
+    # Confirma que .is_("archived_at", "null") foi chamado
+    is_calls = mock_main_supabase.chain.is_.call_args_list
+    archived_filter_calls = [c for c in is_calls if c.args == ("archived_at", "null")]
+    assert len(archived_filter_calls) >= 1, "Esperado filtro WHERE archived_at IS NULL"
+
+
+async def test_list_clientes_admin_include_archived_true_traz_tudo(mock_main_supabase):
+    """Admin com include_archived=True retorna todos (sem filtro de archived)."""
+    from main import list_clientes
+
+    mock_main_supabase.chain.execute.return_value = MagicMock(data=[])
+
+    result = await list_clientes(consultor_id=None, include_archived=True, scope=_scope_admin())
+
+    assert result == []
+
+    is_calls = mock_main_supabase.chain.is_.call_args_list
+    archived_filter_calls = [c for c in is_calls if c.args[0] == "archived_at"]
+    assert len(archived_filter_calls) == 0, "Admin com include_archived=True NÃO deve filtrar archived_at"
+
+
+async def test_list_clientes_consultor_nao_pode_include_archived(mock_main_supabase):
+    """Consultor regular: include_archived=True é ignorado (sempre filtra archived)."""
+    from main import list_clientes
+
+    mock_main_supabase.chain.execute.return_value = MagicMock(data=[])
+
+    # Consultor tenta passar include_archived=True — deve ser ignorado
+    result = await list_clientes(consultor_id=None, include_archived=True, scope=_scope_consultor())
+
+    assert result == []
+
+    is_calls = mock_main_supabase.chain.is_.call_args_list
+    archived_filter_calls = [c for c in is_calls if c.args == ("archived_at", "null")]
+    assert len(archived_filter_calls) >= 1, "Consultor SEMPRE deve ter filtro WHERE archived_at IS NULL"

@@ -205,6 +205,7 @@ def _make_chain(mock_sb):
     chain = MagicMock()
     chain.select.return_value = chain
     chain.eq.return_value = chain
+    chain.is_.return_value = chain
     chain.order.return_value = chain
     chain.single.return_value = chain
     chain.maybe_single.return_value = chain
@@ -246,6 +247,7 @@ def mock_main_supabase():
         chain = MagicMock()
         chain.select.return_value = chain
         chain.eq.return_value = chain
+        chain.is_.return_value = chain
         chain.order.return_value = chain
         chain.single.return_value = chain
         chain.maybe_single.return_value = chain
