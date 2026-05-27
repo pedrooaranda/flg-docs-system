@@ -3,9 +3,42 @@
 Padrão: mocka supabase_client pra evitar hit em rede. Cada teste define o
 shape dos retornos via fixture. Não usa real Supabase — testes unit.
 """
+import sys
 from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 import pytest
+
+
+# ─── Stubs de módulos externos (fastapi, supabase, config) ────────────────────
+# Necessário pra importar deps.py + lib/auth_scope.py sem instalar o stack
+# completo no ambiente local (que roda em Docker Python 3.12 com requirements.txt).
+# Cada stub expõe só o mínimo que os módulos importam.
+
+def _ensure_stubs():
+    """Registra stubs em sys.modules antes do pytest coletar os testes."""
+    # fastapi
+    if "fastapi" not in sys.modules:
+        _fastapi = MagicMock()
+        _fastapi.Depends = lambda fn: fn   # Depends(x) → x (no-op no teste)
+        _fastapi.Header = MagicMock()
+        _fastapi.HTTPException = Exception
+        sys.modules["fastapi"] = _fastapi
+
+    # supabase
+    if "supabase" not in sys.modules:
+        _supabase = MagicMock()
+        _supabase.create_client = MagicMock(return_value=MagicMock())
+        sys.modules["supabase"] = _supabase
+
+    # config (pydantic-settings baseado — só precisa de settings.supabase_url/key)
+    if "config" not in sys.modules:
+        _config = MagicMock()
+        _config.settings.supabase_url = "http://localhost"
+        _config.settings.supabase_key = "fake-key"
+        sys.modules["config"] = _config
+
+
+_ensure_stubs()
 
 
 @dataclass
