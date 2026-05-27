@@ -845,14 +845,32 @@ async def chat_intelecto(
 async def trigger_clickup_sync(scope: UserScope = Depends(get_user_scope)):
     """
     Dispara ClickUp sync síncrono. Admin/diretor only.
-    Retorna stats: {archived, reactivated, paused, ativos, created, updated, errors, total, duration_ms}
+    Retorna stats + diagnóstico de configuração de env (token, list, workspace).
     """
     if not scope.can_see_all:
         raise HTTPException(
             status_code=403,
             detail="Operação restrita a admin/diretor.",
         )
+    # Diagnóstico: confirma que envs críticos estão configurados antes do sync.
+    # Se token vazio, run_clickup_sync retorna stats=0 silenciosamente (0ms).
+    # Aqui exponho explicitamente pro frontend mostrar mensagem amigável.
+    import os as _os
+    token_present = bool(_os.getenv("CLICKUP_API_TOKEN", "").strip())
+    if not token_present:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "CLICKUP_API_TOKEN não está configurado no backend (.env). "
+                "Sync abortado. Suba a env e restart o container."
+            ),
+        )
+
     stats = run_clickup_sync()
+    stats["_diagnostico"] = {
+        "token_configured": token_present,
+        "team_id": _os.getenv("CLICKUP_TEAM_ID", "9013791877"),
+    }
     return stats
 
 
