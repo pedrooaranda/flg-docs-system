@@ -403,6 +403,120 @@ async def list_clientes(
     return result.data
 
 
+@app.get("/clientes/summary")
+async def list_clientes_summary(
+    consultor_id: Optional[str] = None,
+    include_archived: bool = False,
+    scope: UserScope = Depends(get_user_scope),
+):
+    """
+    Lista clientes com métricas IG agregadas inline (último seguidores,
+    taxa engajamento média 30d, dias sem postar, conectado).
+
+    Endpoint separado de /clientes pra não onerar callers que só precisam
+    dos campos básicos (AppContext, Dashboard, etc).
+
+    Mesma regra de scope/archived que /clientes.
+    """
+    # 1. Query base: clientes filtrados
+    query = _supabase.table("clientes").select(
+        "id, nome, empresa, consultor_responsavel, consultor_id, "
+        "encontro_atual, status, archived_at, updated_at, created_at"
+    )
+
+    if not scope.can_see_all:
+        if scope.consultor_id is None:
+            return []
+        query = query.eq("consultor_id", scope.consultor_id)
+        query = query.is_("archived_at", "null")
+    else:
+        if consultor_id:
+            query = query.eq("consultor_id", consultor_id)
+        if not include_archived:
+            query = query.is_("archived_at", "null")
+
+    clientes = (query.order("created_at", desc=True).execute().data) or []
+    if not clientes:
+        return []
+
+    cliente_ids = [c["id"] for c in clientes]
+
+    # 2. Últimas métricas IG por cliente (1 query batch)
+    try:
+        metricas_resp = _supabase.table("metricas_diarias_instagram").select(
+            "cliente_id, data, seguidores, taxa_engajamento"
+        ).in_("cliente_id", cliente_ids).order("data", desc=True).execute()
+        metricas_rows = metricas_resp.data or []
+    except Exception:
+        metricas_rows = []
+
+    # Agrupa: por cliente_id, pega o mais recente + média de engajamento 30d
+    metricas_por_cliente = {}
+    for row in metricas_rows:
+        cid = row["cliente_id"]
+        if cid not in metricas_por_cliente:
+            metricas_por_cliente[cid] = {
+                "seguidores_atual": row.get("seguidores"),
+                "engajamentos": [],
+            }
+        eng = row.get("taxa_engajamento")
+        if eng is not None:
+            metricas_por_cliente[cid]["engajamentos"].append(float(eng))
+
+    # 3. Último post por cliente (pra dias_sem_postar)
+    try:
+        posts_resp = _supabase.table("instagram_posts").select(
+            "cliente_id, posted_at"
+        ).in_("cliente_id", cliente_ids).order("posted_at", desc=True).execute()
+        posts_rows = posts_resp.data or []
+    except Exception:
+        posts_rows = []
+
+    ultimo_post_por_cliente = {}
+    for row in posts_rows:
+        cid = row["cliente_id"]
+        if cid not in ultimo_post_por_cliente:
+            ultimo_post_por_cliente[cid] = row.get("posted_at")
+
+    # 4. Quem está com IG conectado
+    try:
+        conex_resp = _supabase.table("instagram_conexoes").select(
+            "cliente_id, status"
+        ).in_("cliente_id", cliente_ids).eq("status", "ativo").execute()
+        conectados = {row["cliente_id"] for row in (conex_resp.data or [])}
+    except Exception:
+        conectados = set()
+
+    # 5. Compose
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    result = []
+    for c in clientes:
+        cid = c["id"]
+        m = metricas_por_cliente.get(cid, {})
+        engs = m.get("engajamentos", [])
+        taxa_media = round(sum(engs) / len(engs), 2) if engs else None
+
+        ultimo_post = ultimo_post_por_cliente.get(cid)
+        dias_sem_postar = None
+        if ultimo_post:
+            try:
+                last_dt = datetime.fromisoformat(ultimo_post.replace("Z", "+00:00"))
+                dias_sem_postar = (now - last_dt).days
+            except Exception:
+                pass
+
+        result.append({
+            **c,
+            "seguidores_atual": m.get("seguidores_atual"),
+            "taxa_engajamento_pct": taxa_media,
+            "dias_sem_postar": dias_sem_postar,
+            "instagram_conectado": cid in conectados,
+        })
+
+    return result
+
+
 @app.get("/clientes/{client_id}")
 async def get_cliente(client_id: str, scope: UserScope = Depends(get_user_scope)):
     result = _supabase.table("clientes").select("*").eq("id", client_id).single().execute()
