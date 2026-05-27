@@ -1,7 +1,7 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-26 noite (Stream 6 Permissionamento por consultor ENTREGUE em prod — 10 commits, 29 testes verdes, end-to-end backend+frontend; Stream 7 ClickUp sync na fila por pedido do Pedro)
-**Status:** 7 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
+**Última atualização:** 2026-05-26 madrugada (Streams 6+7 ENTREGUES em prod no mesmo dia — Permissionamento por consultor + ClickUp sync archived; 60 tests verdes; Stream 8 polish UI das 4 telas na fila)
+**Status:** 8 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 **Política de atualização:** este handoff deve ser atualizado **ao final de cada sprint/fase entregue** (não a cada commit). Quando você termina uma fase, antes de fechar a sessão: invoque `Skill update-handoff` (descrita em `Configurações importantes` no fim) ou edite manualmente a seção do Stream + bump da data no topo.
 
@@ -350,33 +350,49 @@ Investigação confirmada via MCP Google Drive: arquivo é `LEONARDO SOUZA | BS 
 
 ---
 
-## Stream 7 — Sincronização ClickUp → Sistema + limpeza de inativos (FILA 2026-05-26)
+## Stream 7 — ClickUp sync + soft delete (ENTREGUE 2026-05-26 noite)
 
-**Status:** pendente brainstorming. Solicitado pelo Pedro durante execução do Stream 6.
+### Objetivo
 
-**Objetivo:** ClickUp é a source-of-truth do ciclo de vida do cliente. Sistema FLG hoje aceita 4 status (`ativo`, `pausado`, `inativo`, `encerrado`) mas Pedro só quer ATIVO e PAUSADO visíveis. Inativos/encerrados devem sair da plataforma.
+ClickUp é source-of-truth do ciclo de vida do cliente. Sistema FLG arquiva (soft delete) clientes com status terminal e mantém visíveis apenas ativos+pausados+em encerramento.
 
-**Regras (pedido literal Pedro):**
-- `status='ativo'` → único que funciona normalmente
-- `status='pausado'` → mantém no sistema com tag "pausado"
-- `status='inativo'` ou `'encerrado'` → **REMOVER** do sistema
+### Decisões aprovadas
 
-**Agente de verificação ClickUp ↔ Sistema:**
-- Lê lista master de clientes no ClickUp (já temos `tools/clickup_tools.list_all_tasks` + `routes/clickup_sync`)
-- Mapeia status do ClickUp pro sistema:
-  - `clickup_status='ativo' (ou equivalente)` → `clientes.status='ativo'`
-  - `clickup_status` ∈ {pausado, em pausa} → `clientes.status='pausado'`
-  - `clickup_status` ∈ {inativo, encerrado, cancelado, etc.} → DELETE ou archived flag
-- Runs schedulado (apscheduler já existe na repo) OU on-demand via endpoint
+- **Archive** (sai do display): SITUAÇÃO ∈ {encerrado, renovado, inativo}
+- **Mantém visível com badge**: pausado, em pausa
+- **Mantém visível normal**: em encerramento (transitório), ativo, indo bem, normal, etc.
+- **Soft delete via `archived_at TIMESTAMPTZ`**: preserva FKs (encontros, metricas, debriefings); reversível se ClickUp voltar status
 
-**Interação com Stream 6 (Permissionamento):**
-- Dos 23 órfãos da migration 009, vários provavelmente são inativos/encerrados
-- Quando Stream 7 rodar, esses saem do sistema → órfãos restantes serão só inativos legítimos
-- Tarefa 10 do Stream 6 (NovoCliente.jsx com select consultor) já cobre reatribuição dos remanescentes pela UI
+Spec: [specs/2026-05-26-clickup-sync-archived-design.md](specs/2026-05-26-clickup-sync-archived-design.md). Plano: [plans/2026-05-26-clickup-sync-archived.md](plans/2026-05-26-clickup-sync-archived.md).
 
-**Brainstorming pendente:** decidir DELETE hard vs soft (`archived=true` flag) — recomendação a discutir: soft pra preservar histórico de métricas/encontros realizados.
+### Migration 010 aplicada pelo Pedro
 
-**Próximo passo:** Stream 7 entra em brainstorming após Stream 6 concluir (ou Pedro pode trocar prioridade).
+`clientes.archived_at TIMESTAMPTZ NULL` + index parcial.
+
+### Backend — 4 commits, 60 tests verdes
+
+| SHA | Task | Entrega |
+|---|---|---|
+| `0b58029` | 1 | `evaluate_lifecycle(situacao_raw) → (status_db, should_archive)` puro — 21 tests parametrizados |
+| `c90aae0` | 2 | `run_clickup_sync` ampliado: archive/reactivate + stats `{archived, reactivated, paused, ativos, errors, total, duration_ms}` |
+| `a75c8e5` | 3 | `GET /clientes` + `GET /metricas/ranking` filtram `archived_at IS NULL` por default; admin pode `?include_archived=true` |
+| `00ecf54` | 4 | `POST /admin/clickup/sync` — trigger manual admin only, retorna stats |
+
+### Frontend — 1 commit
+
+| SHA | Task | Entrega |
+|---|---|---|
+| `5712c3a` | 5 | `Clientes.jsx` — botão "Sync ClickUp" no header (admin), toast com stats, filtros sem "Inativos" (archived sai automaticamente), Badge Pausado já existente |
+
+### Pendências pós-deploy (Pedro)
+
+1. ⏳ Smoke test:
+   - Click "Sync ClickUp" → confirma stats no toast
+   - Verifica que clientes encerrados/inativos/renovados sumiram da lista
+   - Pausados aparecem com badge amber/gold
+   - Validar SQL `SELECT count(*) FILTER (WHERE archived_at IS NULL) FROM clientes`
+2. ⏳ Verificar redução dos 23 órfãos do Stream 6 (vários provavelmente eram inativos)
+3. ⏳ Após próximo sync programado (6h), validar logs do backend pra confirmar archive/reactivate funcionando
 
 ---
 
