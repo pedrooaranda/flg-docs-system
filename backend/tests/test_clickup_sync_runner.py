@@ -94,7 +94,7 @@ def _make_supabase_mock():
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
 def test_run_sync_archives_encerrado():
-    """Task com SITUAÇÃO='Encerrado' deve setar archived_at."""
+    """Task com status NATIVO='encerrado' (kanban) deve setar archived_at."""
     from services import clickup_sync
 
     mock_sb, chain = _make_supabase_mock()
@@ -106,18 +106,23 @@ def test_run_sync_archives_encerrado():
         MagicMock(data=[{"id": "cliente-joao"}]),
     ]
 
-    # task_to_cliente_data deve retornar dict com situacao_clickup=Encerrado
+    # Decisão Pedro 2026-05-27: lifecycle vem do status NATIVO (kanban), não do
+    # custom field. Task abaixo tem status:'encerrado'.
     fake_data = {
         "nome": "João Silva",
         "clickup_task_id": "task-joao",
         "empresa": "Empresa João",
         "status": "concluido",
-        "situacao_clickup": "Encerrado",
+    }
+    task_encerrada = {
+        "id": "task-joao",
+        "name": "João Silva",
+        "status": {"status": "encerrado"},
+        "assignees": [{"username": "consultor1"}],
+        "custom_fields": [],
     }
 
-    with patch.object(clickup_sync, "list_all_tasks", return_value=[
-        _make_task("João Silva", "Encerrado", "task-joao")
-    ]):
+    with patch.object(clickup_sync, "list_all_tasks", return_value=[task_encerrada]):
         with patch.object(clickup_sync, "task_to_cliente_data", return_value=dict(fake_data)):
             with patch("deps.supabase_client", mock_sb):
                 with patch.dict("os.environ", {"CLICKUP_API_TOKEN": "fake-token"}):
@@ -133,7 +138,7 @@ def test_run_sync_archives_encerrado():
 
 
 def test_run_sync_reactivates_when_back_to_ativo():
-    """Cliente archived recebe archived_at=None quando ClickUp volta pra ativo."""
+    """Cliente archived recebe archived_at=None quando status NATIVO volta pra ativo."""
     from services import clickup_sync
 
     mock_sb, chain = _make_supabase_mock()
@@ -148,12 +153,16 @@ def test_run_sync_reactivates_when_back_to_ativo():
         "clickup_task_id": "task-maria",
         "empresa": "Empresa Maria",
         "status": "ativo",
-        "situacao_clickup": "Indo Bem",
+    }
+    task_ativa = {
+        "id": "task-maria",
+        "name": "Maria Santos",
+        "status": {"status": "ativo"},
+        "assignees": [{"username": "consultor1"}],
+        "custom_fields": [],
     }
 
-    with patch.object(clickup_sync, "list_all_tasks", return_value=[
-        _make_task("Maria Santos", "Indo Bem", "task-maria")
-    ]):
+    with patch.object(clickup_sync, "list_all_tasks", return_value=[task_ativa]):
         with patch.object(clickup_sync, "task_to_cliente_data", return_value=dict(fake_data)):
             with patch("deps.supabase_client", mock_sb):
                 with patch.dict("os.environ", {"CLICKUP_API_TOKEN": "fake-token"}):

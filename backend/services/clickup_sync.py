@@ -138,13 +138,13 @@ def run_clickup_sync():
             if data["nome"] in CLICKUP_BLOCKLIST:
                 continue
 
-            # Lifecycle decision: prefere custom field SITUAÇÃO; se vazio, cai pro
-            # status NATIVO da task (kanban column). Pedro usa AMBOS no ClickUp —
-            # cliente Fernanda Prado e outros têm task.status='encerrado' mas
-            # custom field SITUAÇÃO vazio, então o sync ignorava como "ativo".
-            situacao = data.pop("situacao_clickup", None)
-            if not situacao:
-                situacao = (task.get("status") or {}).get("status", "")
+            # Lifecycle decision: usa APENAS o status NATIVO da task (kanban column).
+            # Decisão Pedro 2026-05-27: status nativo é source-of-truth oficial do ciclo
+            # de vida. Custom field SITUAÇÃO permanece no ClickUp como info visual extra
+            # (CAMPANHA, INDO BEM, PREPARAR ENCERRAMENTO, etc) mas NÃO influencia archive.
+            # Removemos situacao_clickup do data (vinha do task_to_cliente_data por compat).
+            data.pop("situacao_clickup", None)
+            situacao = (task.get("status") or {}).get("status", "")
             status_db, should_archive = evaluate_lifecycle(situacao)
             data["status"] = status_db  # sobrescreve mapping antigo do task_to_cliente_data
 
