@@ -838,3 +838,19 @@ async def chat_intelecto(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
+
+
+# ─── Admin: ClickUp sync trigger ──────────────────────────────────────────────
+@app.post("/admin/clickup/sync")
+async def trigger_clickup_sync(scope: UserScope = Depends(get_user_scope)):
+    """
+    Dispara ClickUp sync síncrono. Admin/diretor only.
+    Retorna stats: {archived, reactivated, paused, ativos, errors, total, duration_ms}
+    """
+    if not scope.can_see_all:
+        raise HTTPException(
+            status_code=403,
+            detail="Operação restrita a admin/diretor.",
+        )
+    stats = run_clickup_sync()
+    return stats
