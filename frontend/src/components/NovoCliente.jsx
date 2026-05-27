@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, UserPlus } from 'lucide-react'
 import { api } from '../lib/api'
+import { useUserScope } from '../hooks/useUserScope'
 import { Spinner } from './ui/Spinner'
 import { cn } from '../lib/utils'
 
 const CAMPOS = [
   { key: 'nome',                  label: 'Nome do Founder',       required: true,  textarea: false },
   { key: 'empresa',               label: 'Empresa',               required: true,  textarea: false },
-  { key: 'consultor_responsavel', label: 'Consultor Responsável', required: true,  textarea: false },
+  // consultor_responsavel é renderizado separadamente (select vs readonly)
   { key: 'estrategista',          label: 'Estrategista',          required: false, textarea: false },
   { key: 'clickup_task_id',       label: 'ClickUp Task ID',       required: false, textarea: false },
   { key: 'tom_de_voz',            label: 'Tom de Voz',            required: false, textarea: true  },
@@ -25,9 +26,18 @@ const CAMPOS_OPCIONAIS = CAMPOS.filter(c => !c.required)
 
 export default function NovoCliente() {
   const navigate = useNavigate()
+  const { canSeeAll, myConsultorId, myConsultorNome, isLoading: scopeLoading } = useUserScope()
+  const [colaboradores, setColaboradores] = useState([])
   const [form, setForm] = useState({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!canSeeAll) return  // consultor regular não precisa da lista
+    api('/colaboradores?categoria=consultor&ativo=true')
+      .then(data => setColaboradores(data.colaboradores || []))
+      .catch(() => setColaboradores([]))
+  }, [canSeeAll])
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })) }
 
@@ -36,9 +46,16 @@ export default function NovoCliente() {
     setLoading(true)
     setError('')
     try {
+      const payload = { ...form, encontro_atual: 1 }
+      // Para consultor regular, backend força consultor_id = self — mas enviamos
+      // mesmo assim pra clareza. Para admin/diretor, vem do select.
+      if (!canSeeAll && myConsultorId) {
+        payload.consultor_id = myConsultorId
+        payload.consultor_responsavel = myConsultorNome || payload.consultor_responsavel
+      }
       const c = await api('/clientes', {
         method: 'POST',
-        body: JSON.stringify({ ...form, encontro_atual: 1 }),
+        body: JSON.stringify(payload),
       })
       navigate(`/clientes/${c.id}`)
     } catch (err) {
@@ -78,6 +95,45 @@ export default function NovoCliente() {
     )
   }
 
+  function renderConsultorField() {
+    const sharedClass = 'input-flg w-full'
+    return (
+      <div key="consultor_responsavel">
+        <label className="block text-[10px] tracking-widest uppercase text-white/35 mb-2">
+          Consultor Responsável
+          <span className="text-gold-mid ml-1">*</span>
+        </label>
+        {canSeeAll ? (
+          <select
+            value={form.consultor_id || ''}
+            onChange={e => {
+              const id = e.target.value
+              const col = colaboradores.find(c => c.id === id)
+              setForm(f => ({
+                ...f,
+                consultor_id: id || null,
+                consultor_responsavel: col?.nome || '',
+              }))
+            }}
+            className={sharedClass}
+          >
+            <option value="">— Sem consultor —</option>
+            {colaboradores.map(c => (
+              <option key={c.id} value={c.id}>{c.nome}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            value={myConsultorNome || '(você)'}
+            readOnly
+            className={cn(sharedClass, 'opacity-60 cursor-default')}
+          />
+        )}
+      </div>
+    )
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -110,6 +166,11 @@ export default function NovoCliente() {
         <div className="card-flg p-5 space-y-4">
           <p className="text-[10px] tracking-widest uppercase text-white/30">Informações Básicas</p>
           {CAMPOS_OBRIGATORIOS.map(renderField)}
+          {scopeLoading ? (
+            <div className="flex items-center gap-2 text-white/30 text-sm">
+              <Spinner size="sm" /> Carregando permissões…
+            </div>
+          ) : renderConsultorField()}
         </div>
 
         {/* Perfil do cliente */}
@@ -128,7 +189,7 @@ export default function NovoCliente() {
         <div className="flex gap-3 pb-4">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || scopeLoading}
             className="btn-gold flex items-center gap-2 disabled:opacity-50 disabled:grayscale"
           >
             {loading ? <><Spinner size="sm" /> Criando…</> : <><UserPlus size={15} /> Criar Cliente</>}
