@@ -15,10 +15,11 @@ Pipeline:
 Cache de prompt economiza ~90% do custo de input em runs sequenciais.
 """
 
+import base64
 import logging
 import re
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import anthropic
 from bs4 import BeautifulSoup
@@ -64,6 +65,30 @@ def _read_ds_file(rel_path: str) -> str:
 _DS_MD = _read_ds_file("FLG-DESIGN-SYSTEM.md")
 _DS_CSS = _read_ds_file("css/flg.css")
 _DS_TEMPLATE = _read_ds_file("templates/deck-template.html")
+
+
+def _load_logo_data_uri() -> str:
+    """Carrega a logo FLG como data URI base64.
+
+    Por que inline: o HTML é renderizado em múltiplos contextos (iframe srcDoc no
+    preview do admin/cliente, page real na apresentação, blob URL no fullscreen,
+    PDF futuro). Em srcDoc o documento tem base `about:srcdoc` e paths absolutos
+    como `/flg-design-system/assets/logo-flg.png` não resolvem confiável em todos
+    os browsers. Data URI funciona em qualquer contexto, sem network request.
+
+    Custo: ~118KB por ocorrência. 12-15 slides × 1 logo = ~1.5MB no HTML salvo.
+    Comprime bem com gzip na transferência (~120KB efetivo).
+    """
+    logo_path = _DS_DIR / "assets" / "logo-flg.png"
+    if not logo_path.exists():
+        logger.warning(f"Logo FLG não encontrada em {logo_path} — slides ficarão sem logo")
+        return ""
+    b64 = base64.b64encode(logo_path.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{b64}"
+
+
+_LOGO_DATA_URI = _load_logo_data_uri()
+logger.info(f"claude_html_generator: logo data URI carregada ({len(_LOGO_DATA_URI)} chars)")
 
 
 def _extract_allowed_classes(css_content: str) -> set[str]:
@@ -199,14 +224,20 @@ def normalize_asset_paths(html: str) -> str:
 
 
 def _normalize_asset_paths(html: str) -> str:
-    """Reescreve paths relativos do design system (../assets/ etc.) pra absolutos.
+    """Reescreve paths relativos do design system (../assets/ etc.) pra absolutos
+    e inlinea a logo FLG como data URI (asset global, funciona em qualquer contexto).
 
-    Por que: o template oficial usa `../assets/logo-flg.png` (relativo ao arquivo de template).
-    Quando o HTML é servido em outras rotas (/api/apresentar/:slug, blob URL fullscreen,
-    iframe srcDoc), o relativo aponta pra lugares errados e a logo não carrega.
+    Por que normalizar paths: o template oficial usa `../assets/logo-flg.png` (relativo
+    ao arquivo de template). Quando o HTML é servido em outras rotas (apresentar/:slug,
+    blob URL fullscreen, iframe srcDoc), o relativo aponta pra lugares errados.
 
-    Normaliza pra `/flg-design-system/assets/logo-flg.png` que resolve sempre via Nginx
-    (mesma origem em todas as rotas do app + apresentação pública).
+    Por que inlinear a logo: paths absolutos `/flg-design-system/assets/logo-flg.png`
+    funcionam via Nginx na apresentação real, mas FALHAM em iframe srcDoc (preview do
+    admin e cliente) porque o documento tem base `about:srcdoc`. Data URI elimina essa
+    dependência: a logo vira parte do HTML salvo e renderiza em qualquer contexto.
+
+    Aplicada em geração nova (antes de salvar) e em leitura (GET via normalize_asset_paths
+    público), pra blindar HTMLs antigos no DB que ainda usam src com path.
     """
     if not html:
         return html
@@ -218,6 +249,14 @@ def _normalize_asset_paths(html: str) -> str:
     html = re.sub(r'(["\'])\.\./css/', r'\1/flg-design-system/css/', html)
     # ../js/X → /flg-design-system/js/X
     html = re.sub(r'(["\'])\.\./js/', r'\1/flg-design-system/js/', html)
+    # Logo FLG: src="/flg-design-system/assets/logo-flg.png" → data URI inline.
+    # Também cobre o caso degenerado em que o relativo já foi reescrito acima.
+    if _LOGO_DATA_URI:
+        html = re.sub(
+            r'src=(["\'])/flg-design-system/assets/logo-flg\.png\1',
+            f'src="{_LOGO_DATA_URI}"',
+            html,
+        )
     return html
 
 
@@ -281,7 +320,10 @@ def stream_intelecto_html(intelecto_estrutura: str, encontro_numero: int, estima
             logger.info(f"stream_intelecto_html: streaming via {model} (encontro {encontro_numero})")
             with _claude.messages.stream(
                 model=model,
-                max_tokens=16000,
+                # 64K é o teto de output do Sonnet 4.6. Geração intelectual é única
+                # por encontro (custo único), então usamos folga máxima pra evitar
+                # truncamento mesmo em encontros densos com 15 slides.
+                max_tokens=64000,
                 temperature=0.3,
                 stop_sequences=["</body>"],
                 system=_build_system_prompt(),
@@ -324,6 +366,23 @@ def stream_intelecto_html(intelecto_estrutura: str, encontro_numero: int, estima
         yield ('error', {'message': f'Resposta vazia em todos os modelos. {last_error or ""}'})
         return
 
+    # Detecta truncamento por max_tokens. Quando o Claude bate o teto, os últimos
+    # slides ficam sem </section> e _extract_html_only descarta silenciosamente.
+    # Sem esse aviso, o admin via "12 slides" na progress bar e depois "9 salvos"
+    # no DB sem entender o porquê.
+    stop_reason = getattr(response_obj, "stop_reason", None) if response_obj else None
+    if stop_reason == "max_tokens":
+        output_tokens = getattr(response_obj.usage, "output_tokens", "?") if response_obj else "?"
+        opened = _count_slides_in_partial(accumulated)
+        msg = (
+            f"Resposta truncada em max_tokens ({output_tokens} tokens). "
+            f"{opened} slide(s) iniciados; os últimos podem estar incompletos e serão descartados. "
+            "Divida o encontro em menos slides ou aumente max_tokens."
+        )
+        logger.warning(f"stream_intelecto_html: {msg}")
+        yield ('error', {'message': msg})
+        return
+
     yield ('validating', None)
 
     html = _extract_html_only(accumulated)
@@ -364,7 +423,7 @@ def stream_intelecto_html(intelecto_estrutura: str, encontro_numero: int, estima
     })
 
 
-def _call_claude(model: str, messages: list, max_tokens: int = 16000) -> tuple:
+def _call_claude(model: str, messages: list, max_tokens: int = 64000) -> tuple:
     """Chama Claude e retorna (raw_text, response). SDK faz retry automático
     em 408/409/429/5xx (inclui 529) com exponential backoff jitter (max_retries=5).
 
@@ -427,13 +486,19 @@ def generate_intelecto_html(intelecto_estrutura: str, encontro_numero: int) -> d
             logger.info(f"generate_intelecto_html: tentando modelo {model} (encontro {encontro_numero})")
             raw, response = _call_claude(model, messages)
             used_model = model
-            # Detecta truncamento por max_tokens (HTML cortado no meio)
+            # Detecta truncamento por max_tokens. Quando bate o teto, os últimos
+            # slides ficam sem </section> e são descartados em _extract_html_only,
+            # gerando "9 de 12" silencioso. Levantar erro é melhor que salvar parcial.
             stop_reason = getattr(response, "stop_reason", None)
             if stop_reason == "max_tokens":
+                output_tokens = getattr(response.usage, "output_tokens", "?")
                 logger.warning(
-                    f"generate_intelecto_html: {model} truncou (stop_reason=max_tokens, "
-                    f"output_tokens={getattr(response.usage, 'output_tokens', '?')}). "
-                    "Considere aumentar max_tokens se isso for recorrente."
+                    f"generate_intelecto_html: {model} truncou (output_tokens={output_tokens})"
+                )
+                raise RuntimeError(
+                    f"Resposta truncada em max_tokens ({output_tokens} tokens). "
+                    "Os últimos slides ficariam incompletos. "
+                    "Divida o encontro em menos slides ou aumente max_tokens."
                 )
             if not raw.strip():
                 # Resposta vazia — tenta de novo no mesmo modelo pedindo sem markdown
