@@ -451,3 +451,72 @@ async def delete_colaborador(colab_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=f"Erro ao desativar: {e}")
 
     return {"ok": True, "id": colab_id, "ativo": False}
+
+
+# ─── Endpoint reset de senha ─────────────────────────────────────────────────
+
+@router.post("/{colab_id}/reset-password")
+async def reset_colaborador_password(colab_id: str, user=Depends(get_current_user)):
+    """Gera senha nova pra colaborador existente. Admin+. Marca needs_password_change=True.
+
+    Usado quando colaborador perde a senha temporária ou nunca recebeu (e admin precisa
+    repassar). Não envia email — admin é responsável por transmitir manualmente.
+    Retorna a senha em texto plano UMA vez.
+    """
+    caller = _require_role(user, "admin")
+
+    target_resp = _supabase.table("colaboradores").select("*").eq("id", colab_id).maybe_single().execute()
+    target = target_resp.data if target_resp else None
+    if not target:
+        raise HTTPException(status_code=404, detail="Colaborador não encontrado")
+
+    # Owner só pode ser resetado por outro owner (evita escalation lateral entre admins)
+    if target.get("role") == "owner" and caller.get("role") != "owner":
+        raise HTTPException(status_code=403, detail="Apenas Owner pode resetar senha de outro Owner")
+
+    target_email = (target.get("email") or "").strip().lower()
+    if not target_email:
+        raise HTTPException(status_code=400, detail="Colaborador sem email")
+
+    # Localiza user no auth.users pelo email
+    try:
+        users = _supabase.auth.admin.list_users(page=1, per_page=200)
+    except Exception as e:
+        logger.error(f"reset_password: list_users falhou: {e}")
+        raise HTTPException(status_code=500, detail=f"Falha ao consultar Supabase Auth: {str(e)[:200]}")
+
+    auth_user = next(
+        (u for u in users if (getattr(u, "email", "") or "").strip().lower() == target_email),
+        None,
+    )
+    if not auth_user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Conta auth.users não encontrada pra {target_email}. Use DELETE + POST pra recriar.",
+        )
+
+    # Gera senha nova e atualiza
+    new_password = _generate_password()
+    existing_meta = getattr(auth_user, "user_metadata", None) or {}
+    try:
+        _supabase.auth.admin.update_user_by_id(
+            auth_user.id,
+            {
+                "password": new_password,
+                "user_metadata": {
+                    **existing_meta,
+                    "needs_password_change": True,
+                },
+            },
+        )
+    except Exception as e:
+        logger.error(f"reset_password: update_user_by_id falhou pra {target_email}: {e}")
+        raise HTTPException(status_code=500, detail=f"Falha ao atualizar senha: {str(e)[:200]}")
+
+    logger.info(f"reset_password: senha resetada pra {target_email} por {caller.get('email')}")
+    return {
+        "ok": True,
+        "email": target_email,
+        "temporary_password": new_password,
+        "needs_password_change": True,
+    }
