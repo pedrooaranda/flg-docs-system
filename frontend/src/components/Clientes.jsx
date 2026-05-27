@@ -7,7 +7,7 @@ import {
 } from '@tanstack/react-table'
 import {
   Search, Plus, LayoutGrid, List, ChevronUp, ChevronDown,
-  ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight,
+  ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw,
 } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
 import { useUserScope } from '../hooks/useUserScope'
@@ -15,6 +15,7 @@ import { Avatar } from './ui/Avatar'
 import { StatusBadge } from './ui/Badge'
 import { SkeletonCard } from './ui/Skeleton'
 import { progressPercent, formatDate, cn } from '../lib/utils'
+import { api } from '../lib/api'
 
 /* ─── Card individual (igual ao Dashboard) ─── */
 function ClientCard({ cliente, onPreparar, onMateriais, delay = 0 }) {
@@ -307,6 +308,8 @@ export default function Clientes({ session }) {
   const [filterStatus, setFilterStatus]       = useState('todos')
   const [filterConsultor, setFilterConsultor] = useState('todos')
   const [viewMode, setViewMode]               = useState('cards') // 'cards' | 'table'
+  const [syncing, setSyncing]                 = useState(false)
+  const [syncToast, setSyncToast]             = useState(null)
 
   // Permissionamento: source-of-truth vem do backend via /me/scope.
   // canSeeAll=true → vê todos + dropdown ativo; false → backend já filtrou pra mostrar só os seus.
@@ -330,13 +333,29 @@ export default function Clientes({ session }) {
 
   const ativos   = filtered.filter(c => (c.status || 'ativo') === 'ativo')
   const pausados = filtered.filter(c => c.status === 'pausado')
-  const inativos = filtered.filter(c => c.status === 'inativo')
 
   function handlePreparar(c) {
     navigate(`/clientes/${c.id}/encontro/${c.encontro_atual || 1}`)
   }
   function handleMateriais(c) {
     navigate(`/materiais?cliente=${c.id}`)
+  }
+
+  async function handleSyncClickUp() {
+    setSyncing(true)
+    setSyncToast(null)
+    try {
+      const stats = await api('/admin/clickup/sync', { method: 'POST' })
+      setSyncToast({
+        type: 'success',
+        msg: `Sync OK — ${stats.archived} archived, ${stats.reactivated} reactivated, ${stats.paused} pausados, ${stats.ativos} ativos (${stats.duration_ms}ms)`,
+      })
+      setTimeout(() => window.location.reload(), 1500)
+    } catch (err) {
+      setSyncToast({ type: 'error', msg: err?.message || 'Falha no sync' })
+    } finally {
+      setSyncing(false)
+    }
   }
 
   if (scopeLoading) {
@@ -377,6 +396,17 @@ export default function Clientes({ session }) {
             ))}
           </div>
           {canSeeAll && (
+            <button
+              onClick={handleSyncClickUp}
+              disabled={syncing}
+              className="btn-outline-gold flex items-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+              title="Sincronizar status dos clientes com ClickUp"
+            >
+              <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+              {syncing ? 'Sincronizando...' : 'Sync ClickUp'}
+            </button>
+          )}
+          {canSeeAll && (
             <button onClick={() => navigate('/clientes/novo')} className="btn-gold flex items-center gap-2">
               <Plus size={14} />
               Novo Cliente
@@ -384,6 +414,15 @@ export default function Clientes({ session }) {
           )}
         </div>
       </div>
+
+      {/* Sync toast */}
+      {syncToast && (
+        <div className={`px-3 py-2 rounded text-xs mb-3 ${
+          syncToast.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+        }`}>
+          {syncToast.msg}
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -400,7 +439,6 @@ export default function Clientes({ session }) {
           <option value="todos">Todos os status</option>
           <option value="ativo">Ativos</option>
           <option value="pausado">Pausados</option>
-          <option value="inativo">Inativos</option>
         </select>
         {canSeeAll && (
           <select value={filterConsultor} onChange={e => setFilterConsultor(e.target.value)} className="input-flg w-auto pr-8 cursor-pointer">
@@ -439,7 +477,6 @@ export default function Clientes({ session }) {
           <>
             <StatusSection label="Ativos"   clientes={ativos}   onPreparar={handlePreparar} onMateriais={handleMateriais} />
             <StatusSection label="Pausados" clientes={pausados} onPreparar={handlePreparar} onMateriais={handleMateriais} />
-            <StatusSection label="Inativos" clientes={inativos} onPreparar={handlePreparar} onMateriais={handleMateriais} />
           </>
         )
       )}
