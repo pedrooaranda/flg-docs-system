@@ -1,7 +1,11 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-26 madrugada (Streams 6+7 ENTREGUES em prod no mesmo dia — Permissionamento por consultor + ClickUp sync archived; 60 tests verdes; Stream 8 polish UI das 4 telas na fila)
+**Última atualização:** 2026-05-26 madrugada (Streams 6+7 ENTREGUES em prod após corrigir 2 bugs pós-deploy: Rules of Hooks no Dashboard + migration 010 não rodada antes do código que dependia dela; 60 tests; Stream 8 polish UI das 4 telas na fila)
 **Status:** 8 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
+
+**Lições aprendidas Streams 6/7 (anti-recorrência):**
+1. **Rules of Hooks vs early return:** nunca `if (loading) return <…>` ANTES de useMemo/useEffect declarados depois. `esbuild` valida sintaxe mas NÃO Rules of Hooks — só pega em runtime React. Fix: mover early return pra após todos os hooks. Commit `05cbb0b` documentou.
+2. **Migration antes do código:** quando código novo faz SELECT/WHERE em coluna ainda não existente, dá 500 silencioso. Antes de deployar código que depende de migration, CONFIRMAR explicitamente com Pedro que rodou OU bloquear deploy via env check. Causou tela "sem dados" em prod.
 
 **Política de atualização:** este handoff deve ser atualizado **ao final de cada sprint/fase entregue** (não a cada commit). Quando você termina uma fase, antes de fechar a sessão: invoque `Skill update-handoff` (descrita em `Configurações importantes` no fim) ou edite manualmente a seção do Stream + bump da data no topo.
 
