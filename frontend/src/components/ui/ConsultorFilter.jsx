@@ -1,31 +1,43 @@
 /**
- * ConsultorFilter — tabs/pills "Todos · Pedro Aranda · Lucas Nery · Rebecca Rachel · ...".
+ * ConsultorFilter — tabs/pills "CONSULTOR · Todos · Pedro Aranda · Lucas Nery · ...".
  *
- * Lista de consultores derivada dinamicamente dos clientes (DISTINCT consultor_responsavel),
- * com fallback hardcoded pros 3 nomes oficiais quando a lista está vazia (estado inicial).
+ * Componente compartilhado de filtro por consultor — usado em todas as telas
+ * com lista de clientes (Clientes, Métricas, Ranking, Dashboard, Materiais).
+ * Substitui dropdowns `<select>` vanilla por UI consistente.
+ *
+ * Source de consultores:
+ *   - Por padrão deriva de `clientes` (DISTINCT consultor_responsavel)
+ *   - Override explícito via prop `consultores: string[]` quando a tela não
+ *     tem array de clientes acessível (ex: Métricas top-level)
+ *
+ * Sempre inclui CONSULTORES_OFICIAIS hardcoded como fallback, pra garantir
+ * que os 3 nomes oficiais aparecem mesmo quando lista vazia (estado inicial).
  */
 
 import { useMemo } from 'react'
-import { listConsultoresFromClientes } from './consultor-utils'
+import { listConsultoresFromClientes } from '../../lib/consultores'
 
 const CONSULTORES_OFICIAIS = ['Pedro Aranda', 'Lucas Nery', 'Rebecca Rachel']
 
-export default function ConsultorFilter({ value, onChange, clientes }) {
-  const consultores = useMemo(() => {
-    const fromData = listConsultoresFromClientes(clientes).map(c => c.nome)
-    // Une dados reais com lista oficial (mantém oficiais mesmo sem clientes ainda).
-    const setAll = new Set([...CONSULTORES_OFICIAIS, ...fromData])
-    // Ordena: oficiais primeiro (na ordem definida), depois outros em ordem alfabética
+export default function ConsultorFilter({ value, onChange, clientes, consultores }) {
+  const lista = useMemo(() => {
+    // Source: prop explícita (consultores) tem precedência sobre derivado de clientes
+    const fromSource = consultores
+      ? consultores
+      : listConsultoresFromClientes(clientes).map(c => c.nome)
+    // Une com lista oficial (mantém oficiais mesmo sem dados ainda).
+    const setAll = new Set([...CONSULTORES_OFICIAIS, ...fromSource])
+    // Ordena: oficiais primeiro (na ordem definida), depois outros alfabético
     const oficiais = CONSULTORES_OFICIAIS.filter(n => setAll.has(n))
     const outros = Array.from(setAll)
       .filter(n => !CONSULTORES_OFICIAIS.includes(n))
       .sort((a, b) => a.localeCompare(b, 'pt-BR'))
     return [...oficiais, ...outros]
-  }, [clientes])
+  }, [clientes, consultores])
 
   const opcoes = [
     { key: 'todos', label: 'Todos' },
-    ...consultores.map(nome => ({ key: nome, label: nome })),
+    ...lista.map(nome => ({ key: nome, label: nome })),
   ]
 
   return (
