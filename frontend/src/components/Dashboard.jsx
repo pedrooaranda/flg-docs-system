@@ -26,7 +26,7 @@ import { StatusBadge } from './ui/Badge'
 import { SkeletonCard } from './ui/Skeleton'
 import { progressPercent } from '../lib/utils'
 import { matchConsultor } from './Materiais/shared/consultor-utils'
-import ConsultorFilter from './Materiais/shared/ConsultorFilter'
+import ConsultorFilter from './ui/ConsultorFilter'
 
 const TIPOS_NOTA = [
   { value: 'geral',     label: 'Geral',      color: '#C9A84C' },

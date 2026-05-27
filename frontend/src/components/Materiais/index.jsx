@@ -14,7 +14,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, FileText } from 'lucide-react'
 import { useApp } from '../../contexts/AppContext'
-import ConsultorFilter from './shared/ConsultorFilter'
+import ConsultorFilter from '../ui/ConsultorFilter'
 import ClienteCard from './shared/ClienteCard'
 import { matchConsultor, isAdminFromSession } from './shared/consultor-utils'
 
