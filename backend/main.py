@@ -40,6 +40,7 @@ from routes.apresentar import router as apresentar_router
 from routes.meta_callbacks import router as meta_callbacks_router
 from routes.debriefings import router as debriefings_router
 from routes import me as me_router_module
+from lib.auth_scope import UserScope, get_user_scope
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -371,20 +372,44 @@ async def generate_slides_endpoint(
 
 # ─── Clientes API ─────────────────────────────────────────────────────────────
 @app.get("/clientes")
-async def list_clientes(user=Depends(get_current_user)):
-    result = _supabase.table("clientes").select(
-        "id, nome, empresa, consultor_responsavel, "
+async def list_clientes(
+    consultor_id: Optional[str] = None,
+    scope: UserScope = Depends(get_user_scope),
+):
+    """
+    Lista clientes filtrando por scope:
+      - can_see_all=True: retorna todos (admin/diretor/owner). Aceita ?consultor_id=X pra filtrar.
+      - can_see_all=False: força WHERE consultor_id = scope.consultor_id (ignora query param).
+    """
+    query = _supabase.table("clientes").select(
+        "id, nome, empresa, consultor_responsavel, consultor_id, "
         "encontro_atual, status, updated_at, created_at"
-    ).order("created_at", desc=True).execute()
+    )
+
+    if not scope.can_see_all:
+        # Consultor regular — força filtro pelo próprio id
+        if scope.consultor_id is None:
+            # User sem ficha + sem fallback → não vê nada
+            return []
+        query = query.eq("consultor_id", scope.consultor_id)
+    elif consultor_id:
+        # Admin/diretor com filtro explícito pelo dropdown
+        query = query.eq("consultor_id", consultor_id)
+
+    result = query.order("created_at", desc=True).execute()
     return result.data
 
 
 @app.get("/clientes/{client_id}")
-async def get_cliente(client_id: str, user=Depends(get_current_user)):
+async def get_cliente(client_id: str, scope: UserScope = Depends(get_user_scope)):
     result = _supabase.table("clientes").select("*").eq("id", client_id).single().execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
-    # Buscar encontros realizados
+
+    # Auth: consultor regular só acessa seus clientes
+    if not scope.can_see_all and result.data.get("consultor_id") != scope.consultor_id:
+        raise HTTPException(status_code=403, detail="Sem acesso a esse cliente")
+
     encontros = _supabase.table("encontros_realizados").select("*").eq(
         "cliente_id", client_id
     ).order("encontro_numero").execute()
@@ -393,13 +418,34 @@ async def get_cliente(client_id: str, user=Depends(get_current_user)):
 
 
 @app.post("/clientes")
-async def create_cliente(data: dict, user=Depends(get_current_user)):
+async def create_cliente(data: dict, scope: UserScope = Depends(get_user_scope)):
+    # Consultor regular: força consultor_id = self (ignora payload pra evitar bypass)
+    if not scope.can_see_all:
+        if scope.consultor_id is None:
+            raise HTTPException(status_code=403, detail="Usuário sem ficha de colaborador — peça pra um admin criar")
+        data = {**data, "consultor_id": scope.consultor_id}
+    # Admin/diretor: aceita consultor_id do payload (pode atribuir a qualquer um)
     result = _supabase.table("clientes").insert(data).execute()
     return result.data[0]
 
 
 @app.patch("/clientes/{client_id}")
-async def update_cliente(client_id: str, data: dict, user=Depends(get_current_user)):
+async def update_cliente(
+    client_id: str,
+    data: dict,
+    scope: UserScope = Depends(get_user_scope),
+):
+    # Carrega cliente atual pra validar ownership
+    existing = _supabase.table("clientes").select("consultor_id").eq("id", client_id).single().execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+
+    if not scope.can_see_all:
+        # Consultor regular: só edita os seus + não pode mudar consultor_id
+        if existing.data.get("consultor_id") != scope.consultor_id:
+            raise HTTPException(status_code=403, detail="Sem acesso a esse cliente")
+        data = {k: v for k, v in data.items() if k != "consultor_id"}
+
     try:
         result = _supabase.table("clientes").update(data).eq("id", client_id).execute()
     except Exception as e:
