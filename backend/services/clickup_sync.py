@@ -90,15 +90,29 @@ def evaluate_lifecycle(situacao_raw):
 
 def run_clickup_sync():
     """
-    Sync completo — chamado pelo APScheduler e no startup.
-    Busca todas as tasks da List e faz upsert no Supabase.
+    Sync completo — chamado pelo APScheduler, no startup e via /admin/clickup/sync.
+    Busca todas as tasks da List BS e aplica lifecycle por cliente:
+      - status terminal (encerrado/renovado/inativo) → archived_at=now()
+      - reativação (archived volta pra ativo/pausado) → archived_at=NULL
+      - upsert normal com status atualizado
+
+    Returns:
+        dict com stats: archived, reactivated, paused, ativos, errors, total, duration_ms
     """
+    from datetime import datetime, timezone
+    from time import perf_counter
     from deps import supabase_client as sb
+
+    started = perf_counter()
+    stats = {
+        "archived": 0, "reactivated": 0, "paused": 0, "ativos": 0,
+        "errors": 0, "total": 0, "duration_ms": 0
+    }
 
     token = os.getenv("CLICKUP_API_TOKEN", "")
     if not token:
         logger.warning("⚠️ CLICKUP_API_TOKEN não configurado — sync pulado")
-        return
+        return stats
 
     logger.info("🔄 ClickUp sync iniciando...")
 
@@ -106,13 +120,15 @@ def run_clickup_sync():
         tasks = list_all_tasks(LIST_CLIENTES_BS)
     except Exception as e:
         logger.error(f"❌ Erro ao buscar tasks do ClickUp: {e}")
-        return
+        stats["errors"] = 1
+        return stats
 
+    stats["total"] = len(tasks)
     if not tasks:
         logger.info("Nenhuma task encontrada na List BS")
-        return
+        return stats
 
-    importados, atualizados, erros = 0, 0, 0
+    now_iso = datetime.now(timezone.utc).isoformat()
 
     for task in tasks:
         try:
@@ -122,33 +138,67 @@ def run_clickup_sync():
             if data["nome"] in CLICKUP_BLOCKLIST:
                 continue
 
-            # Remover campo não existente no schema
-            data.pop("situacao_clickup", None)
+            # Lifecycle decision baseado em situacao_clickup (preservada pelo task_to_cliente_data)
+            situacao = data.pop("situacao_clickup", None)
+            status_db, should_archive = evaluate_lifecycle(situacao)
+            data["status"] = status_db  # sobrescreve mapping antigo do task_to_cliente_data
 
-            # Empresa é NOT NULL no Supabase — fallback para nome do cliente
+            # Empresa NOT NULL no Supabase — fallback pra nome
             if not data.get("empresa"):
                 data["empresa"] = data["nome"]
 
-            existing = sb.table("clientes").select("id").eq(
+            # Busca cliente existente (precisamos saber se já está archived pra detectar reativação)
+            existing = sb.table("clientes").select("id, archived_at").eq(
                 "clickup_task_id", data["clickup_task_id"]
             ).execute()
 
             if existing.data:
-                update_data = {k: v for k, v in data.items() if k != "nome" and v}
-                if update_data:
-                    sb.table("clientes").update(update_data).eq(
-                        "clickup_task_id", data["clickup_task_id"]
-                    ).execute()
-                atualizados += 1
+                cliente_id = existing.data[0]["id"]
+                currently_archived = existing.data[0].get("archived_at") is not None
+
+                update_payload = {k: v for k, v in data.items() if k != "nome" and v is not None}
+                update_payload["status"] = status_db  # garante mesmo se v is None
+
+                if should_archive and not currently_archived:
+                    update_payload["archived_at"] = now_iso
+                    stats["archived"] += 1
+                    logger.info(f"🗄️ archived: {data['nome']} (situação: {situacao})")
+                elif not should_archive and currently_archived:
+                    update_payload["archived_at"] = None
+                    stats["reactivated"] += 1
+                    logger.info(f"↩️ reactivated: {data['nome']}")
+                elif status_db == "pausado":
+                    stats["paused"] += 1
+                elif status_db == "ativo":
+                    stats["ativos"] += 1
+
+                sb.table("clientes").update(update_payload).eq(
+                    "clickup_task_id", data["clickup_task_id"]
+                ).execute()
             else:
+                # Novo cliente: insere com archived_at correspondente
+                if should_archive:
+                    data["archived_at"] = now_iso
+                    stats["archived"] += 1
+                    logger.info(f"🗄️ archived (new): {data['nome']} (situação: {situacao})")
+                elif status_db == "pausado":
+                    stats["paused"] += 1
+                else:
+                    stats["ativos"] += 1
                 sb.table("clientes").insert(data).execute()
-                importados += 1
 
         except Exception as e:
-            erros += 1
+            stats["errors"] += 1
             logger.error(f"  Erro sync task '{task.get('name', '?')}': {e}")
 
-    logger.info(f"✅ ClickUp sync concluído — {importados} novos, {atualizados} atualizados, {erros} erros (total: {len(tasks)} tasks)")
+    stats["duration_ms"] = int((perf_counter() - started) * 1000)
+    logger.info(
+        f"✅ ClickUp sync concluído em {stats['duration_ms']}ms — "
+        f"archived: {stats['archived']}, reactivated: {stats['reactivated']}, "
+        f"paused: {stats['paused']}, ativos: {stats['ativos']}, errors: {stats['errors']} "
+        f"(total: {stats['total']} tasks)"
+    )
+    return stats
 
 
 def register_webhook():
