@@ -1,0 +1,80 @@
+name: FLG — ClickUp sync diário
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dispara o endpoint /admin/clickup/sync todos os dias 06:00 BRT (09:00 UTC).
+# Garante que clientes encerrados/renovados são arquivados, encontro_atual
+# atualiza, consultor sincroniza — independente do APScheduler 6h do backend.
+#
+# Auth: header `X-Cron-Token` com valor do GH Secret `CRON_SHARED_SECRET`.
+# Backend valida e bypassa o gate de admin/diretor.
+#
+# Manual trigger: workflow_dispatch (botão "Run workflow" no Actions tab).
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # 09:00 UTC = 06:00 BRT, diariamente
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: POST /admin/clickup/sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Dispara sync
+        id: sync
+        env:
+          CRON_TOKEN: ${{ secrets.CRON_SHARED_SECRET }}
+        run: |
+          if [ -z "$CRON_TOKEN" ]; then
+            echo "::error::GH Secret CRON_SHARED_SECRET vazio — sync não autorizado."
+            exit 1
+          fi
+
+          RESP=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -X POST \
+            -H "X-Cron-Token: $CRON_TOKEN" \
+            -H "Content-Type: application/json" \
+            --max-time 120 \
+            https://docs.foundersledgrowth.online/api/admin/clickup/sync)
+
+          HTTP=$(echo "$RESP" | tail -n1 | sed 's/HTTP_STATUS://')
+          BODY=$(echo "$RESP" | sed '$d')
+
+          echo "HTTP=$HTTP"
+          echo "$BODY" | head -c 2000
+
+          if [ "$HTTP" != "200" ]; then
+            echo "::error::Sync falhou — HTTP $HTTP"
+            echo "$BODY"
+            exit 1
+          fi
+
+          # Extrai duration_ms — se for 0 ou ausente, sync nem rodou (env missing)
+          DURATION=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('duration_ms', -1))" 2>/dev/null || echo "-1")
+          if [ "$DURATION" -le 0 ]; then
+            echo "::error::Sync abortou em ${DURATION}ms — verifique CLICKUP_API_TOKEN no .env da VPS."
+            exit 1
+          fi
+
+          # Stats no Step Summary pra visibilidade
+          echo "## 🔄 ClickUp Sync Diário" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          echo "$BODY" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Alert on failure (cria issue)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0]
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 ClickUp sync diário falhou — ${today}`,
+              body: `Workflow [${context.runId}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) falhou.\n\nVerifique:\n1. CLICKUP_API_TOKEN no .env da VPS (\`gh secret list\`)\n2. CRON_SHARED_SECRET configurado\n3. Backend live: \`curl https://docs.foundersledgrowth.online/api/health\`\n4. Logs: \`gh workflow run fetch-logs.yml -f grep="[sync]"\``,
+              labels: ["bug", "integrations"],
+            })

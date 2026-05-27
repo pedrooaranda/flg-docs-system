@@ -62,6 +62,7 @@ def _ensure_stubs():
         _fastapi.UploadFile = MagicMock()
         _fastapi.File = MagicMock()
         _fastapi.Form = MagicMock()
+        _fastapi.Request = MagicMock()
         sys.modules["fastapi"] = _fastapi
 
         # fastapi.middleware.cors

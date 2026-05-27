@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, HTTPException, Header, Depends, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Header, Depends, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -842,20 +842,32 @@ async def chat_intelecto(
 
 # ─── Admin: ClickUp sync trigger ──────────────────────────────────────────────
 @app.post("/admin/clickup/sync")
-async def trigger_clickup_sync(scope: UserScope = Depends(get_user_scope)):
+async def trigger_clickup_sync(
+    request: Request,
+    scope: UserScope = Depends(get_user_scope),
+):
     """
-    Dispara ClickUp sync síncrono. Admin/diretor only.
-    Retorna stats + diagnóstico de configuração de env (token, list, workspace).
+    Dispara ClickUp sync síncrono.
+
+    Auth: admin/diretor via Authorization Bearer OU header `X-Cron-Token`
+    igual à env `CRON_SHARED_SECRET` (pra workflows GH Actions agendados).
+
+    Retorna stats + diagnóstico de configuração de env.
     """
-    if not scope.can_see_all:
+    import os as _os
+    cron_token_header = request.headers.get("X-Cron-Token", "").strip()
+    cron_secret = _os.getenv("CRON_SHARED_SECRET", "").strip()
+    is_cron_call = bool(cron_secret) and cron_token_header == cron_secret
+
+    if not is_cron_call and not scope.can_see_all:
         raise HTTPException(
             status_code=403,
-            detail="Operação restrita a admin/diretor.",
+            detail="Operação restrita a admin/diretor (ou cron com X-Cron-Token válido).",
         )
+
     # Diagnóstico: confirma que envs críticos estão configurados antes do sync.
     # Se token vazio, run_clickup_sync retorna stats=0 silenciosamente (0ms).
     # Aqui exponho explicitamente pro frontend mostrar mensagem amigável.
-    import os as _os
     token_present = bool(_os.getenv("CLICKUP_API_TOKEN", "").strip())
     if not token_present:
         raise HTTPException(
@@ -870,6 +882,7 @@ async def trigger_clickup_sync(scope: UserScope = Depends(get_user_scope)):
     stats["_diagnostico"] = {
         "token_configured": token_present,
         "team_id": _os.getenv("CLICKUP_TEAM_ID", "9013791877"),
+        "triggered_by": "cron" if is_cron_call else "admin_ui",
     }
     return stats
 

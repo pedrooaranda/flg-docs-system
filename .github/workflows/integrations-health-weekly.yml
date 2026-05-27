@@ -1,0 +1,119 @@
+name: FLG — Health check integrações (semanal)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Roda toda segunda-feira 09:00 BRT (12:00 UTC) — antes do time começar.
+# Valida que todas as integrações externas estão funcionando:
+#   - API backend (health endpoint)
+#   - ClickUp sync (POST + valida duration_ms > 0)
+#   - Endpoint diagnose (cliente de teste)
+#   - Envs críticos configurados (alerta se GH Secret sumiu)
+# Falha workflow + cria issue se algo errado.
+#
+# Manual trigger via workflow_dispatch (Actions tab → Run workflow).
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: '0 12 * * 1'  # 12:00 UTC segundas = 09:00 BRT
+  workflow_dispatch:
+
+jobs:
+  health:
+    name: Verifica integrações
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Health endpoint
+        id: health
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 https://docs.foundersledgrowth.online/api/health)
+          echo "health_status=$STATUS" >> $GITHUB_OUTPUT
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::API health falhou — HTTP $STATUS"
+            exit 1
+          fi
+          echo "✅ API live"
+
+      - name: 2. ClickUp sync end-to-end
+        id: clickup_sync
+        env:
+          CRON_TOKEN: ${{ secrets.CRON_SHARED_SECRET }}
+        run: |
+          if [ -z "$CRON_TOKEN" ]; then
+            echo "::error::GH Secret CRON_SHARED_SECRET não configurado"
+            exit 1
+          fi
+
+          RESP=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -X POST \
+            -H "X-Cron-Token: $CRON_TOKEN" \
+            --max-time 120 \
+            https://docs.foundersledgrowth.online/api/admin/clickup/sync)
+
+          HTTP=$(echo "$RESP" | tail -n1 | sed 's/HTTP_STATUS://')
+          BODY=$(echo "$RESP" | sed '$d')
+
+          if [ "$HTTP" != "200" ]; then
+            echo "::error::ClickUp sync HTTP $HTTP"
+            echo "$BODY"
+            exit 1
+          fi
+
+          DURATION=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('duration_ms', -1))" 2>/dev/null || echo "-1")
+          if [ "$DURATION" -le 0 ]; then
+            echo "::error::ClickUp sync abortou em ${DURATION}ms — token ausente?"
+            exit 1
+          fi
+
+          TOTAL=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('total', 0))")
+          UPDATED=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('updated', 0))")
+          ERRORS=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('errors', 0))")
+          echo "✅ ClickUp sync: $TOTAL tasks, $UPDATED updated, $ERRORS errors em ${DURATION}ms"
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "::warning::Sync com $ERRORS errors — inspecionar logs"
+          fi
+
+          # Step summary
+          echo "## 🔌 Health Check Semanal — $(date '+%Y-%m-%d')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| API health | ✅ 200 |" >> $GITHUB_STEP_SUMMARY
+          echo "| ClickUp sync | ✅ $TOTAL tasks, $UPDATED updated, $ERRORS errors em ${DURATION}ms |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Stats completos" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          echo "$BODY" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: 3. Inventário GH Secrets esperados
+        # Não consegue ler valores (só metadata) mas lista nomes pra confirmar presença
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Secrets configurados" >> $GITHUB_STEP_SUMMARY
+          ESPERADOS="CLICKUP_API_TOKEN CRON_SHARED_SECRET IG_APP_ID IG_APP_SECRET VPS_HOST VPS_USER VPS_SSH_PASS"
+          for s in $ESPERADOS; do
+            if gh secret list | grep -q "^${s}\b"; then
+              echo "- ✅ $s" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- ⚠️ **$s AUSENTE**" >> $GITHUB_STEP_SUMMARY
+              echo "::warning::Secret $s não configurado"
+            fi
+          done
+
+      - name: Alert on failure (issue)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0]
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `⚠️ Health check semanal falhou — ${today}`,
+              body: `Workflow [${context.runId}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) detectou problema em integrações.\n\nUse skill \`maintain-integrations\` pra diagnose detalhado.\n\nChecklist rápido:\n- [ ] API responde? \`curl https://docs.foundersledgrowth.online/api/health\`\n- [ ] CLICKUP_API_TOKEN no .env? (sync diário também falhando?)\n- [ ] CRON_SHARED_SECRET no GH Secrets?\n- [ ] Containers up? (Coolify/SSH na VPS)`,
+              labels: ["bug", "integrations", "health-check"],
+            })

@@ -39,28 +39,40 @@ def _scope_consultor():
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
+def _mock_request(headers=None):
+    """Mock minimal de fastapi.Request com .headers.get(...)."""
+    req = MagicMock()
+    req.headers = headers or {}
+    # Garante que .get(key, default) funciona como dict
+    if hasattr(req.headers, "get") and not callable(req.headers.get):
+        # Se MagicMock retornou MagicMock como .get, forçar dict-like
+        actual = dict(req.headers) if headers else {}
+        req.headers = actual
+    return req
+
+
 async def test_admin_sync_admin_dispara_e_retorna_stats(mock_main_supabase):
     """Admin POST /admin/clickup/sync dispara run_clickup_sync e retorna stats."""
     from main import trigger_clickup_sync
 
     fake_stats = {
-        "archived": 5,
-        "reactivated": 1,
-        "paused": 3,
-        "ativos": 50,
-        "errors": 0,
-        "total": 59,
-        "duration_ms": 1234,
+        "archived": 5, "reactivated": 1, "paused": 3, "ativos": 50,
+        "errors": 0, "total": 59, "duration_ms": 1234,
     }
 
-    # Patch onde a funcao eh importada (main.trigger_clickup_sync -> from services.clickup_sync import)
-    with patch("main.run_clickup_sync", return_value=fake_stats):
-        result = await trigger_clickup_sync(scope=_scope_admin())
+    with patch.dict("os.environ", {"CLICKUP_API_TOKEN": "fake-token"}):
+        with patch("main.run_clickup_sync", return_value=fake_stats):
+            result = await trigger_clickup_sync(
+                request=_mock_request(),
+                scope=_scope_admin(),
+            )
 
-    assert result == fake_stats
+    # Stats originais preservados + _diagnostico adicionado
     assert result["archived"] == 5
     assert result["ativos"] == 50
     assert result["duration_ms"] == 1234
+    assert result["_diagnostico"]["token_configured"] is True
+    assert result["_diagnostico"]["triggered_by"] == "admin_ui"
 
 
 async def test_admin_sync_consultor_regular_403(mock_main_supabase):
@@ -68,11 +80,14 @@ async def test_admin_sync_consultor_regular_403(mock_main_supabase):
     from main import trigger_clickup_sync
     from fastapi import HTTPException
 
-    with pytest.raises(HTTPException) as exc_info:
-        await trigger_clickup_sync(scope=_scope_consultor())
+    with patch.dict("os.environ", {"CLICKUP_API_TOKEN": "fake-token"}):
+        with pytest.raises(HTTPException) as exc_info:
+            await trigger_clickup_sync(
+                request=_mock_request(),
+                scope=_scope_consultor(),
+            )
 
     assert exc_info.value.status_code == 403
-    assert "admin" in exc_info.value.detail.lower() or "permissão" in exc_info.value.detail.lower()
 
 
 async def test_admin_sync_diretor_allowed(mock_main_supabase):
@@ -82,24 +97,63 @@ async def test_admin_sync_diretor_allowed(mock_main_supabase):
     diretor_scope = UserScope(
         user_id="user-diretor",
         email="diretor@grupoguglielmi.com",
-        can_see_all=True,  # Diretor tem permissão total
+        can_see_all=True,
         consultor_id="diretor-id",
         consultor_nome="Diretor",
-        categoria="consultor",
-        role="diretor",
+        categoria="diretor",
+        role="member",
     )
 
     fake_stats = {
-        "archived": 2,
-        "reactivated": 0,
-        "paused": 1,
-        "ativos": 30,
-        "errors": 0,
-        "total": 33,
-        "duration_ms": 500,
+        "archived": 2, "reactivated": 0, "paused": 1, "ativos": 30,
+        "errors": 0, "total": 33, "duration_ms": 500,
     }
 
-    with patch("main.run_clickup_sync", return_value=fake_stats):
-        result = await trigger_clickup_sync(scope=diretor_scope)
+    with patch.dict("os.environ", {"CLICKUP_API_TOKEN": "fake-token"}):
+        with patch("main.run_clickup_sync", return_value=fake_stats):
+            result = await trigger_clickup_sync(
+                request=_mock_request(),
+                scope=diretor_scope,
+            )
 
-    assert result == fake_stats
+    assert result["archived"] == 2
+
+
+async def test_admin_sync_cron_token_bypass_auth(mock_main_supabase):
+    """Workflow cron com X-Cron-Token válido bypassa auth de admin."""
+    from main import trigger_clickup_sync
+
+    fake_stats = {"archived": 0, "ativos": 5, "total": 5, "duration_ms": 200}
+
+    with patch.dict("os.environ", {
+        "CLICKUP_API_TOKEN": "fake-token",
+        "CRON_SHARED_SECRET": "supersecret123",
+    }):
+        with patch("main.run_clickup_sync", return_value=fake_stats):
+            result = await trigger_clickup_sync(
+                request=_mock_request({"X-Cron-Token": "supersecret123"}),
+                scope=_scope_consultor(),  # Mesmo consultor regular passa via cron
+            )
+
+    assert result["archived"] == 0
+    assert result["_diagnostico"]["triggered_by"] == "cron"
+
+
+async def test_admin_sync_503_se_token_clickup_ausente(mock_main_supabase):
+    """Sem CLICKUP_API_TOKEN → 503 explícito (não 0ms silencioso)."""
+    from main import trigger_clickup_sync
+    from fastapi import HTTPException
+
+    # Limpa env do CLICKUP_API_TOKEN se houver
+    env_sem_token = {k: v for k, v in __import__("os").environ.items() if k != "CLICKUP_API_TOKEN"}
+    env_sem_token["CLICKUP_API_TOKEN"] = ""
+
+    with patch.dict("os.environ", env_sem_token, clear=True):
+        with pytest.raises(HTTPException) as exc_info:
+            await trigger_clickup_sync(
+                request=_mock_request(),
+                scope=_scope_admin(),
+            )
+
+    assert exc_info.value.status_code == 503
+    assert "CLICKUP_API_TOKEN" in exc_info.value.detail

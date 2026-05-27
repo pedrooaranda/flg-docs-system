@@ -1,11 +1,15 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-26 madrugada (Streams 6+7 ENTREGUES em prod após corrigir 2 bugs pós-deploy: Rules of Hooks no Dashboard + migration 010 não rodada antes do código que dependia dela; 60 tests; Stream 8 polish UI das 4 telas na fila)
+**Última atualização:** 2026-05-27 madrugada (Stream 7 sync ClickUp 100% funcionando após reset estrutural + descoberta crítica: CLICKUP_API_TOKEN nunca esteve no .env da VPS. Stream 8.1 ConsultorFilter universal em prod. 64 tests verdes. Próximo: Stream 8.2 polish cards.)
 **Status:** 8 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 **Lições aprendidas Streams 6/7 (anti-recorrência):**
 1. **Rules of Hooks vs early return:** nunca `if (loading) return <…>` ANTES de useMemo/useEffect declarados depois. `esbuild` valida sintaxe mas NÃO Rules of Hooks — só pega em runtime React. Fix: mover early return pra após todos os hooks. Commit `05cbb0b` documentou.
 2. **Migration antes do código:** quando código novo faz SELECT/WHERE em coluna ainda não existente, dá 500 silencioso. Antes de deployar código que depende de migration, CONFIRMAR explicitamente com Pedro que rodou OU bloquear deploy via env check. Causou tela "sem dados" em prod.
+3. **Custom field vs status nativo ClickUp:** dropdown SITUAÇÃO no ClickUp é confundível com status NATIVO da task (kanban). Source-of-truth de lifecycle = status nativo. Custom field é info visual. Decisão Pedro 2026-05-27.
+4. **Bug `if opt_id and ...`** no `get_custom_field_value` falhava pra orderindex=0 (falsy). Sempre `is not None` quando opt_id pode ser zero. Commit `63352e1`.
+5. **Matching sync deve ser híbrido** (clickup_task_id primário, nome normalizado secundário). Match SÓ por task_id criava duplicatas pra clientes manuais. Commit `d368bdd`.
+6. **Envs críticos do GH Secrets → .env da VPS via `sync_env_var` no deploy.yml**. Sem isso, force_rebuild zera o env e sync falha silenciosamente (toast `0 archived (0ms)`). Pedro perdeu ~35h investigando isso. Commit `3e0e292` adicionou CLICKUP_API_TOKEN/TEAM_ID/WORKSPACE_ID. Endpoint `/admin/clickup/sync` retorna 503 explícito quando token ausente — nunca mais silencioso. **Setup ops:** todo env novo no `.env.example` precisa entrar nos GH Secrets + deploy.yml `sync_env_var` na mesma PR.
 
 **Política de atualização:** este handoff deve ser atualizado **ao final de cada sprint/fase entregue** (não a cada commit). Quando você termina uma fase, antes de fechar a sessão: invoque `Skill update-handoff` (descrita em `Configurações importantes` no fim) ou edite manualmente a seção do Stream + bump da data no topo.
 
@@ -388,15 +392,70 @@ Spec: [specs/2026-05-26-clickup-sync-archived-design.md](specs/2026-05-26-clicku
 |---|---|---|
 | `5712c3a` | 5 | `Clientes.jsx` — botão "Sync ClickUp" no header (admin), toast com stats, filtros sem "Inativos" (archived sai automaticamente), Badge Pausado já existente |
 
-### Pendências pós-deploy (Pedro)
+### Status final (2026-05-27 madrugada): FUNCIONANDO ✅
 
-1. ⏳ Smoke test:
-   - Click "Sync ClickUp" → confirma stats no toast
-   - Verifica que clientes encerrados/inativos/renovados sumiram da lista
-   - Pausados aparecem com badge amber/gold
-   - Validar SQL `SELECT count(*) FILTER (WHERE archived_at IS NULL) FROM clientes`
-2. ⏳ Verificar redução dos 23 órfãos do Stream 6 (vários provavelmente eram inativos)
-3. ⏳ Após próximo sync programado (6h), validar logs do backend pra confirmar archive/reactivate funcionando
+Sync ClickUp confirmado funcional após reset estrutural completo:
+- Matching híbrido (task_id → nome normalizado → insert)
+- UPDATE explícito de TODOS campos (encontro_atual, consultor_responsavel, status, etc)
+- Source-of-truth = status NATIVO da task (não custom field SITUAÇÃO)
+- Endpoint `/admin/clickup/sync` retorna 503 explícito se token ausente
+- Endpoint `/admin/clickup/diagnose?nome=X` pra debug cirúrgico
+
+Commits finais Stream 7: `d368bdd` (reset estrutural), `3e0e292` (deploy.yml sync envs).
+
+### Setup ops (uma vez por máquina/conta)
+
+GH Secrets necessários (deploy.yml sync_env_var):
+- `CLICKUP_API_TOKEN` ✅ (configurado 2026-05-27)
+- `CLICKUP_TEAM_ID` (opcional, default 9013791877)
+- `CLICKUP_WORKSPACE_ID` (opcional)
+- `IG_APP_ID`, `IG_APP_SECRET` (já existiam)
+
+---
+
+## Stream 8.1 — ConsultorFilter universal (ENTREGUE 2026-05-27)
+
+ConsultorFilter (tabs pill "Todos · Pedro · Lucas · Rebecca · …") padronizado em TODAS telas com filtro consultor. Antes vivia em `Materiais/shared/`, agora em `components/ui/` compartilhado.
+
+Spec: [specs/2026-05-26-consultor-filter-universal-design.md](specs/2026-05-26-consultor-filter-universal-design.md). Plano: [plans/2026-05-26-consultor-filter-universal.md](plans/2026-05-26-consultor-filter-universal.md).
+
+Commits: `d5fe61d` (lib/consultores.js), `a8f2f3f` (ui/ConsultorFilter), `26d72cb` (Dashboard+Materiais imports), `c9d2872` (Clientes.jsx adoption).
+
+### Streams 8.2-8.4 pendentes (polish UI)
+
+- **8.2 Polish Clientes:** cards clicáveis com click-through pro perfil, métricas IG inline (novo endpoint `/clientes/summary`), micro-animações Framer Motion, status semáforo. Brainstorming pausado quando bug Stream 7 explodiu.
+- **8.3 Polish Métricas:** ConsultorFilter padrão + skeletons + handle 403 ilustrado.
+- **8.4 Polish Ranking + Dashboard:** mesmo padrão.
+
+---
+
+## Infraestrutura de manutenção (NOVO 2026-05-27)
+
+### Workflows GH Actions agendados
+
+| Workflow | Schedule | Função |
+|---|---|---|
+| `clickup-sync-daily.yml` | Diário 06:00 BRT (09:00 UTC) | POST `/admin/clickup/sync` via `X-Cron-Token` header. Falha + cria issue se `duration_ms<=0` (env missing) ou HTTP != 200. |
+| `integrations-health-weekly.yml` | Segundas 09:00 BRT (12:00 UTC) | Health endpoint + sync teste + inventário GH Secrets esperados. Falha + cria issue se algo errado. |
+
+Endpoint `/admin/clickup/sync` aceita 2 modos de auth:
+- `Authorization: Bearer <JWT>` (admin via UI)
+- `X-Cron-Token: <CRON_SHARED_SECRET>` (workflow cron — bypass de admin gate)
+
+Resposta inclui `_diagnostico.triggered_by` ("admin_ui" | "cron") + `token_configured`.
+
+### Setup ops adicional
+
+GH Secret necessário pra cron funcionar:
+- `CRON_SHARED_SECRET` — string aleatória, qualquer valor seguro (ex: `openssl rand -hex 32`)
+
+Adicionar via UI ou `gh secret set CRON_SHARED_SECRET`.
+
+Deploy.yml sincroniza esse secret pro `.env` da VPS junto com CLICKUP_API_TOKEN.
+
+### Skill maintain-integrations
+
+`~/.claude/skills/maintain-integrations/SKILL.md` — checklist + comandos pra diagnose de integrações (ClickUp, Drive, Meta, Anthropic, Supabase, VPS). Use quando algo aparenta degradação OU em rotina semanal manual antes do workflow rodar.
 
 ---
 
