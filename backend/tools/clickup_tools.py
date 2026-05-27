@@ -128,11 +128,15 @@ def get_custom_field_value(task: dict, field_name: str) -> str:
             # Drop-down
             if f.get("type") == "drop_down":
                 opt_id = f.get("value")
-                if opt_id and f.get("type_config", {}).get("options"):
+                # ATENÇÃO: `if opt_id` falha pra orderindex=0 (primeira opção, falsy).
+                # Use `is not None` pra aceitar 0 como valor válido. Bug histórico:
+                # Stream 7 (sync ClickUp) não arquivava clientes com SITUAÇÃO=ENCERRADO
+                # quando essa era a 1ª opção do dropdown — caía no fallback "".
+                if opt_id is not None and f.get("type_config", {}).get("options"):
                     for opt in f["type_config"]["options"]:
                         if str(opt.get("orderindex")) == str(opt_id) or opt.get("id") == opt_id:
                             return opt.get("name", "")
-                return str(opt_id or "")
+                return "" if opt_id is None else str(opt_id)
             # Labels / Tags
             if f.get("type") == "labels":
                 vals = f.get("value") or []
