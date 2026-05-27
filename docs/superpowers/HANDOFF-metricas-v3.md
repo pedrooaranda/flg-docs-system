@@ -1,7 +1,7 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-27 madrugada (Stream 7 sync ClickUp 100% funcionando após reset estrutural + descoberta crítica: CLICKUP_API_TOKEN nunca esteve no .env da VPS. Stream 8.1 ConsultorFilter universal em prod. 64 tests verdes. Próximo: Stream 8.2 polish cards.)
-**Status:** 8 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
+**Última atualização:** 2026-05-27 manhã (Stream 8.2 polish cards ENTREGUE em prod — 8 commits, 70 tests verdes. Próximo sprint: Stream 9 export PDF dos slides de reuniões.)
+**Status:** 9 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 **Lições aprendidas Streams 6/7 (anti-recorrência):**
 1. **Rules of Hooks vs early return:** nunca `if (loading) return <…>` ANTES de useMemo/useEffect declarados depois. `esbuild` valida sintaxe mas NÃO Rules of Hooks — só pega em runtime React. Fix: mover early return pra após todos os hooks. Commit `05cbb0b` documentou.
@@ -421,11 +421,30 @@ Spec: [specs/2026-05-26-consultor-filter-universal-design.md](specs/2026-05-26-c
 
 Commits: `d5fe61d` (lib/consultores.js), `a8f2f3f` (ui/ConsultorFilter), `26d72cb` (Dashboard+Materiais imports), `c9d2872` (Clientes.jsx adoption).
 
-### Streams 8.2-8.4 pendentes (polish UI)
+### Stream 8.2 — Polish Clientes (ENTREGUE 2026-05-27)
 
-- **8.2 Polish Clientes:** cards clicáveis com click-through pro perfil, métricas IG inline (novo endpoint `/clientes/summary`), micro-animações Framer Motion, status semáforo. Brainstorming pausado quando bug Stream 7 explodiu.
+Spec: [specs/2026-05-27-polish-clientes-design.md](specs/2026-05-27-polish-clientes-design.md). Plano: [plans/2026-05-27-polish-clientes.md](plans/2026-05-27-polish-clientes.md).
+
+8 commits (6e230c1..7a20005). Backend: endpoint `GET /clientes-summary` agrega métricas IG inline (4 tests). Frontend: ClientCard novo (clicável, status semáforo verde/amarelo/vermelho, métricas inline, hover lift + gold shadow, tap feedback), ClientCardSkeleton (zero CLS), EmptyClientes (3 variantes: no_results/empty/error), useClientesSummary hook, humanize-date helper, AnimatePresence pros filtros.
+
+**Bug fix pós-deploy:** path original `/clientes/summary` conflitava com `/clientes/{id}` no routing FastAPI (Postgres castava "summary" como UUID). Fix: trocou pra `/clientes-summary` (hífen) em commit `7a20005`.
+
+### Streams 8.3-8.4 pendentes (polish UI restante)
+
 - **8.3 Polish Métricas:** ConsultorFilter padrão + skeletons + handle 403 ilustrado.
 - **8.4 Polish Ranking + Dashboard:** mesmo padrão.
+
+### Stream 9 — Export PDF dos slides (FILA 2026-05-27)
+
+Pedro pediu próximo sprint após cards. Reuniões da Jornada tem HTML deck gerado via Claude + design system FLG, servido em `/apresentar/:slug` pra apresentação fullscreen. Falta gerar PDF do deck pra download/distribuição.
+
+Decisões pendentes (brainstorming):
+- Aspect ratio: 16:9 slide (1920×1080) ou A4 retrato?
+- Engine: WeasyPrint (já instalado) ou Chrome headless?
+- Trigger: botão no editor de reunião OU botão no `/apresentar/:slug`?
+- Destino: download do usuário, anexar ao cliente em Storage, ou ambos?
+
+Skill auxiliar disponível: `export-pdf` (Claude Code, pipeline HTML→PDF via Chrome headless já configurado pra outros projetos do Pedro).
 
 ---
 
