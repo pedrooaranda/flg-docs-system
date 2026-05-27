@@ -32,6 +32,61 @@ CLICKUP_BLOCKLIST = {
     "VERONICALEÃO", "JOAOJUNHORODRIGUES",
 }
 
+# ─── Lifecycle evaluation ─────────────────────────────────────────────────────
+# Mapeia o custom field SITUAÇÃO do ClickUp pra decisão de status_db +
+# should_archive. Regras documentadas na spec Stream 7
+# (docs/superpowers/specs/2026-05-26-clickup-sync-archived-design.md).
+
+# Status terminais — disparam archive (soft delete). Pedro: "encerrado/renovado/inativo"
+_STATUS_TERMINAIS = ("encerrado", "renovado", "inativo")
+# Status pausado — mantém visível com badge. "em pausa" cobre variação comum
+_STATUS_PAUSADO_KEYWORDS = ("pausado", "em pausa")
+# "Em Encerramento" é transitório — Pedro pediu pra MANTER visível
+_STATUS_EM_ENCERRAMENTO_KEYWORDS = ("em encerramento", "em encerramento próximo")
+
+
+def evaluate_lifecycle(situacao_raw):
+    """
+    Mapeia SITUAÇÃO do ClickUp pra (status_db, should_archive).
+
+    Args:
+        situacao_raw: valor do custom field SITUAÇÃO (string ou None)
+
+    Returns:
+        tuple (status_db, should_archive) onde:
+          status_db: 'ativo' | 'pausado' | 'concluido'
+          should_archive: True se cliente deve ser soft-deleted
+
+    Regras (em ordem de precedência):
+        1. 'em encerramento' (transitório) → ('ativo', False)
+        2. 'encerrado' | 'renovado' | 'inativo' → ('concluido', True)
+        3. 'pausado' | 'em pausa' → ('pausado', False)
+        4. fallback (vazio/desconhecido/ativo/normal/etc) → ('ativo', False)
+    """
+    if not situacao_raw:
+        return ("ativo", False)
+    s = situacao_raw.strip().lower()
+
+    # Em encerramento (transitório) ANTES de encerrado pra match mais específico
+    for kw in _STATUS_EM_ENCERRAMENTO_KEYWORDS:
+        if kw in s:
+            return ("ativo", False)
+
+    # Terminais → archive. Match palavra inteira pra "encerrado" não bater em "em encerramento"
+    # (já tratado acima, mas defensivo)
+    for terminal in _STATUS_TERMINAIS:
+        if terminal in s and "em encerramento" not in s:
+            return ("concluido", True)
+
+    # Pausado
+    for kw in _STATUS_PAUSADO_KEYWORDS:
+        if kw in s:
+            return ("pausado", False)
+
+    # Fallback seguro
+    return ("ativo", False)
+
+
 
 def run_clickup_sync():
     """
