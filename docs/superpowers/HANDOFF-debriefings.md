@@ -1,7 +1,43 @@
 # FLG Debriefings — Handoff entre sessões
 
-**Última atualização:** 2026-05-26 (Phase 6 setup BLOQUEADO — Pedro aguardando João liberar role Workspace/Cloud Org Admin. Research multi-agent CONCLUÍDA com recomendação.)
-**Status:** Backend (Phases 1-4) + Frontend (Phase 5) em produção. Setup ops bloqueado. Spec multi-agent (Phase 7) consolidada com plano de rollout em 5 sub-fases.
+**Última atualização:** 2026-05-26 noite (setup desbloqueado + smoke test inicial revelou bugs estruturais — corridos Phase 6.2; aguardando re-teste do Pedro)
+**Status:** Backend (Phases 1-6.2) + Frontend (Phase 5) em produção. Smoke test inicial 2026-05-26 manhã saiu vazio ("Não documentado" em ~80%) — 4 bugs estruturais identificados e corridos durante o dia. Aguardando re-teste com fixes aplicados.
+
+## Atualização 2026-05-26 noite — Phase 6.2 bugs corridos
+
+Setup foi desbloqueado (Pedro conseguiu role + JSON key gerada + Drive compartilhado + env path-based via volume mount). Primeiro smoke test do Leonardo Souza Ciclo 1 (CICLO | 2025.2) saiu com seções vazias. Investigação direta no código (sem precisar de logs):
+
+### Bugs identificados
+
+| # | Causa raiz | Fix | Commit |
+|---|---|---|---|
+| 1 | `google_drive_service.extract_for_debriefing` listava nomes das subpastas mas SÓ lia conteúdo do RELATÓRIO ESTRATÉGICO. Docs de `01. CONTEÚDO ESTRATÉGICO`, `02. PE`, etc. nunca chegavam ao Claude. | Novo `extract_strategic_docs_content`: walk recursivo de TODAS as subpastas, lê GDocs/Slides/Sheets/.docx/PDFs/.txt; skip imagens/vídeos por extensão; cap 40 docs × 8k chars + 5 PDFs via docling | `c82eabf` |
+| 2 | `clickup_debriefing._within_period` filtrava por janela temporal mesmo com lista já dedicada `[CLIENTE \| CICLO0N]`. Filtro descartava tasks legítimas (criadas antes do ciclo ou atualizadas depois). Tasks arquivadas nunca eram buscadas. | Remove filtro; adiciona `list_archived_tasks` (chamada separada com `archived=true`); dedup por id | `c82eabf` |
+| 6 | `.xlsx` (Excel upload) caía em "Tipo MIME não suportado" — RELATÓRIO ESTRATÉGICO do Leonardo confirmado via MCP Drive como `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (não Google Sheet nativo). Claude recebia literalmente o marker no lugar dos 15 encontros. | Adiciona `openpyxl` ao requirements; novo `extract_xlsx_all_sheets` lê TODAS as abas; branches em `extract_for_debriefing` pra .xlsx/.docx/PDF | `29918e9` |
+| 4 | Google Sheet nativo na extração funda usava `_export_gsheet` que pega só a 1ª aba | Trocar por `extract_sheet_all_tabs` (Sheets API v4) | `29918e9` |
+
+### Adições
+
+- **Guard antivazio** em `debriefing_generator.run_debriefing`: aborta com erro claro se ambas extrações vierem 0 (não queima Claude gerando "Não documentado" em tudo)
+- **Observabilidade:** persist `clickup_data` + `drive_data` brutos em `Storage/debriefings/debug/{debriefing_id}/{clickup,drive}.txt` pra pós-mortem (best-effort, não bloqueia)
+- **UPSERT** em `_insert_debriefing`: regenerar sobrescreve em vez de quebrar constraint UNIQUE(cliente_id, ciclo_numero) — `39abf83`
+- **CI `command_timeout`** 10m→25m: build com docling/torch/openpyxl + export layers passa de 12 min consistente. Antes timeout SSH cortava o `docker compose up` deixando container na versão antiga — `a47759d`
+
+### Próximo passo (ação Pedro)
+
+1. Limpar row órfã do teste anterior:
+   ```sql
+   DELETE FROM debriefings
+   WHERE cliente_id = '049caf8f-6fe9-4153-b995-9d9d225071e7'
+     AND ciclo_numero = 1;
+   ```
+   (Opcional — UPSERT cobre re-geração mesmo sem limpar)
+2. Re-gerar debriefing do Leonardo Ciclo 1 pela UI
+3. Se output ainda estranho: baixar `Storage/debriefings/debug/{id}/{clickup,drive}.txt` no Supabase pra ver o que Claude recebeu
+
+---
+
+## Status original (mantido pra contexto)
 
 ---
 

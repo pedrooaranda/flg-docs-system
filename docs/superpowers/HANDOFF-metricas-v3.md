@@ -1,7 +1,9 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-21 (Debriefings Stream 5 — 6 fases backend+frontend em prod, esperando Pedro: migration 007 + bucket + Drive creds + atualizar Meta App Review com Anthropic. Doc completo em [docs/setup/debriefings-setup.md](../setup/debriefings-setup.md))
-**Status:** 5 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
+**Última atualização:** 2026-05-26 (Debriefings setup ops desbloqueado + bugs estruturais corridos no pipeline de extração; Stream 6 NOVO — Permissionamento por consultor em brainstorming.)
+**Status:** 6 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
+
+**Política de atualização:** este handoff deve ser atualizado **ao final de cada sprint/fase entregue** (não a cada commit). Quando você termina uma fase, antes de fechar a sessão: invoque `Skill update-handoff` (descrita em `Configurações importantes` no fim) ou edite manualmente a seção do Stream + bump da data no topo.
 
 ---
 
@@ -296,29 +298,77 @@ Doc de setup operacional (passos do Pedro pra ativar): [docs/setup/debriefings-s
 - **Rotas** em `App.jsx`: `/clientes/:clientId/debriefings` + `/clientes/:clientId/debriefings/:debriefingId`.
 - **`lib/api.js`** — novo `apiStreamGet(path, onEvent, signal)` pra SSE com auth.
 
-### Pendências operacionais (Pedro) — bloqueiam uso em prod
+### Pendências operacionais (Pedro) — RESOLVIDAS em 2026-05-26
 
-1. **Aplicar migration 007** no Supabase Dashboard (SQL Editor → cola arquivo)
-2. **Criar bucket `debriefings`** no Supabase Storage (privado)
-3. **Criar Google Cloud service account** + habilitar Drive API + compartilhar pasta raiz com o email do service account + adicionar JSON em `GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON` na VPS (`.env` do backend, single-line via `jq -c`)
-4. **Adicionar `CLICKUP_WORKSPACE_ID`** no `.env` (opcional, mas habilita find_list_by_name fallback)
-5. **Atualizar Meta App Review** pra incluir Anthropic, PBC como operador de dados (categoria TI/cloud, EUA) — agora que prompts recebem dados originados da Meta API via docs do Drive
+1. ✅ Migration 007 aplicada
+2. ✅ Bucket `debriefings` criado
+3. ✅ Service account `flg-debriefings-reader@flg-debriefings.iam.gserviceaccount.com` criado, JSON key gerada (path-based via volume mount), pasta `BUSINESS STRATEGISTS` compartilhada
+4. ✅ `CLICKUP_WORKSPACE_ID` configurado
+5. ⏳ Meta App Review pendente (não bloqueia smoke test)
 
-Passo a passo detalhado em [docs/setup/debriefings-setup.md](../setup/debriefings-setup.md).
+### Phase 6.1 — Drive ciclo-aware + RELATÓRIO + setores + perspectiva consultor (entregue 2026-05-26)
+
+- Cliente↔Drive matching agressivo (normalização sem espaços/separadores) — DB `LEONARDOSOUZA` ↔ Drive `LEONARDO SOUZA | BS`
+- Resolução de ciclo via parse `CICLO | YYYY.X` (não createdTime, que era unreliable)
+- Frontend: botões dinâmicos `CICLO 01 (jul-dez 2025)` baseados em `periodo_humano` do backend
+- Setor counts em `09. ENTREGAS` (DESIGN/COPY/AUDIOVISUAL)
+- Perspectiva do consultor (texto inline OU arquivo md/pdf/docx via Docling) — migration 008 + multipart upload
+- UPSERT em `_insert_debriefing` (regenerar sobrescreve em vez de quebrar constraint)
+- Modal backdrop sólido (`rgba(8,8,10,0.88)` + blur)
+
+### Phase 6.2 — Bugs estruturais do pipeline de extração (entregue 2026-05-26)
+
+**Sintoma:** primeiro debriefing real do Leonardo Ciclo 1 saiu com "Não documentado" em ~80% das seções, mesmo com docs claros no Drive e 15 encontros no Relatório Estratégico. Investigação direta no código (sem precisar de logs run-time) identificou 4 bugs compostos:
+
+| Bug | Local | Fix | Commit |
+|---|---|---|---|
+| **#1** Drive lia só nomes de pastas (não conteúdo dos docs estratégicos) | `google_drive_service.py` | `extract_strategic_docs_content`: walk recursivo lê GDocs/Slides/Sheets/.docx/PDFs/.txt das subpastas 01-08; skip imagens/vídeos por extensão; cap 40 docs × 8k chars + 5 PDFs via docling | `c82eabf` |
+| **#2** ClickUp filtrava por janela temporal mesmo com lista já dedicada `[CLIENTE \| CICLO0N]` | `clickup_debriefing.py` | Remove `_within_period`; adiciona `list_archived_tasks` (chamada separada com `archived=true`); dedup por id | `c82eabf` |
+| **#6** `.xlsx` (Excel upload) caía em "Tipo MIME não suportado" — RELATÓRIO ESTRATÉGICO do Leonardo é xlsx | `google_drive_service.py` + `requirements.txt` | Adiciona `openpyxl`; novo `extract_xlsx_all_sheets` lê TODAS as abas; suporte a .xlsx + .docx + PDF tanto no relatório quanto na extração funda | `29918e9` |
+| **#4** Google Sheet nativo usava `_export_gsheet` que pega só 1ª aba | `google_drive_service.py` | Trocar por `extract_sheet_all_tabs` (Sheets API v4) | `29918e9` |
+
+**Plus:**
+- Guard antivazio em `run_debriefing`: aborta com erro claro se ambas extrações vierem 0 (não queima Claude gerando "Não documentado")
+- Observabilidade: persist `clickup_data` + `drive_data` brutos em `Storage/debriefings/debug/{id}/{clickup,drive}.txt` pra pós-mortem
+- CI `command_timeout` 10m→25m (build com docling/torch/openpyxl + export layers passa de 12 min consistente) — `a47759d`
+
+Investigação confirmada via MCP Google Drive: arquivo é `LEONARDO SOUZA | BS | Relatório Estratégico` em `CICLO | 2025.2 / 09. ENTREGAS`, mime `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, 15+ encontros com data/nome/descrição/link de gravação.
 
 ### Custo projetado
 
 - API Anthropic Sonnet 4.6: R$3-12 por debriefing
 - 30 renovações/mês: ~R$90-360/mês total
 
-### Próximos passos (Phase 6 — testing)
+### Próximos passos
 
-Após Pedro completar setup ops:
-- Gerar debriefing teste pra 1 cliente que já renovou (ex: cliente "Letícia" ou "João")
+- ⏳ Pedro re-testa debriefing do Leonardo Ciclo 1 (DELETE SQL da row órfã já enviado; UPSERT cobre se duplicate)
 - Validar Markdown quality, PDF render, custo real
-- Ajustar prompt se necessário (versão v1.1)
-- Documentar caveats descobertos
-- (Futuro) implementar chunking automático pra clientes com >300 tasks (estoura context window)
+- Atualizar Meta App Review com Anthropic, PBC (categoria TI/cloud, EUA)
+- (Futuro) Phase 7 multi-agent refactor — research e plano consolidados em [HANDOFF-debriefings.md](HANDOFF-debriefings.md) (seção 4)
+
+---
+
+---
+
+## Stream 6 — Permissionamento por consultor (NOVO 2026-05-26)
+
+### Objetivo
+
+Substituir o filtro client-side por email-split (frágil) por **enforcement de backend** nas telas Clientes e Métricas:
+- **Consultor** vê só seus clientes (`WHERE consultor_id = me.id`)
+- **Admin/owner OU categoria=diretor** vê todos com filtro ConsultorFilter ativo
+- Bloqueio 403 em endpoints individuais quando consultor tenta acessar cliente alheio
+
+### Status: brainstorming em curso (2026-05-26)
+
+Seções 1-3 do design aprovadas pelo Pedro:
+1. **Schema:** migration nova adiciona FK `clientes.consultor_id UUID REFERENCES colaboradores(id)`, mantém `consultor_responsavel` TEXT por compat, backfill com normalização agressiva (matchConsultor pattern), órfãos viram `consultor_id=NULL` + relatório listando pra Pedro reatribuir
+2. **Backend:** novo `backend/lib/auth_scope.py` com `UserScope` dataclass + `get_user_scope` dependency. Endpoints alterados: `GET /clientes`, `GET /metricas/ranking`, `GET /metricas/{cliente_id}/overview` (autoriza por id), `POST/PATCH /clientes` (consultor só edita os seus)
+3. **Frontend:** novo hook `useUserScope` que chama `GET /me/scope` (single source-of-truth). `Clientes.jsx` e telas Métricas usam hook + dados já vêm filtrados. ConsultorFilter só renderiza se canSeeAll. Refactor oportuno: Dashboard.jsx hoje duplica `findMyConsultorName` (linhas 56-69), migrar pro hook também.
+
+### Falta: seção 4 (migration + rollout) → spec writing → plan → implementation
+
+Spec será escrita em `docs/superpowers/specs/2026-05-26-permissao-consultor-design.md` após Pedro aprovar seção 4.
 
 ---
 
@@ -361,35 +411,55 @@ Após Pedro completar setup ops:
 
 ## Como recomeçar (próxima sessão)
 
-1. **Lê este arquivo.**
+1. **Lê este arquivo PRIMEIRO.** Bump da data no topo indica até onde está atualizado.
 
-2. **Estado em curso (Meta App Publishing):** Pedro está no painel developers.facebook.com preenchendo o submission form. Pendências imediatas do lado dele:
-   - Próxima tela esperada após Data Handling Questions: provavelmente "Instruções para o analista" (credenciais Test User + passos pra Meta reproduzir o screencast). Quando Pedro mandar print, orientar campo por campo.
-   - Confirmar região AWS do Supabase (Dashboard → Settings → General) pra finalizar `processor-2b` do operador Supabase.
-   - Gravar 1 screencast cobrindo as 3 permissões + subir mesmo MP4 nos 3 cards.
-   - Iniciar Business Verification do Grupo Guglielmi (paralelizável com App Review).
+2. **Estados em curso (2026-05-26):**
+
+   - **Stream 5 Debriefings — smoke test pendente.** Bugs estruturais foram corridos (commits `c82eabf`, `29918e9`, `a47759d`). Pedro precisa: (a) rodar SQL de limpeza pra row órfã do teste anterior (`DELETE FROM debriefings WHERE cliente_id='049caf8f-6fe9-4153-b995-9d9d225071e7' AND ciclo_numero=1;`); (b) regerar debriefing do Leonardo Ciclo 1 pela UI; (c) se algo estranho, baixar `Storage/debriefings/debug/{debriefing_id}/{clickup,drive}.txt` pra inspecionar o que Claude recebeu. UPSERT cobre re-geração sem precisar limpar SQL.
+
+   - **Stream 6 Permissionamento — brainstorming em curso.** Seções 1-3 do design aprovadas. Falta apresentar seção 4 (migration + rollout) → spec writing → plan via writing-plans → implementation via subagent-driven-development.
+
+   - **Stream 1 Meta App Publishing:** Pedro estava preenchendo submission form. Pendências: confirmar região AWS Supabase, gravar screencast 2min, Business Verification Grupo Guglielmi.
 
 3. **Outros streams disponíveis (se Pedro mudar prioridade):**
    - Métricas V3 → Phase 3B (sub-página todos os posts) ou 3D (polish shadcn/radix)
    - Ranking Tabs → Phase 2 (backend endpoint consultores)
    - Reuniões da Jornada → Phase E polish (regerar slide N, copy URL, mobile, Traefik /apresentar/* sem /api/)
    - Colaboradores → mobile responsive (último item pendente da Phase 4)
+   - Debriefings → Phase 7 multi-agent refactor (research pronto em HANDOFF-debriefings.md seção 4)
 
-4. **Workflow padrão:** brainstorming → spec → plan → subagent-driven-development.
+4. **Workflow padrão (OBRIGATÓRIO):** `superpowers:brainstorming` → spec → `superpowers:writing-plans` → `superpowers:subagent-driven-development`. NÃO pular pra implementação sem passar pelo brainstorming.
 
 5. **Auto mode** está ativo na maioria das sessões — minimize interruptions, prefer action over planning. Mas mantém spec/plan/review gates da subagent-driven-development pra qualidade.
+
+6. **Ao terminar uma sprint/fase entregue:** atualize este handoff (data no topo + nova seção/sub-seção do stream) ANTES de fechar a sessão. Política em "Configurações importantes" abaixo.
 
 ---
 
 ## Configurações importantes
 
 - **Trabalha direto em `main`** — não usa worktrees nessa repo.
-- **Deploy automático** em cada push pra `main` via `.github/workflows/deploy.yml`. Doc: `.github/AGENTE_DEPLOY.md`. Push direto autorizado (auto mode).
-- **Stack:** Backend Python 3 + FastAPI 0.115+ + Pydantic v2.7+ + supabase-py v2.10+ + anthropic SDK + beautifulsoup4. Frontend React 18 + Vite + Tailwind + Framer Motion + Recharts + lucide-react. Postgres (Supabase managed).
+- **Deploy automático** em cada push pra `main` via `.github/workflows/deploy.yml`. Doc: `.github/AGENTE_DEPLOY.md`. Push direto autorizado (auto mode). `command_timeout` está em 25min (build com docling/torch passa de 12min).
+- **Stack:** Backend Python 3 + FastAPI 0.115+ + Pydantic v2.7+ + supabase-py v2.10+ + anthropic SDK + beautifulsoup4 + openpyxl + docling. Frontend React 18 + Vite + Tailwind + Framer Motion + Recharts + lucide-react. Postgres (Supabase managed).
 - **Validação sem suite de testes:** `python3 -m py_compile <file>` pra Python + `frontend/node_modules/.bin/esbuild --bundle=false --loader:.jsx=jsx <file>` pra JSX.
 - **Logs do backend:** `gh workflow run fetch-logs.yml -f grep="<pattern>" -f lines=<N>` + aguardar e `gh run view <id> --log`.
 - **Auth:** Supabase Auth + `user.user_metadata.role` (sincronizado por `colaboradores_sync.py`).
 - **AI:** Anthropic Claude — Sonnet 4.6 padrão; Opus 4.7 só quando preciso. Prompt caching ativo (`cache_control:ephemeral`).
+
+### Política de atualização deste handoff
+
+**Quando atualizar:** ao final de cada **sprint/fase entregue em produção** (não a cada commit). Sinal claro: você acabou de fazer push do último commit da fase E confirmou que o deploy passou.
+
+**Como atualizar:**
+1. Bump da data no header (`Última atualização: YYYY-MM-DD`)
+2. Edita a seção do stream afetado (adiciona Phase X.Y entregue ou atualiza pendências)
+3. Se for stream novo, adiciona Stream N na ordem
+4. Se houve mudança operacional importante (timeout, deps, secrets), atualiza essa seção
+5. Atualiza "Como recomeçar" se o próximo passo mudou
+
+**Lembrete prático:** quando você terminar uma sprint, antes de fechar a sessão pergunte "atualizei o handoff?" — se não, faça antes do user fechar o terminal.
+
+**Skill auxiliar:** `Skill update-handoff` (em `~/.claude/skills/update-handoff/SKILL.md`) — invoca pra orientação rápida. Skill não escreve por você; lembra os passos.
 
 ## Estrutura de arquivos relevantes
 
