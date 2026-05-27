@@ -403,7 +403,7 @@ async def list_clientes(
     return result.data
 
 
-@app.get("/clientes/summary")
+@app.get("/clientes-summary")
 async def list_clientes_summary(
     consultor_id: Optional[str] = None,
     include_archived: bool = False,

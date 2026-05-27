@@ -1,9 +1,13 @@
 /**
- * useClientesSummary — fetch /clientes/summary com métricas IG agregadas.
+ * useClientesSummary — fetch /clientes-summary com métricas IG agregadas.
  *
  * Usado pela tela /clientes pra ter cards ricos sem N+1 requests.
  * Outros lugares (Dashboard, AppContext) continuam usando GET /clientes
  * normal sem o overhead.
+ *
+ * NOTA: path `/clientes-summary` (hífen, sem nested) evita ambiguidade com
+ * `/clientes/{client_id}` em FastAPI routing (Postgres tentava castar
+ * "summary" pra UUID).
  *
  * Retorna: { clientes, isLoading, error, refetch }
  */
@@ -24,7 +28,7 @@ export function useClientesSummary({ consultorId, includeArchived = false } = {}
       if (consultorId) params.set('consultor_id', consultorId)
       if (includeArchived) params.set('include_archived', 'true')
       const qs = params.toString()
-      const path = `/clientes/summary${qs ? `?${qs}` : ''}`
+      const path = `/clientes-summary${qs ? `?${qs}` : ''}`
       const data = await api(path)
       setState({ clientes: Array.isArray(data) ? data : [], isLoading: false, error: null })
     } catch (err) {
