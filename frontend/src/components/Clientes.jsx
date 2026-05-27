@@ -9,103 +9,26 @@ import {
   Search, Plus, LayoutGrid, List, ChevronUp, ChevronDown,
   ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw,
 } from 'lucide-react'
-import { useApp } from '../contexts/AppContext'
 import { useUserScope } from '../hooks/useUserScope'
+import { useClientesSummary } from '../hooks/useClientesSummary'
 import { Avatar } from './ui/Avatar'
 import { StatusBadge } from './ui/Badge'
-import { SkeletonCard } from './ui/Skeleton'
 import ConsultorFilter from './ui/ConsultorFilter'
+import ClientCard from './Clientes/ClientCard'
+import ClientCardSkeleton from './Clientes/ClientCardSkeleton'
+import EmptyClientes from './Clientes/EmptyClientes'
 import { progressPercent, formatDate, cn } from '../lib/utils'
 import { api } from '../lib/api'
 
-/* ─── Card individual (igual ao Dashboard) ─── */
-function ClientCard({ cliente, onPreparar, onMateriais, delay = 0 }) {
-  const [hovered, setHovered] = useState(false)
-  const pct = progressPercent(cliente.encontro_atual)
-  const navigate = useNavigate()
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, delay }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="card-flg-hover p-5 relative overflow-hidden cursor-pointer"
-      onClick={() => navigate(`/clientes/${cliente.id}`)}
-    >
-      <div className="flex items-start gap-3 mb-4">
-        <Avatar name={cliente.nome} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-semibold text-white/90 text-sm truncate">{cliente.nome}</p>
-            <StatusBadge status={cliente.status || 'ativo'} />
-          </div>
-          <p className="text-xs text-white/40 truncate mt-0.5">{cliente.empresa}</p>
-        </div>
-        <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-          style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C', border: '1px solid rgba(201,168,76,0.25)' }}>
-          E{cliente.encontro_atual || 1}
-        </span>
-      </div>
-
-      <div className="space-y-2 mb-3">
-        <div className="flex items-center justify-between text-xs text-white/30">
-          <span>Jornada</span>
-          <span>{cliente.encontro_atual || 1} / 15</span>
-        </div>
-        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.6, delay: delay + 0.2, ease: 'easeOut' }}
-            className="h-full rounded-full gold-gradient"
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-white/25">{cliente.consultor_responsavel}</p>
-        {cliente.updated_at && (
-          <p className="text-[10px] text-white/20">{formatDate(cliente.updated_at)}</p>
-        )}
-      </div>
-
-      <AnimatePresence>
-        {hovered && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="absolute inset-0 flex items-end p-4 gap-2"
-            style={{ background: 'linear-gradient(to top, var(--flg-bg) 55%, transparent)' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <button onClick={onPreparar} className="flex-1 btn-gold text-xs py-2 px-3">Preparar</button>
-            <button onClick={onMateriais} className="flex-1 btn-outline-gold text-xs py-2 px-3">Materiais</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  )
-}
-
 /* ─── Seção agrupada por status (modo cards) ─── */
-function StatusSection({ label, clientes, onPreparar, onMateriais }) {
+function StatusSection({ label, clientes }) {
   if (clientes.length === 0) return null
   return (
     <div className="mb-8">
       <h3 className="text-xs font-medium tracking-widest uppercase text-white/30 mb-4">{label} · {clientes.length}</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {clientes.map((c, i) => (
-          <ClientCard
-            key={c.id}
-            cliente={c}
-            delay={i * 0.03}
-            onPreparar={() => onPreparar(c)}
-            onMateriais={() => onMateriais(c)}
-          />
+          <ClientCard key={c.id} cliente={c} delay={i * 0.03} />
         ))}
       </div>
     </div>
@@ -302,7 +225,7 @@ function ClientTable({ data, canSeeAll, onPreparar, onMateriais }) {
 
 /* ─── Página principal ─── */
 export default function Clientes({ session }) {
-  const { clientes: allClientes, loading } = useApp()
+  const { clientes: allClientes, isLoading: loading, error } = useClientesSummary()
   const navigate = useNavigate()
 
   const [search, setSearch]                   = useState('')
@@ -450,14 +373,34 @@ export default function Clientes({ session }) {
 
       {/* Conteúdo */}
       {loading && allClientes.length === 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => <ClientCardSkeleton key={i} />)}
         </div>
+      ) : error ? (
+        <EmptyClientes
+          variant="error"
+          errorMessage={error}
+          actionLabel="Tentar novamente"
+          onAction={() => window.location.reload()}
+        />
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p className="text-white/40 text-sm">Nenhum cliente encontrado</p>
-          {search && <p className="text-white/20 text-xs mt-1">Tente ajustar a busca</p>}
-        </div>
+        allClientes.length === 0 && !canSeeAll ? (
+          <EmptyClientes
+            variant="empty"
+            actionLabel="Falar com admin"
+            onAction={() => { window.location.href = 'mailto:pedroaranda@grupoguglielmi.com' }}
+          />
+        ) : (
+          <EmptyClientes
+            variant="no_results"
+            actionLabel="Limpar filtros"
+            onAction={() => {
+              setSearch('')
+              setFilterStatus('todos')
+              setFilterConsultor('todos')
+            }}
+          />
+        )
       ) : viewMode === 'table' ? (
         <ClientTable
           data={filtered}
@@ -466,17 +409,19 @@ export default function Clientes({ session }) {
           onMateriais={handleMateriais}
         />
       ) : (
-        /* Modo cards — agrupado por status */
+        /* Modo cards */
         filterStatus !== 'todos' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map((c, i) => (
-              <ClientCard key={c.id} cliente={c} delay={i * 0.03} onPreparar={() => handlePreparar(c)} onMateriais={() => handleMateriais(c)} />
-            ))}
-          </div>
+          <AnimatePresence mode="popLayout">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filtered.map((c, i) => (
+                <ClientCard key={c.id} cliente={c} delay={i * 0.04} />
+              ))}
+            </div>
+          </AnimatePresence>
         ) : (
           <>
-            <StatusSection label="Ativos"   clientes={ativos}   onPreparar={handlePreparar} onMateriais={handleMateriais} />
-            <StatusSection label="Pausados" clientes={pausados} onPreparar={handlePreparar} onMateriais={handleMateriais} />
+            <StatusSection label="Ativos"   clientes={ativos}   />
+            <StatusSection label="Pausados" clientes={pausados} />
           </>
         )
       )}
