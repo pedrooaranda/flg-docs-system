@@ -10,10 +10,11 @@ import {
   ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight,
 } from 'lucide-react'
 import { useApp } from '../contexts/AppContext'
+import { useUserScope } from '../hooks/useUserScope'
 import { Avatar } from './ui/Avatar'
 import { StatusBadge } from './ui/Badge'
 import { SkeletonCard } from './ui/Skeleton'
-import { progressPercent, formatDate, isAdmin as checkAdmin, cn } from '../lib/utils'
+import { progressPercent, formatDate, cn } from '../lib/utils'
 
 /* ─── Card individual (igual ao Dashboard) ─── */
 function ClientCard({ cliente, onPreparar, onMateriais, delay = 0 }) {
@@ -130,7 +131,7 @@ function SortHeader({ column, children }) {
 const columnHelper = createColumnHelper()
 
 /* ─── Tabela principal ─── */
-function ClientTable({ data, isAdmin, onPreparar, onMateriais }) {
+function ClientTable({ data, canSeeAll, onPreparar, onMateriais }) {
   const navigate = useNavigate()
   const [sorting, setSorting] = useState([{ id: 'nome', desc: false }])
 
@@ -171,7 +172,7 @@ function ClientTable({ data, isAdmin, onPreparar, onMateriais }) {
         size: 150,
       }),
     ]
-    if (isAdmin) {
+    if (canSeeAll) {
       cols.push(
         columnHelper.accessor('consultor_responsavel', {
           header: ({ column }) => <SortHeader column={column}>Consultor</SortHeader>,
@@ -205,7 +206,7 @@ function ClientTable({ data, isAdmin, onPreparar, onMateriais }) {
       })
     )
     return cols
-  }, [isAdmin, onPreparar, onMateriais])
+  }, [canSeeAll, onPreparar, onMateriais])
 
   const table = useReactTable({
     data,
@@ -302,14 +303,16 @@ export default function Clientes({ session }) {
   const { clientes: allClientes, loading } = useApp()
   const navigate = useNavigate()
 
-  const [search, setSearch]           = useState('')
+  const [search, setSearch]                   = useState('')
   const [filterStatus, setFilterStatus]       = useState('todos')
   const [filterConsultor, setFilterConsultor] = useState('todos')
-  const [viewMode, setViewMode]       = useState('cards') // 'cards' | 'table'
+  const [viewMode, setViewMode]               = useState('cards') // 'cards' | 'table'
 
-  const isAdmin   = checkAdmin(session?.user)
-  const userEmail = session?.user?.email
+  // Permissionamento: source-of-truth vem do backend via /me/scope.
+  // canSeeAll=true → vê todos + dropdown ativo; false → backend já filtrou pra mostrar só os seus.
+  const { canSeeAll, myConsultorNome, isLoading: scopeLoading } = useUserScope()
 
+  // Lista de consultores no dropdown — só clientes com consultor_responsavel definido.
   const consultores = useMemo(
     () => [...new Set(allClientes.map(c => c.consultor_responsavel).filter(Boolean))],
     [allClientes]
@@ -318,10 +321,12 @@ export default function Clientes({ session }) {
   const filtered = useMemo(() => allClientes.filter(c => {
     const matchSearch    = !search || c.nome?.toLowerCase().includes(search.toLowerCase()) || c.empresa?.toLowerCase().includes(search.toLowerCase())
     const matchStatus    = filterStatus === 'todos' || (c.status || 'ativo') === filterStatus
+    // Dropdown de consultor só é exposto pra canSeeAll, mas matchConsultor é
+    // sempre aplicado pra não vazar caso 'todos' não esteja selecionado.
     const matchConsultor = filterConsultor === 'todos' || c.consultor_responsavel === filterConsultor
-    const matchOwner     = isAdmin || c.consultor_responsavel?.toLowerCase().includes(userEmail?.split('@')[0] || '')
-    return matchSearch && matchStatus && matchConsultor && matchOwner
-  }), [allClientes, search, filterStatus, filterConsultor, isAdmin, userEmail])
+    // matchOwner REMOVIDO: backend já filtra. Frontend confia em allClientes.
+    return matchSearch && matchStatus && matchConsultor
+  }), [allClientes, search, filterStatus, filterConsultor])
 
   const ativos   = filtered.filter(c => (c.status || 'ativo') === 'ativo')
   const pausados = filtered.filter(c => c.status === 'pausado')
@@ -334,13 +339,21 @@ export default function Clientes({ session }) {
     navigate(`/materiais?cliente=${c.id}`)
   }
 
+  if (scopeLoading) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="animate-pulse text-white/30 text-sm">Carregando permissões…</div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="font-display text-2xl font-bold text-white">
-            {isAdmin ? 'Todos os Clientes' : 'Meus Clientes'}
+            {canSeeAll ? 'Todos os Clientes' : 'Meus Clientes'}
           </h2>
           <p className="text-sm text-white/30 mt-0.5">
             {filtered.length} founder{filtered.length !== 1 ? 's' : ''}
@@ -363,7 +376,7 @@ export default function Clientes({ session }) {
               </button>
             ))}
           </div>
-          {isAdmin && (
+          {canSeeAll && (
             <button onClick={() => navigate('/clientes/novo')} className="btn-gold flex items-center gap-2">
               <Plus size={14} />
               Novo Cliente
@@ -389,7 +402,7 @@ export default function Clientes({ session }) {
           <option value="pausado">Pausados</option>
           <option value="inativo">Inativos</option>
         </select>
-        {isAdmin && (
+        {canSeeAll && (
           <select value={filterConsultor} onChange={e => setFilterConsultor(e.target.value)} className="input-flg w-auto pr-8 cursor-pointer">
             <option value="todos">Todos os consultores</option>
             {consultores.map(c => <option key={c} value={c}>{c}</option>)}
@@ -410,7 +423,7 @@ export default function Clientes({ session }) {
       ) : viewMode === 'table' ? (
         <ClientTable
           data={filtered}
-          isAdmin={isAdmin}
+          canSeeAll={canSeeAll}
           onPreparar={handlePreparar}
           onMateriais={handleMateriais}
         />
