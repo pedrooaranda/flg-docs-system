@@ -1,7 +1,7 @@
 # FLG Jornada — Handoff entre sessões
 
-**Última atualização:** 2026-05-26 (Debriefings setup ops desbloqueado + bugs estruturais corridos no pipeline de extração; Stream 6 NOVO — Permissionamento por consultor em brainstorming.)
-**Status:** 6 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
+**Última atualização:** 2026-05-26 noite (Stream 6 Permissionamento por consultor ENTREGUE em prod — 10 commits, 29 testes verdes, end-to-end backend+frontend; Stream 7 ClickUp sync na fila por pedido do Pedro)
+**Status:** 7 streams ativos. Veja "Como recomeçar" no fim pra próximos passos imediatos.
 
 **Política de atualização:** este handoff deve ser atualizado **ao final de cada sprint/fase entregue** (não a cada commit). Quando você termina uma fase, antes de fechar a sessão: invoque `Skill update-handoff` (descrita em `Configurações importantes` no fim) ou edite manualmente a seção do Stream + bump da data no topo.
 
@@ -350,25 +350,90 @@ Investigação confirmada via MCP Google Drive: arquivo é `LEONARDO SOUZA | BS 
 
 ---
 
-## Stream 6 — Permissionamento por consultor (NOVO 2026-05-26)
+## Stream 7 — Sincronização ClickUp → Sistema + limpeza de inativos (FILA 2026-05-26)
+
+**Status:** pendente brainstorming. Solicitado pelo Pedro durante execução do Stream 6.
+
+**Objetivo:** ClickUp é a source-of-truth do ciclo de vida do cliente. Sistema FLG hoje aceita 4 status (`ativo`, `pausado`, `inativo`, `encerrado`) mas Pedro só quer ATIVO e PAUSADO visíveis. Inativos/encerrados devem sair da plataforma.
+
+**Regras (pedido literal Pedro):**
+- `status='ativo'` → único que funciona normalmente
+- `status='pausado'` → mantém no sistema com tag "pausado"
+- `status='inativo'` ou `'encerrado'` → **REMOVER** do sistema
+
+**Agente de verificação ClickUp ↔ Sistema:**
+- Lê lista master de clientes no ClickUp (já temos `tools/clickup_tools.list_all_tasks` + `routes/clickup_sync`)
+- Mapeia status do ClickUp pro sistema:
+  - `clickup_status='ativo' (ou equivalente)` → `clientes.status='ativo'`
+  - `clickup_status` ∈ {pausado, em pausa} → `clientes.status='pausado'`
+  - `clickup_status` ∈ {inativo, encerrado, cancelado, etc.} → DELETE ou archived flag
+- Runs schedulado (apscheduler já existe na repo) OU on-demand via endpoint
+
+**Interação com Stream 6 (Permissionamento):**
+- Dos 23 órfãos da migration 009, vários provavelmente são inativos/encerrados
+- Quando Stream 7 rodar, esses saem do sistema → órfãos restantes serão só inativos legítimos
+- Tarefa 10 do Stream 6 (NovoCliente.jsx com select consultor) já cobre reatribuição dos remanescentes pela UI
+
+**Brainstorming pendente:** decidir DELETE hard vs soft (`archived=true` flag) — recomendação a discutir: soft pra preservar histórico de métricas/encontros realizados.
+
+**Próximo passo:** Stream 7 entra em brainstorming após Stream 6 concluir (ou Pedro pode trocar prioridade).
+
+---
+
+## Stream 6 — Permissionamento por consultor (ENTREGUE 2026-05-26 noite)
 
 ### Objetivo
 
-Substituir o filtro client-side por email-split (frágil) por **enforcement de backend** nas telas Clientes e Métricas:
+Substituir filtro client-side por email-split (frágil, contornável via DevTools) por **enforcement de backend** nas telas Clientes e Métricas:
 - **Consultor** vê só seus clientes (`WHERE consultor_id = me.id`)
 - **Admin/owner OU categoria=diretor** vê todos com filtro ConsultorFilter ativo
 - Bloqueio 403 em endpoints individuais quando consultor tenta acessar cliente alheio
 
-### Status: brainstorming em curso (2026-05-26)
+Spec: [specs/2026-05-26-permissao-consultor-design.md](specs/2026-05-26-permissao-consultor-design.md). Plano: [plans/2026-05-26-permissao-consultor.md](plans/2026-05-26-permissao-consultor.md).
 
-Seções 1-3 do design aprovadas pelo Pedro:
-1. **Schema:** migration nova adiciona FK `clientes.consultor_id UUID REFERENCES colaboradores(id)`, mantém `consultor_responsavel` TEXT por compat, backfill com normalização agressiva (matchConsultor pattern), órfãos viram `consultor_id=NULL` + relatório listando pra Pedro reatribuir
-2. **Backend:** novo `backend/lib/auth_scope.py` com `UserScope` dataclass + `get_user_scope` dependency. Endpoints alterados: `GET /clientes`, `GET /metricas/ranking`, `GET /metricas/{cliente_id}/overview` (autoriza por id), `POST/PATCH /clientes` (consultor só edita os seus)
-3. **Frontend:** novo hook `useUserScope` que chama `GET /me/scope` (single source-of-truth). `Clientes.jsx` e telas Métricas usam hook + dados já vêm filtrados. ConsultorFilter só renderiza se canSeeAll. Refactor oportuno: Dashboard.jsx hoje duplica `findMyConsultorName` (linhas 56-69), migrar pro hook também.
+### Migration 009 aplicada pelo Pedro
 
-### Falta: seção 4 (migration + rollout) → spec writing → plan → implementation
+Stats backfill: 42/65 clientes batidos automaticamente (64.6%), 23 órfãos com `consultor_id=NULL` pendentes reatribuição manual. Função PL/pgSQL `_normalize_consultor_name` espelha JS matchConsultor.
 
-Spec será escrita em `docs/superpowers/specs/2026-05-26-permissao-consultor-design.md` após Pedro aprovar seção 4.
+### Backend — 5 commits, 29/29 testes verdes
+
+| SHA | Task | Entrega |
+|---|---|---|
+| `80a969c` | 1 | pytest setup (primeira suite da repo) + fixtures + conftest com sys.modules stubs pra rodar sem fastapi/supabase local |
+| `8e2ae8e` | 2 | `backend/lib/auth_scope.py` — UserScope frozen dataclass + get_user_scope dependency (TDD, 6 tests) |
+| `9388d7d` | 3 | `backend/routes/me.py` — endpoint GET /me/scope serializa UserScope pro frontend |
+| `0797315` | 4 | Filtros em /clientes (list+get+post+patch) — 14 tests cobrindo consultor/admin/edge cases |
+| `5112d08` | 5 | Filtros em /metricas/ranking + 403 em /metricas/{id}/overview (6 tests) |
+
+Regra autoritativa única em `lib/auth_scope.py`:
+```
+can_see_all = (categoria == 'diretor') OR (role IN ('owner', 'admin'))
+```
+
+### Frontend — 5 commits
+
+| SHA | Task | Entrega |
+|---|---|---|
+| `232ab8b` | 6 | `frontend/src/hooks/useUserScope.js` — chama GET /me/scope, fail-safe restritivo em erro |
+| `62f4a41` | 7 | `Clientes.jsx` — usa hook, remove filtro client-side por email-split, ConsultorFilter condicional, header "Meus" vs "Todos" |
+| `4938742` | 8 | `Metricas/MetricasGeral.jsx` — handle 403 com empty state + botão Voltar |
+| `26d1ef1` | 9 | `Dashboard.jsx` — usa hook, remove 32 linhas de duplicação (`findMyConsultorName` local) |
+| `b517f9b` | 10 | `NovoCliente.jsx` — select de colaboradores condicional (admin), input readonly pra consultor regular |
+
+### Ressalvas registradas pra hardening futuro (Stream 6.1, não bloqueantes)
+
+1. **Supabase Realtime bypassa scope.** `AppContext.jsx:82-88` subscreve `postgres_changes` em `clientes` sem filtro. Consultor regular pode receber updates de clientes alheios em tempo real (vaza nome/empresa na UI). Backend BLOQUEIA qualquer ação — só vaza display. Fix: `filter: \`consultor_id=eq.${myConsultorId}\`` na subscription.
+
+2. **Sub-endpoints /metricas/{id}/historico|posts|horarios|demografia sem scope.** Apenas `Depends(get_current_user)`. Spec não listou; 403 no /overview bloqueia fluxo UI natural. Acesso direto via API permanece não-guardado. Fix trivial: espelha lógica de `get_overview`.
+
+### Pendências pós-deploy (Pedro)
+
+1. ⏳ Reatribuir os 23 órfãos do backfill (UI Task 10 já em prod permite isso)
+2. ⏳ Smoke test end-to-end:
+   - Como consultor → `/clientes` mostra só os seus, dropdown escondido, header "Meus Clientes"
+   - Tentar `/metricas/{id_alheio}/overview` direto → "Sem acesso" + botão Voltar
+   - Como Pedro/admin → dropdown ConsultorFilter ativo, vê todos, filtra
+   - Criar cliente como consultor → consultor_id forçado pro self (backend enforça)
 
 ---
 
@@ -417,7 +482,9 @@ Spec será escrita em `docs/superpowers/specs/2026-05-26-permissao-consultor-des
 
    - **Stream 5 Debriefings — smoke test pendente.** Bugs estruturais foram corridos (commits `c82eabf`, `29918e9`, `a47759d`). Pedro precisa: (a) rodar SQL de limpeza pra row órfã do teste anterior (`DELETE FROM debriefings WHERE cliente_id='049caf8f-6fe9-4153-b995-9d9d225071e7' AND ciclo_numero=1;`); (b) regerar debriefing do Leonardo Ciclo 1 pela UI; (c) se algo estranho, baixar `Storage/debriefings/debug/{debriefing_id}/{clickup,drive}.txt` pra inspecionar o que Claude recebeu. UPSERT cobre re-geração sem precisar limpar SQL.
 
-   - **Stream 6 Permissionamento — brainstorming em curso.** Seções 1-3 do design aprovadas. Falta apresentar seção 4 (migration + rollout) → spec writing → plan via writing-plans → implementation via subagent-driven-development.
+   - **Stream 6 Permissionamento — ENTREGUE em prod 2026-05-26 noite.** Pedro precisa: (a) reatribuir 23 órfãos do backfill via UI (Task 10 já permite isso pelo NovoCliente.jsx); (b) smoke test end-to-end (logar como consultor não-admin + como admin pra confirmar filtros).
+
+   - **Stream 7 ClickUp sync — FILA.** Pedido novo do Pedro: agente que lê status dos clientes no ClickUp e remove inativos/encerrados do sistema, mantém pausados com tag. Quando rodar, resolve maioria dos 23 órfãos automaticamente. Aguardando brainstorming.
 
    - **Stream 1 Meta App Publishing:** Pedro estava preenchendo submission form. Pendências: confirmar região AWS Supabase, gravar screencast 2min, Business Verification Grupo Guglielmi.
 
