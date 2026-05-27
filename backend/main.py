@@ -39,6 +39,7 @@ from routes.reunioes import router as reunioes_router
 from routes.apresentar import router as apresentar_router
 from routes.meta_callbacks import router as meta_callbacks_router
 from routes.debriefings import router as debriefings_router
+from routes import me as me_router_module
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -224,6 +225,7 @@ app.include_router(apresentar_router)
 app.include_router(meta_callbacks_router)
 # Migration 007 (debriefings) — aplicar manualmente no Supabase Dashboard antes de uso.
 app.include_router(debriefings_router)
+app.include_router(me_router_module.router)
 
 # Migration 005 (encontros_base ganha intelecto_estrutura, html_intelecto,
 # num_slides_intelecto, html_gerado_at) é aplicada manualmente via Supabase
