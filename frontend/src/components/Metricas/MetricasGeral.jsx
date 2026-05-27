@@ -53,22 +53,37 @@ export default function MetricasGeral() {
   const [historico, setHistorico] = useState([])
   const [horarios, setHorarios] = useState([])
   const [topPosts, setTopPosts] = useState([])
+  const [forbidden, setForbidden] = useState(false)
 
   useEffect(() => {
     if (!clienteId) return
     setLoading(true)
     setOverview(null)
-    Promise.all([
-      api(`/metricas/${clienteId}/overview?plataforma=${platform}&dias=${periodo}&tipo=all`),
-      api(`/metricas/${clienteId}/historico?plataforma=${platform}&dias=${periodo}`),
-      api(`/metricas/${clienteId}/horarios?plataforma=${platform}`).catch(() => ({ horarios: [] })),
-      api(`/metricas/${clienteId}/posts?plataforma=${platform}&limit=12&ordenar=engajamento`).catch(() => ({ posts: [] })),
-    ]).then(([ov, hist, hor, po]) => {
-      setOverview(ov)
-      setHistorico(hist.dados || [])
-      setHorarios(hor.horarios || hor.dados || [])
-      setTopPosts(po.posts || [])
-    }).catch(console.error).finally(() => setLoading(false))
+    setForbidden(false)
+    api(`/metricas/${clienteId}/overview?plataforma=${platform}&dias=${periodo}&tipo=all`)
+      .then(ov => {
+        return Promise.all([
+          Promise.resolve(ov),
+          api(`/metricas/${clienteId}/historico?plataforma=${platform}&dias=${periodo}`),
+          api(`/metricas/${clienteId}/horarios?plataforma=${platform}`).catch(() => ({ horarios: [] })),
+          api(`/metricas/${clienteId}/posts?plataforma=${platform}&limit=12&ordenar=engajamento`).catch(() => ({ posts: [] })),
+        ])
+      })
+      .then(([ov, hist, hor, po]) => {
+        setOverview(ov)
+        setHistorico(hist.dados || [])
+        setHorarios(hor.horarios || hor.dados || [])
+        setTopPosts(po.posts || [])
+      })
+      .catch(err => {
+        const msg = err?.message || ''
+        if (msg.includes('403') || msg.includes('Forbidden') || msg.includes('Acesso negado')) {
+          setForbidden(true)
+        } else {
+          console.error(err)
+        }
+      })
+      .finally(() => setLoading(false))
   }, [clienteId, periodo, platform])
 
   const kpis = overview?.kpis
@@ -91,6 +106,15 @@ export default function MetricasGeral() {
     ].filter(x => x.value > 0)
     return items
   }, [kpis, platform])
+
+  if (forbidden) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+        <div className="text-white/40 text-sm">Você não tem acesso às métricas desse cliente.</div>
+        <button onClick={() => navigate(-1)} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'rgba(201,168,76,0.18)', color: '#C9A84C', border: '1px solid rgba(201,168,76,0.35)' }}>Voltar</button>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
