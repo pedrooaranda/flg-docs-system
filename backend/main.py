@@ -403,6 +403,31 @@ async def list_clientes(
     return result.data
 
 
+@app.get("/clientes-basic")
+async def list_clientes_basic(user=Depends(get_current_user)):
+    """
+    Lista enxuta de clientes (id, nome, empresa) SEM filtro de scope por consultor.
+
+    Caso de uso: consultor regular precisa selecionar qualquer cliente em fluxos
+    pré-atribuição (ex: organização de mídias / onboarding IG acontece antes do
+    consultor_id ser definido na entrega do Planejamento Estratégico). Aqui não
+    cabe restrição por scope.
+
+    Retorna só nome + empresa pra minimizar exposição. Métricas, status, encontro
+    atual e dados de operação continuam restritos via /clientes / /clientes-summary.
+
+    Filtra archived_at IS NULL pra evitar poluir UI com ex-clientes.
+    """
+    result = (
+        _supabase.table("clientes")
+        .select("id, nome, empresa")
+        .is_("archived_at", "null")
+        .order("nome")
+        .execute()
+    )
+    return result.data
+
+
 @app.get("/clientes-summary")
 async def list_clientes_summary(
     consultor_id: Optional[str] = None,

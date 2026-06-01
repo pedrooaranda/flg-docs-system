@@ -206,12 +206,14 @@ function InfoBox({ children, variant = 'info' }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// MyClientsInstagramTable — versão lite do InstagramConnectionsSection (AdminPanel),
-// pra consultor pegar o link de onboarding do próprio cliente direto no tutorial.
+// ClientesInstagramTable — versão lite do InstagramConnectionsSection (AdminPanel),
+// pra consultor pegar o link de onboarding de qualquer cliente direto no tutorial.
 //
 // Diferenças versus AdminPanel:
-//   - Lista vem de GET /clientes (backend filtra consultor_id=self pra role regular),
-//     então mostra automaticamente só os clientes do consultor logado. Sem param extra.
+//   - Lista vem de GET /clientes-basic (id+nome+empresa, sem filtro de consultor).
+//     A organização de mídias / onboarding IG acontece ANTES da atribuição de
+//     consultor (que só acontece na entrega do Planejamento Estratégico), então
+//     qualquer consultor precisa ver todos os Founders pra pegar o link.
 //   - Sem botão "Conectar" (faz OAuth com a sessão do próprio user, não serve pro
 //     consultor querer mandar pro cliente).
 //   - Sem "Desconectar" (ação destrutiva, fica restrita ao admin).
@@ -223,7 +225,7 @@ function InfoBox({ children, variant = 'info' }) {
 // gerar um novo NÃO invalida os anteriores (cada token tem hash+TTL próprios).
 // ──────────────────────────────────────────────────────────────────────────────
 
-function MyClientsInstagramTable() {
+function ClientesInstagramTable() {
   const toast = useToast()
   const [clientes, setClientes] = useState([])
   const [connections, setConnections] = useState({})
@@ -231,10 +233,11 @@ function MyClientsInstagramTable() {
   const [loadingConns, setLoadingConns] = useState(true)
   const [search, setSearch] = useState('')
 
-  // Busca clientes do consultor logado (backend filtra por consultor_id quando role!=admin)
+  // Busca lista enxuta de TODOS os clientes (sem filtro de consultor — onboarding IG
+  // acontece antes da atribuição de consultor na entrega do Planejamento Estratégico)
   useEffect(() => {
     let cancelled = false
-    api('/clientes')
+    api('/clientes-basic')
       .then(data => {
         if (cancelled) return
         const list = Array.isArray(data) ? data : []
@@ -312,7 +315,7 @@ function MyClientsInstagramTable() {
         <div className="flex items-center gap-2">
           <Instagram size={14} className="text-gold-mid/70" />
           <span className="text-[11px] tracking-widest uppercase text-white/40 font-monodeck">
-            Seus clientes
+            Clientes
           </span>
           {!loading && clientes.length > 0 && (
             <span className="text-[11px] text-white/30">
@@ -338,7 +341,7 @@ function MyClientsInstagramTable() {
           <div className="p-8 flex justify-center"><Spinner /></div>
         ) : clientes.length === 0 ? (
           <p className="p-6 text-xs text-white/40 text-center">
-            Você ainda não tem clientes vinculados ao seu usuário. Fale com o Pedro pra ele te atribuir.
+            Nenhum cliente cadastrado ainda. Adicione um cliente em Clientes, Adicionar.
           </p>
         ) : filtered.length === 0 ? (
           <p className="p-6 text-xs text-white/40 text-center">Nenhum resultado para "{search}".</p>
@@ -588,7 +591,7 @@ export default function ConectarInstagramCliente() {
             tabela e as métricas começam a sincronizar em poucos minutos.
           </p>
 
-          <MyClientsInstagramTable />
+          <ClientesInstagramTable />
 
           <InfoBox variant="info">
             <strong>Como funciona o link:</strong> cada link é individual pro cliente, válido por
