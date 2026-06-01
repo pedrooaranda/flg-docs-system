@@ -9,14 +9,18 @@
  * arquivado mas a rota fica até a Meta aprovar.
  */
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Instagram, Facebook, Copy, Check, ExternalLink, ChevronDown,
   CheckCircle2, AlertCircle, Clock, Users, MessageSquare, Sparkles,
-  HelpCircle, ArrowRight, ArrowLeft,
+  HelpCircle, ArrowLeft, Search, Share2,
 } from 'lucide-react'
+import { api } from '../../lib/api'
+import { Avatar } from '../ui/Avatar'
+import { Spinner } from '../ui/Spinner'
+import { useToast } from '../../lib/toast'
 
 const META_APP_NAME = 'FLG Jornada System'
 
@@ -202,6 +206,224 @@ function InfoBox({ children, variant = 'info' }) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// MyClientsInstagramTable — versão lite do InstagramConnectionsSection (AdminPanel),
+// pra consultor pegar o link de onboarding do próprio cliente direto no tutorial.
+//
+// Diferenças versus AdminPanel:
+//   - Lista vem de GET /clientes (backend filtra consultor_id=self pra role regular),
+//     então mostra automaticamente só os clientes do consultor logado. Sem param extra.
+//   - Sem botão "Conectar" (faz OAuth com a sessão do próprio user, não serve pro
+//     consultor querer mandar pro cliente).
+//   - Sem "Desconectar" (ação destrutiva, fica restrita ao admin).
+//   - Só ação primária: "Copiar link de onboarding". Quando conectado, mostra
+//     @username + status como readonly.
+//
+// Geração de onboard-token usa o MESMO endpoint do AdminPanel:
+// GET /instagram/oauth/onboard-token/{id}. Links já em uso continuam válidos —
+// gerar um novo NÃO invalida os anteriores (cada token tem hash+TTL próprios).
+// ──────────────────────────────────────────────────────────────────────────────
+
+function MyClientsInstagramTable() {
+  const toast = useToast()
+  const [clientes, setClientes] = useState([])
+  const [connections, setConnections] = useState({})
+  const [loadingClientes, setLoadingClientes] = useState(true)
+  const [loadingConns, setLoadingConns] = useState(true)
+  const [search, setSearch] = useState('')
+
+  // Busca clientes do consultor logado (backend filtra por consultor_id quando role!=admin)
+  useEffect(() => {
+    let cancelled = false
+    api('/clientes')
+      .then(data => {
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : []
+        setClientes(list)
+        setLoadingClientes(false)
+        if (list.length === 0) setLoadingConns(false)
+      })
+      .catch(err => {
+        if (cancelled) return
+        toast?.({ title: 'Erro ao carregar clientes', description: err.message, variant: 'error' })
+        setLoadingClientes(false)
+        setLoadingConns(false)
+      })
+    return () => { cancelled = true }
+  }, [toast])
+
+  // Status de conexão IG (paralelo, tolera falha por cliente)
+  useEffect(() => {
+    if (!clientes.length) return
+    let cancelled = false
+    Promise.all(
+      clientes.map(c =>
+        api(`/instagram/oauth/status/${c.id}`)
+          .then(d => ({ id: c.id, status: d }))
+          .catch(() => ({ id: c.id, status: { conectado: false } })),
+      ),
+    ).then(results => {
+      if (cancelled) return
+      const map = {}
+      results.forEach(r => { map[r.id] = r.status })
+      setConnections(map)
+      setLoadingConns(false)
+    })
+    return () => { cancelled = true }
+  }, [clientes])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    const base = q
+      ? clientes.filter(c =>
+          (c.nome || '').toLowerCase().includes(q) ||
+          (c.empresa || '').toLowerCase().includes(q) ||
+          (connections[c.id]?.username || '').toLowerCase().includes(q),
+        )
+      : clientes
+    return [...base].sort((a, b) => {
+      // Não conectados primeiro (são a ação principal); depois alfabético
+      const aOk = connections[a.id]?.conectado ? 1 : 0
+      const bOk = connections[b.id]?.conectado ? 1 : 0
+      if (aOk !== bOk) return aOk - bOk
+      return (a.nome || '').localeCompare(b.nome || '', 'pt-BR')
+    })
+  }, [clientes, connections, search])
+
+  async function handleCopyLink(clienteId, nome) {
+    try {
+      const data = await api(`/instagram/oauth/onboard-token/${clienteId}`)
+      await navigator.clipboard.writeText(data.url)
+      toast?.({
+        title: 'Link copiado!',
+        description: `Envie pra ${nome}. Válido por ${data.expires_in_days} dias.`,
+        variant: 'success',
+      })
+    } catch (err) {
+      toast?.({ title: 'Erro ao gerar link', description: err.message, variant: 'error' })
+    }
+  }
+
+  const conectados = Object.values(connections).filter(c => c?.conectado).length
+  const loading = loadingClientes || loadingConns
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Instagram size={14} className="text-gold-mid/70" />
+          <span className="text-[11px] tracking-widest uppercase text-white/40 font-monodeck">
+            Seus clientes
+          </span>
+          {!loading && clientes.length > 0 && (
+            <span className="text-[11px] text-white/30">
+              ({conectados}/{clientes.length} conectados)
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar cliente, empresa ou @username…"
+          className="w-full pl-9 pr-3 py-2 rounded-lg text-xs bg-black/30 border border-white/10 text-white placeholder:text-white/25 focus:outline-none focus:border-gold-mid/50"
+        />
+      </div>
+
+      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--flg-border)' }}>
+        {loading ? (
+          <div className="p-8 flex justify-center"><Spinner /></div>
+        ) : clientes.length === 0 ? (
+          <p className="p-6 text-xs text-white/40 text-center">
+            Você ainda não tem clientes vinculados ao seu usuário. Fale com o Pedro pra ele te atribuir.
+          </p>
+        ) : filtered.length === 0 ? (
+          <p className="p-6 text-xs text-white/40 text-center">Nenhum resultado para "{search}".</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                <th className="text-left px-4 py-2.5 text-[10px] tracking-widest uppercase text-white/30 font-normal">Cliente</th>
+                <th className="text-left px-4 py-2.5 text-[10px] tracking-widest uppercase text-white/30 font-normal">@username</th>
+                <th className="text-left px-4 py-2.5 text-[10px] tracking-widest uppercase text-white/30 font-normal">Status</th>
+                <th className="text-right px-4 py-2.5 text-[10px] tracking-widest uppercase text-white/30 font-normal">Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(c => {
+                const conn = connections[c.id] || {}
+                const ok = conn.conectado
+                return (
+                  <tr key={c.id} className="border-b border-white/5 last:border-0">
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar name={c.nome} size="sm" />
+                        <div className="min-w-0">
+                          <div className="text-white/85 text-xs font-medium truncate">{c.nome}</div>
+                          {c.empresa && (
+                            <div className="text-[10px] text-white/35 truncate">{c.empresa}</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs">
+                      {ok ? (
+                        <a
+                          href={conn.instagram_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-gold-mid hover:underline"
+                        >
+                          @{conn.username}
+                          <ExternalLink size={10} />
+                        </a>
+                      ) : (
+                        <span className="text-white/25">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {ok ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400/80">
+                          <CheckCircle2 size={11} /> Conectado
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-white/40">Aguardando link</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      {ok ? (
+                        <span className="text-[10px] text-white/25">—</span>
+                      ) : (
+                        <button
+                          onClick={() => handleCopyLink(c.id, c.nome)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-semibold transition-colors"
+                          style={{
+                            background: 'rgba(201,168,76,0.12)',
+                            border: '1px solid rgba(201,168,76,0.30)',
+                            color: '#C9A84C',
+                          }}
+                          title="Copia o link individual de onboarding pra mandar pro Founder"
+                        >
+                          <Share2 size={10} />
+                          Copiar link
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 
 export default function ConectarInstagramCliente() {
   const navigate = useNavigate()
@@ -358,29 +580,22 @@ export default function ConectarInstagramCliente() {
         </StepCard>
 
         {/* Passo 5 */}
-        <StepCard num="5" title="Conecte o Instagram dentro do FLG" time="2 minutos">
+        <StepCard num="5" title="Pegue o link individual e envie pro Founder" time="2 minutos">
           <p>
-            O Founder confirmou que aceitou o convite? Agora é só finalizar dentro do FLG:
+            O Founder confirmou que aceitou o convite no Instagram? Agora é só pegar o
+            link de onboarding individual dele e enviar. Quando ele clicar e autorizar,
+            o status muda pra <strong className="text-emerald-400/80">Conectado</strong> aqui na
+            tabela e as métricas começam a sincronizar em poucos minutos.
           </p>
-          <ol className="space-y-2 ml-1 list-decimal list-inside">
-            <li>Vá em <strong className="text-white/90">Clientes</strong> no menu lateral</li>
-            <li>Clique no Founder que você acabou de configurar</li>
-            <li>Procure a seção "Instagram" e clique no botão <strong className="text-gold-mid">"Conectar Instagram"</strong></li>
-            <li>Compartilhe o link de onboarding com o Founder</li>
-            <li>O Founder faz login no Instagram dele e autoriza as 3 permissões solicitadas pela FLG</li>
-            <li>Pronto ✅ Em aproximadamente 5 minutos as métricas começam a sincronizar</li>
-          </ol>
-          <button
-            onClick={() => navigate('/clientes')}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-            style={{
-              background: 'rgba(201,168,76,0.18)',
-              color: '#C9A84C',
-              border: '1px solid rgba(201,168,76,0.45)',
-            }}
-          >
-            Ir para Clientes <ArrowRight size={11} />
-          </button>
+
+          <MyClientsInstagramTable />
+
+          <InfoBox variant="info">
+            <strong>Como funciona o link:</strong> cada link é individual pro cliente, válido por
+            alguns dias e seguro pra mandar pelo WhatsApp. Se gerar outro depois, o anterior continua
+            funcionando até expirar. Você pode usar a mensagem padrão do Passo 3 colando o link
+            no lugar dela ou usar a sua própria abordagem.
+          </InfoBox>
         </StepCard>
       </div>
 
