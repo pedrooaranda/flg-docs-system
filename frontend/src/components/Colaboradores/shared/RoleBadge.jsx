@@ -1,14 +1,11 @@
 import { ROLE_CONFIG } from './constants'
 
-// Badge com ícone pra role. Owner (coroa amarela), Admin (escudo dourado), Member sem badge
-// (renderiza dash). Role desconhecida: texto capitalizado fallback.
+// Badge com ícone pra role. Owner (coroa amarela), Admin (escudo dourado),
+// Member (usuário cinza). Role nula/desconhecida cai pra dash ou texto capitalizado.
 export default function RoleBadge({ role }) {
   const cfg = ROLE_CONFIG[role]
   if (!cfg) {
-    // role='member' ou desconhecida — dash discreto
-    if (!role || role === 'member') {
-      return <span className="text-[11px] text-white/40">—</span>
-    }
+    if (!role) return <span className="text-[11px] text-white/40">—</span>
     return <span className="text-[11px] text-white/40 capitalize">{role}</span>
   }
   const Icon = cfg.icon

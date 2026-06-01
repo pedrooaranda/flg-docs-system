@@ -1,4 +1,4 @@
-import { Crown, Shield } from 'lucide-react'
+import { Crown, Shield, User } from 'lucide-react'
 
 // Tier (seniority) — cores escolhidas pra hierarquia visual: cinza → azul → dourado FLG → roxo.
 export const TIER_CONFIG = {
@@ -8,11 +8,12 @@ export const TIER_CONFIG = {
   lead:   { label: 'Lead',   color: '#A78BFA',                 bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)' },
 }
 
-// Role (permissão) — owner usa amarelo dourado (coroa), admin usa dourado FLG (escudo), member sem badge.
+// Role (permissão) — owner: amarelo dourado (coroa), admin: dourado FLG (escudo),
+// member: cinza neutro (ícone de usuário simples).
 export const ROLE_CONFIG = {
-  owner:  { label: 'Owner',  color: '#FACC15', bg: 'rgba(250,204,21,0.12)', border: 'rgba(250,204,21,0.35)', icon: Crown },
-  admin:  { label: 'Admin',  color: '#C9A84C', bg: 'rgba(201,168,76,0.12)', border: 'rgba(201,168,76,0.35)', icon: Shield },
-  member: null,
+  owner:  { label: 'Owner',  color: '#FACC15',          bg: 'rgba(250,204,21,0.12)',  border: 'rgba(250,204,21,0.35)',  icon: Crown },
+  admin:  { label: 'Admin',  color: '#C9A84C',          bg: 'rgba(201,168,76,0.12)',  border: 'rgba(201,168,76,0.35)',  icon: Shield },
+  member: { label: 'Member', color: 'rgba(255,255,255,0.65)', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.18)', icon: User },
 }
 
 export const CATEGORIA_CONFIG = {

@@ -354,42 +354,21 @@ async def update_colaborador(
     """
     Edita colaborador. Regras:
     - Admin+: edita qualquer um, qualquer campo.
-    - Member: edita só o próprio registro, apenas campos SELF_EDITABLE_FIELDS.
+    - Member: bloqueado (read-only total — fluxo admin-mediated).
     - Promoção pra role='owner' requer caller=owner.
+    - Rebaixamento de owner requer caller=owner.
     """
+    caller = _require_role(user, "admin")
+
     # Validar tabela
     target_resp = _supabase.table("colaboradores").select("*").eq("id", colab_id).maybe_single().execute()
     target = target_resp.data if target_resp else None
     if not target:
         raise HTTPException(status_code=404, detail="Colaborador não encontrado")
 
-    # Resolver caller (qualquer role, mesmo member, passa). Pedro fallback exato.
-    caller = _resolve_caller(user)
-    is_owner_fb = caller is None and _is_owner_fallback(user)
-    if caller is None and not is_owner_fb:
-        raise HTTPException(status_code=403, detail="Sem registro de colaborador")
-    if is_owner_fb:
-        caller = {"email": (user.email or "").strip().lower(), "role": "owner", "_fallback": True}
-
-    caller_level = ROLE_LEVEL.get(caller.get("role", "member"), 0)
-    is_admin_plus = caller_level >= ROLE_LEVEL["admin"]
-    is_self = caller.get("email") == target.get("email")
-
-    if not is_admin_plus and not is_self:
-        raise HTTPException(status_code=403, detail="Você só pode editar o próprio registro")
-
     updates = payload.model_dump(exclude_none=True)
     if not updates:
         raise HTTPException(status_code=400, detail="Nada pra atualizar")
-
-    # Member auto-editando: filtra apenas campos permitidos
-    if not is_admin_plus:
-        invalid = [k for k in updates.keys() if k not in SELF_EDITABLE_FIELDS]
-        if invalid:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Member só pode editar: {sorted(SELF_EDITABLE_FIELDS)}. Não permitido: {invalid}",
-            )
 
     # Validar valores enum
     _validate_categoria(updates.get("categoria"))

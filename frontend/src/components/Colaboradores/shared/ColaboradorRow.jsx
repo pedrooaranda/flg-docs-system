@@ -7,7 +7,8 @@ import RoleBadge from './RoleBadge'
  * Row da tabela de colaboradores com botões condicionais por permissão.
  *
  * Regras de permissão (espelha backend):
- * - Botão Editar visível se admin+ OU se for o próprio registro do caller (self-edit).
+ * - Botão Editar visível APENAS pra admin+. Member é read-only total
+ *   (não edita nem o próprio registro — fluxo admin-mediated).
  * - Botão Desativar visível se admin+ E não for self E (caller é owner OU target não é owner).
  *
  * @param colaborador - dict completo do colaborador
@@ -28,7 +29,7 @@ export default function ColaboradorRow({
   onDeactivate,
 }) {
   const isSelf = colaborador.email === currentUserEmail
-  const canEdit = isAdminPlus || isSelf
+  const canEdit = isAdminPlus
   const targetIsOwner = colaborador.role === 'owner'
   const canDeactivate = isAdminPlus && !isSelf && (isOwner || !targetIsOwner)
 
@@ -53,7 +54,7 @@ export default function ColaboradorRow({
             <button
               onClick={() => onEdit(colaborador)}
               className="p-1.5 rounded hover:bg-white/5 text-white/55 hover:text-white/90 transition-colors cursor-pointer"
-              title={isSelf && !isAdminPlus ? 'Editar meu perfil' : 'Editar'}
+              title="Editar"
             >
               <Pencil size={13} />
             </button>
