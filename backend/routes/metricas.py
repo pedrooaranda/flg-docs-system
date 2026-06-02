@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from deps import get_current_user, supabase_client
-from lib.auth_scope import UserScope, get_user_scope
+from lib.auth_scope import UserScope, get_user_scope, require_principal
 from services.social import get_platform_repository, PLATAFORMAS_VALIDAS
 
 router = APIRouter(prefix="/metricas", tags=["metricas"])
@@ -297,6 +297,7 @@ async def get_ranking(
     plataforma: str = "instagram",
     scope: UserScope = Depends(get_user_scope),
 ):
+    require_principal(scope)
     repo = _get_repo(plataforma, None)
 
     # Filtra clientes por scope: consultor regular só vê os seus
@@ -395,6 +396,7 @@ async def get_overview(
     tipo: str = "all",
     scope: UserScope = Depends(get_user_scope),
 ):
+    require_principal(scope)
     # Auth: consultor regular só acessa overview dos próprios clientes
     if not scope.can_see_all:
         cliente_auth = _supabase.table("clientes").select("consultor_id").eq(

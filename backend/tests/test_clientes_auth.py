@@ -10,7 +10,7 @@ Usa `mock_main_supabase` (fixture do conftest) que patcha main._supabase
 import pytest
 from unittest.mock import MagicMock
 
-from lib.auth_scope import UserScope
+from lib.auth_scope import UserScope, get_user_scope
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -24,6 +24,9 @@ def _scope_consultor(consultor_id="lucas-id"):
         consultor_nome="Lucas Nery",
         categoria="consultor",
         role="member",
+        can_see_principal=True,
+        can_see_debriefings=False,
+        can_see_debriefings_admin=False,
     )
 
 
@@ -36,6 +39,9 @@ def _scope_admin():
         consultor_nome="Admin",
         categoria="consultor",
         role="admin",
+        can_see_principal=True,
+        can_see_debriefings=False,
+        can_see_debriefings_admin=False,
     )
 
 
@@ -49,6 +55,9 @@ def _scope_external():
         consultor_nome=None,
         categoria=None,
         role=None,
+        can_see_principal=False,
+        can_see_debriefings=False,
+        can_see_debriefings_admin=False,
     )
 
 
@@ -101,14 +110,15 @@ async def test_list_clientes_admin_com_query_consultor_id_filtra(mock_main_supab
     assert len(consultor_filter) >= 1, "Esperado filtro WHERE consultor_id = lucas-id"
 
 
-async def test_list_clientes_sem_ficha_retorna_vazio(mock_main_supabase):
-    """Usuário sem ficha (consultor_id=None, can_see_all=False) recebe [] sem execute."""
+async def test_list_clientes_sem_ficha_retorna_403(mock_main_supabase):
+    """Usuário sem ficha (can_see_principal=False) recebe 403 do require_principal."""
     from main import list_clientes
+    from fastapi import HTTPException
 
-    result = await list_clientes(consultor_id=None, scope=_scope_external())
-
-    assert result == []
-    # execute() não deve ter sido chamado (retorno antecipado antes de executar a query)
+    with pytest.raises(HTTPException) as exc:
+        await list_clientes(consultor_id=None, scope=_scope_external())
+    assert exc.value.status_code == 403
+    # execute() não deve ter sido chamado (gate antes da query)
     mock_main_supabase.table().select().eq().order().execute.assert_not_called()
 
 
@@ -379,3 +389,47 @@ async def test_list_clientes_consultor_nao_pode_include_archived(mock_main_supab
     is_calls = mock_main_supabase.chain.is_.call_args_list
     archived_filter_calls = [c for c in is_calls if c.args == ("archived_at", "null")]
     assert len(archived_filter_calls) >= 1, "Consultor SEMPRE deve ter filtro WHERE archived_at IS NULL"
+
+
+# ─── Sub-projeto 1: comercial não acessa sistema principal ───────────────
+
+
+async def test_comercial_bloqueado_em_clientes_basic(mock_supabase, fake_user_consultor):
+    """Categoria comercial recebe 403 em /clientes-basic."""
+    from main import list_clientes_basic
+    from fastapi import HTTPException
+
+    mock_supabase.table().select().eq().eq().maybe_single().execute.return_value = MagicMock(
+        data={"id": "id-com", "nome": "Com", "email": fake_user_consultor.email,
+              "categoria": "comercial", "role": "member"}
+    )
+    scope = await get_user_scope(user=fake_user_consultor)
+    with pytest.raises(HTTPException) as exc:
+        await list_clientes_basic(scope=scope)
+    assert exc.value.status_code == 403
+
+
+async def test_consultor_passa_em_clientes_basic(mock_main_supabase, fake_user_consultor):
+    """Consultor regular continua vendo /clientes-basic."""
+    from main import list_clientes_basic
+
+    # mock_main_supabase patcha tanto deps.supabase_client (pra get_user_scope)
+    # quanto main._supabase (pro handler). Chain compartilhada:
+    # 1ª execute() = colaborador lookup, 2ª = clientes list.
+    chain = mock_main_supabase.chain
+    call_count = {"n": 0}
+
+    def _execute_side_effect():
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            return MagicMock(data={
+                "id": "id-c", "nome": "C", "email": fake_user_consultor.email,
+                "categoria": "consultor", "role": "member",
+            })
+        return MagicMock(data=[{"id": "c1", "nome": "Cliente"}])
+
+    chain.execute.side_effect = _execute_side_effect
+
+    scope = await get_user_scope(user=fake_user_consultor)
+    result = await list_clientes_basic(scope=scope)
+    assert isinstance(result, list)

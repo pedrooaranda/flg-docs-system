@@ -8,13 +8,17 @@ from lib.auth_scope import UserScope
 def _scope_admin():
     return UserScope(user_id="u-a", email="a@grupoguglielmi.com",
                      can_see_all=True, consultor_id="a-id", consultor_nome="Admin",
-                     categoria="diretor", role="admin")
+                     categoria="diretor", role="admin",
+                     can_see_principal=True, can_see_debriefings=True,
+                     can_see_debriefings_admin=True)
 
 
 def _scope_consultor():
     return UserScope(user_id="u-l", email="lucas@grupoguglielmi.com",
                      can_see_all=False, consultor_id="lucas-id", consultor_nome="Lucas Nery",
-                     categoria="consultor", role="member")
+                     categoria="consultor", role="member",
+                     can_see_principal=True, can_see_debriefings=False,
+                     can_see_debriefings_admin=False)
 
 
 async def test_summary_admin_inclui_metricas_ig(mock_main_supabase):
@@ -63,18 +67,22 @@ async def test_summary_consultor_filtra_por_scope(mock_main_supabase):
     assert len(consultor_filter) >= 1
 
 
-async def test_summary_consultor_sem_id_retorna_vazio(mock_main_supabase):
-    """Consultor sem consultor_id (user externo sem ficha) → lista vazia."""
+async def test_summary_consultor_sem_id_retorna_403(mock_main_supabase):
+    """User externo sem ficha (can_see_principal=False) → 403 do require_principal."""
     from main import list_clientes_summary
+    from fastapi import HTTPException
 
     scope_sem_id = UserScope(user_id="u-x", email="x@example.com",
                               can_see_all=False, consultor_id=None,
-                              consultor_nome=None, categoria=None, role=None)
+                              consultor_nome=None, categoria=None, role=None,
+                              can_see_principal=False, can_see_debriefings=False,
+                              can_see_debriefings_admin=False)
 
-    result = await list_clientes_summary(
-        consultor_id=None, include_archived=False, scope=scope_sem_id
-    )
-    assert result == []
+    with pytest.raises(HTTPException) as exc:
+        await list_clientes_summary(
+            consultor_id=None, include_archived=False, scope=scope_sem_id
+        )
+    assert exc.value.status_code == 403
 
 
 async def test_summary_admin_include_archived_true(mock_main_supabase):

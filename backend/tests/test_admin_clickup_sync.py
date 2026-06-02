@@ -22,6 +22,9 @@ def _scope_admin():
         consultor_nome="Admin",
         categoria="consultor",
         role="admin",
+        can_see_principal=True,
+        can_see_debriefings=False,
+        can_see_debriefings_admin=False,
     )
 
 
@@ -34,6 +37,9 @@ def _scope_consultor():
         consultor_nome="Lucas Nery",
         categoria="consultor",
         role="member",
+        can_see_principal=True,
+        can_see_debriefings=False,
+        can_see_debriefings_admin=False,
     )
 
 
@@ -102,6 +108,9 @@ async def test_admin_sync_diretor_allowed(mock_main_supabase):
         consultor_nome="Diretor",
         categoria="diretor",
         role="member",
+        can_see_principal=True,
+        can_see_debriefings=True,
+        can_see_debriefings_admin=True,
     )
 
     fake_stats = {

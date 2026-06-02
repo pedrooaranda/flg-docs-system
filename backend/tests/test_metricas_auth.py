@@ -116,6 +116,9 @@ def _scope_consultor(consultor_id="lucas-id"):
         consultor_nome="Lucas Nery",
         categoria="consultor",
         role="member",
+        can_see_principal=True,
+        can_see_debriefings=False,
+        can_see_debriefings_admin=False,
     )
 
 
@@ -128,6 +131,9 @@ def _scope_admin():
         consultor_nome="Admin",
         categoria="consultor",
         role="admin",
+        can_see_principal=True,
+        can_see_debriefings=False,
+        can_see_debriefings_admin=False,
     )
 
 
@@ -141,6 +147,9 @@ def _scope_external():
         consultor_nome=None,
         categoria=None,
         role=None,
+        can_see_principal=False,
+        can_see_debriefings=False,
+        can_see_debriefings_admin=False,
     )
 
 
@@ -205,13 +214,14 @@ async def test_ranking_admin_nao_filtra_consultor_id(mock_metricas_supabase):
     )
 
 
-async def test_ranking_sem_ficha_retorna_vazio(mock_metricas_supabase):
-    """Usuário sem ficha (consultor_id=None, can_see_all=False) recebe ranking vazio sem executar query."""
+async def test_ranking_sem_ficha_retorna_403(mock_metricas_supabase):
+    """Usuário sem ficha (can_see_principal=False) recebe 403 do require_principal."""
     get_ranking = _metricas_mod.get_ranking
+    from fastapi import HTTPException
 
-    result = await get_ranking(plataforma="instagram", scope=_scope_external())
-
-    assert result == {"ranking": [], "total": 0, "plataforma": "instagram"}
+    with pytest.raises(HTTPException) as exc:
+        await get_ranking(plataforma="instagram", scope=_scope_external())
+    assert exc.value.status_code == 403
 
 
 # ─── get_overview ─────────────────────────────────────────────────────────────

@@ -40,7 +40,7 @@ from routes.apresentar import router as apresentar_router
 from routes.meta_callbacks import router as meta_callbacks_router
 from routes.debriefings import router as debriefings_router
 from routes import me as me_router_module
-from lib.auth_scope import UserScope, get_user_scope
+from lib.auth_scope import UserScope, get_user_scope, require_principal
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -405,6 +405,7 @@ async def list_clientes(
       - can_see_all=False (consultor regular): força consultor_id=self + archived_at IS NULL
       - can_see_all=True: aceita ?consultor_id=X e ?include_archived=true
     """
+    require_principal(scope)
     query = _supabase.table("clientes").select(
         "id, nome, empresa, consultor_responsavel, consultor_id, "
         "encontro_atual, status, archived_at, updated_at, created_at"
@@ -427,7 +428,7 @@ async def list_clientes(
 
 
 @app.get("/clientes-basic")
-async def list_clientes_basic(user=Depends(get_current_user)):
+async def list_clientes_basic(scope: UserScope = Depends(get_user_scope)):
     """
     Lista enxuta de clientes (id, nome, empresa) SEM filtro de scope por consultor.
 
@@ -436,11 +437,11 @@ async def list_clientes_basic(user=Depends(get_current_user)):
     consultor_id ser definido na entrega do Planejamento Estratégico). Aqui não
     cabe restrição por scope.
 
-    Retorna só nome + empresa pra minimizar exposição. Métricas, status, encontro
-    atual e dados de operação continuam restritos via /clientes / /clientes-summary.
+    Bloqueado pra categoria='comercial' (esse fluxo é do sistema principal).
 
     Filtra archived_at IS NULL pra evitar poluir UI com ex-clientes.
     """
+    require_principal(scope)
     result = (
         _supabase.table("clientes")
         .select("id, nome, empresa")
@@ -466,6 +467,7 @@ async def list_clientes_summary(
 
     Mesma regra de scope/archived que /clientes.
     """
+    require_principal(scope)
     # 1. Query base: clientes filtrados
     query = _supabase.table("clientes").select(
         "id, nome, empresa, consultor_responsavel, consultor_id, "
@@ -567,6 +569,7 @@ async def list_clientes_summary(
 
 @app.get("/clientes/{client_id}")
 async def get_cliente(client_id: str, scope: UserScope = Depends(get_user_scope)):
+    require_principal(scope)
     result = _supabase.table("clientes").select("*").eq("id", client_id).single().execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
@@ -584,6 +587,7 @@ async def get_cliente(client_id: str, scope: UserScope = Depends(get_user_scope)
 
 @app.post("/clientes")
 async def create_cliente(data: dict, scope: UserScope = Depends(get_user_scope)):
+    require_principal(scope)
     # Consultor regular: força consultor_id = self (ignora payload pra evitar bypass)
     if not scope.can_see_all:
         if scope.consultor_id is None:
@@ -600,6 +604,7 @@ async def update_cliente(
     data: dict,
     scope: UserScope = Depends(get_user_scope),
 ):
+    require_principal(scope)
     # Carrega cliente atual pra validar ownership
     existing = _supabase.table("clientes").select("consultor_id").eq("id", client_id).single().execute()
     if not existing.data:

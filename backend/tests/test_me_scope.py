@@ -24,6 +24,9 @@ async def test_me_scope_consultor(mock_supabase):
         consultor_nome="Lucas Nery",
         categoria="consultor",
         role="member",
+        can_see_principal=True,
+        can_see_debriefings=False,
+        can_see_debriefings_admin=False,
     )
 
     body = await get_scope(scope=scope)
@@ -47,6 +50,9 @@ async def test_me_scope_admin(mock_supabase):
         consultor_nome="Admin",
         categoria="consultor",
         role="admin",
+        can_see_principal=True,
+        can_see_debriefings=False,
+        can_see_debriefings_admin=False,
     )
 
     body = await get_scope(scope=scope)
@@ -67,6 +73,9 @@ async def test_me_scope_serializa_todos_campos():
         consultor_nome=None,
         categoria="diretor",
         role="owner",
+        can_see_principal=True,
+        can_see_debriefings=True,
+        can_see_debriefings_admin=True,
     )
 
     body = await get_scope(scope=scope)
@@ -75,6 +84,7 @@ async def test_me_scope_serializa_todos_campos():
     assert set(body.keys()) == {
         "user_id", "email", "can_see_all", "consultor_id",
         "consultor_nome", "categoria", "role",
+        "can_see_principal", "can_see_debriefings", "can_see_debriefings_admin",
     }
     assert body["user_id"] == "uid-x"
     assert body["email"] == "test@grupoguglielmi.com"
