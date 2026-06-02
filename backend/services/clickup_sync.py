@@ -89,12 +89,36 @@ _UPDATEABLE_FIELDS = (
     "nome",
     "empresa",
     "consultor_responsavel",
+    "consultor_id",  # UUID resolvido de consultor_responsavel via tabela colaboradores
     "estrategista",
     "encontro_atual",
     "status",
     "situacao_atual",
     "clickup_task_id",  # cura clientes que tinham null
 )
+
+
+def _load_consultores_lookup(sb):
+    """
+    Carrega mapa {nome_normalizado: uuid} de colaboradores ativos da categoria
+    consultor, pra resolver consultor_responsavel (texto livre do ClickUp) em
+    consultor_id (UUID). Sem isso, clientes criados pelo sync ficam com
+    consultor_id=NULL e o consultor logado não os vê (filtro do backend GET /clientes
+    é por consultor_id, não por nome).
+    """
+    r = sb.table("colaboradores").select("id, nome").eq("ativo", True).execute()
+    return {
+        _normalize_name(row.get("nome", "")): row["id"]
+        for row in (r.data or [])
+        if row.get("nome")
+    }
+
+
+def _resolve_consultor_id(consultores_by_name, consultor_nome):
+    """nome livre do ClickUp → UUID do colaborador. Retorna None se não bater."""
+    if not consultor_nome:
+        return None
+    return consultores_by_name.get(_normalize_name(consultor_nome))
 
 
 def _load_clientes_lookup(sb):
@@ -174,6 +198,10 @@ def run_clickup_sync():
     by_task_id, by_name_norm = _load_clientes_lookup(sb)
     logger.info(f"[sync] DB lookup carregado: {len(by_task_id)} por task_id, {len(by_name_norm)} por nome")
 
+    # Mapa nome do colaborador → UUID, pra resolver consultor_id de cada task
+    consultores_by_name = _load_consultores_lookup(sb)
+    logger.info(f"[sync] Consultores lookup carregado: {len(consultores_by_name)} colaboradores ativos")
+
     now_iso = datetime.now(timezone.utc).isoformat()
 
     for task in tasks:
@@ -192,6 +220,22 @@ def run_clickup_sync():
             # Empresa NOT NULL no Supabase
             if not data.get("empresa"):
                 data["empresa"] = nome
+
+            # Resolve consultor_id (UUID) a partir do consultor_responsavel (texto)
+            # Sem isso, consultor regular não vê a cliente no GET /clientes (que
+            # filtra por UUID). Bug histórico: MARAREIS 2026-06-02 ficou invisível
+            # pro Lucas mesmo com consultor_responsavel='Lucas Nery' setado.
+            resolved_consultor_id = _resolve_consultor_id(
+                consultores_by_name, data.get("consultor_responsavel")
+            )
+            if resolved_consultor_id:
+                data["consultor_id"] = resolved_consultor_id
+            elif data.get("consultor_responsavel"):
+                logger.warning(
+                    f"[sync] consultor_responsavel='{data['consultor_responsavel']}' "
+                    f"não bate com nenhum colaborador ativo (cliente '{nome}'). "
+                    "consultor_id ficará NULL — cliente não aparece pra consultor regular."
+                )
 
             # Match no DB (cache em dicts)
             existing, match_strategy = _resolve_match(
