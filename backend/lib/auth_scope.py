@@ -35,8 +35,11 @@ class UserScope:
     can_see_all: bool
     consultor_id: Optional[str]
     consultor_nome: Optional[str]
-    categoria: Optional[str]   # 'consultor' | 'diretor' | None
-    role: Optional[str]        # 'owner' | 'admin' | 'member' | None
+    categoria: Optional[str]                  # 'consultor' | 'diretor' | 'comercial' | None
+    role: Optional[str]                        # 'owner' | 'admin' | 'member' | None
+    can_see_principal: bool                    # sistema principal (Clientes, Métricas, etc.)
+    can_see_debriefings: bool                  # subsistema Debriefings
+    can_see_debriefings_admin: bool            # painel admin do Debriefing (KPIs, ranking)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -45,6 +48,22 @@ class UserScope:
 def _is_owner_fallback(email: str) -> bool:
     """Pedro hardcoded como owner caso ficha tenha sido deletada."""
     return (email or "").strip().lower() in OWNER_FALLBACK_EMAILS
+
+
+def _compute_flags(categoria: Optional[str], role: Optional[str]) -> tuple[bool, bool, bool]:
+    """Calcula (can_see_principal, can_see_debriefings, can_see_debriefings_admin)
+    baseado em categoria + role. Owner sempre vê tudo."""
+    is_owner = role == "owner"
+
+    can_see_principal = is_owner or (categoria in ("consultor", "diretor"))
+    can_see_debriefings = is_owner or (categoria in ("diretor", "comercial"))
+    can_see_debriefings_admin = (
+        is_owner
+        or categoria == "diretor"
+        or (categoria == "comercial" and role == "admin")
+    )
+
+    return can_see_principal, can_see_debriefings, can_see_debriefings_admin
 
 
 async def get_user_scope(user=Depends(get_current_user)) -> UserScope:
@@ -77,6 +96,7 @@ async def get_user_scope(user=Depends(get_current_user)) -> UserScope:
     if row is None:
         # Sem ficha — tenta fallback de owner
         if _is_owner_fallback(email):
+            can_see_p, can_see_d, can_see_da = _compute_flags(None, "owner")
             return UserScope(
                 user_id=user_id,
                 email=email,
@@ -85,6 +105,9 @@ async def get_user_scope(user=Depends(get_current_user)) -> UserScope:
                 consultor_nome=None,
                 categoria=None,
                 role="owner",
+                can_see_principal=can_see_p,
+                can_see_debriefings=can_see_d,
+                can_see_debriefings_admin=can_see_da,
             )
         # User externo / não cadastrado: não vê nada
         return UserScope(
@@ -95,11 +118,15 @@ async def get_user_scope(user=Depends(get_current_user)) -> UserScope:
             consultor_nome=None,
             categoria=None,
             role=None,
+            can_see_principal=False,
+            can_see_debriefings=False,
+            can_see_debriefings_admin=False,
         )
 
     categoria = row.get("categoria")
     role = row.get("role") or "member"
     can_see_all = (categoria == "diretor") or (role in ("owner", "admin"))
+    can_see_p, can_see_d, can_see_da = _compute_flags(categoria, role)
 
     return UserScope(
         user_id=user_id,
@@ -109,4 +136,7 @@ async def get_user_scope(user=Depends(get_current_user)) -> UserScope:
         consultor_nome=row.get("nome"),
         categoria=categoria,
         role=role,
+        can_see_principal=can_see_p,
+        can_see_debriefings=can_see_d,
+        can_see_debriefings_admin=can_see_da,
     )
