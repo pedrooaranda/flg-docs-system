@@ -983,13 +983,17 @@ async def chat_intelecto(
 @app.post("/admin/clickup/sync")
 async def trigger_clickup_sync(
     request: Request,
-    scope: UserScope = Depends(get_user_scope),
+    authorization: str = Header(default=""),
 ):
     """
     Dispara ClickUp sync síncrono.
 
     Auth: admin/diretor via Authorization Bearer OU header `X-Cron-Token`
     igual à env `CRON_SHARED_SECRET` (pra workflows GH Actions agendados).
+
+    O `authorization` é Header opcional (default="") em vez de Depends(get_user_scope),
+    senão chamada sem Bearer (caso cron) cai em 422 do FastAPI validator ANTES de
+    chegar no handler — era exatamente isso que travava o GH Actions diário.
 
     Retorna stats + diagnóstico de configuração de env.
     """
@@ -998,11 +1002,22 @@ async def trigger_clickup_sync(
     cron_secret = _os.getenv("CRON_SHARED_SECRET", "").strip()
     is_cron_call = bool(cron_secret) and cron_token_header == cron_secret
 
-    if not is_cron_call and not scope.can_see_all:
-        raise HTTPException(
-            status_code=403,
-            detail="Operação restrita a admin/diretor (ou cron com X-Cron-Token válido).",
-        )
+    if not is_cron_call:
+        # Caminho admin/diretor: resolve scope manualmente pra evitar Depends
+        # que rejeitaria a chamada cron com 422 antes mesmo de entrar aqui.
+        if not authorization:
+            raise HTTPException(
+                status_code=401,
+                detail="Operação restrita a admin/diretor (ou cron com X-Cron-Token válido).",
+            )
+        from deps import get_current_user
+        user = await get_current_user(authorization=authorization)
+        scope = await get_user_scope(user=user)
+        if not scope.can_see_all:
+            raise HTTPException(
+                status_code=403,
+                detail="Operação restrita a admin/diretor.",
+            )
 
     # Diagnóstico: confirma que envs críticos estão configurados antes do sync.
     # Se token vazio, run_clickup_sync retorna stats=0 silenciosamente (0ms).
