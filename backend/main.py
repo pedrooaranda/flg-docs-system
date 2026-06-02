@@ -158,6 +158,29 @@ async def _apply_migration_003():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await _apply_migration_003()
+
+    # Sanity-check de envs críticas no startup. Antes só percebíamos que estavam
+    # vazias na hora do sync (CLICKUP_API_TOKEN -> stats zeradas; CRON_SHARED_SECRET
+    # -> cron diário recebe 401). Logar no boot torna o problema imediatamente
+    # visível em qualquer deploy/restart do container.
+    _envs_criticas = {
+        "CLICKUP_API_TOKEN": "Sync ClickUp não funciona — clientes não atualizam",
+        "CRON_SHARED_SECRET": "GH Actions diário do ClickUp não consegue autenticar",
+        "ANTHROPIC_API_KEY":  "Geração de slides (IntelecFLG) não funciona",
+        "SUPABASE_URL":       "Acesso ao banco quebra completamente",
+        "SUPABASE_KEY":       "Acesso ao banco quebra completamente",
+    }
+    _missing = [k for k, _ in _envs_criticas.items() if not os.getenv(k, "").strip()]
+    if _missing:
+        for k in _missing:
+            logger.warning(f"⚠️  ENV AUSENTE: {k} — {_envs_criticas[k]}")
+        logger.warning(
+            f"⚠️  {len(_missing)} env(s) crítica(s) vazia(s). "
+            "Suba os secrets no .env da VPS e reinicie o container."
+        )
+    else:
+        logger.info("✅ Envs críticas presentes (ClickUp, Cron, Anthropic, Supabase)")
+
     # Iniciar scheduler PRIMEIRO (não bloqueia healthcheck)
     scheduler.add_job(run_rotina_sync, "interval", hours=6, id="rotina_clickup")
     scheduler.add_job(run_ingestion_sync, "interval", hours=6, id="metricas_ingestion")

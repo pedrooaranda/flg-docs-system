@@ -17,6 +17,12 @@ on:
     - cron: '0 12 * * 1'  # 12:00 UTC segundas = 09:00 BRT
   workflow_dispatch:
 
+permissions:
+  # Necessário pro step de Alert on failure conseguir abrir issue.
+  # Sem isso, qualquer falha do health check fica sem notificação.
+  issues: write
+  contents: read
+
 jobs:
   health:
     name: Verifica integrações

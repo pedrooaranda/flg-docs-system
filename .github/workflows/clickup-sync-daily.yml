@@ -16,6 +16,12 @@ on:
     - cron: '0 9 * * *'  # 09:00 UTC = 06:00 BRT, diariamente
   workflow_dispatch:
 
+permissions:
+  # issues:write é o que destrava o step de alerta — sem isso o GITHUB_TOKEN
+  # padrão não consegue abrir a issue de "sync falhou" e o erro fica escondido.
+  issues: write
+  contents: read
+
 jobs:
   sync:
     name: POST /admin/clickup/sync
@@ -32,11 +38,14 @@ jobs:
             exit 1
           fi
 
+          # --retry 3 + backoff cobrem VPS com hiccup transitório (deploy rolando,
+          # nginx reload). --retry-connrefused também trata conexão recusada.
           RESP=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            --retry 3 --retry-delay 10 --retry-connrefused \
             -X POST \
             -H "X-Cron-Token: $CRON_TOKEN" \
             -H "Content-Type: application/json" \
-            --max-time 120 \
+            --max-time 180 \
             https://docs.foundersledgrowth.online/api/admin/clickup/sync)
 
           HTTP=$(echo "$RESP" | tail -n1 | sed 's/HTTP_STATUS://')
@@ -45,25 +54,44 @@ jobs:
           echo "HTTP=$HTTP"
           echo "$BODY" | head -c 2000
 
+          # Step Summary é sempre populado (sucesso OU falha) pro alerta ter dado
+          # parcial. Isso roda ANTES das validações que podem chamar exit 1.
+          echo "## 🔄 ClickUp Sync Diário" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**HTTP**: $HTTP" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          echo "$BODY" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
           if [ "$HTTP" != "200" ]; then
             echo "::error::Sync falhou — HTTP $HTTP"
-            echo "$BODY"
             exit 1
           fi
 
-          # Extrai duration_ms — se for 0 ou ausente, sync nem rodou (env missing)
+          # duration_ms<=0 = sync abortou silenciosamente (env CLICKUP_API_TOKEN vazia
+          # no backend retorna stats zeradas sem erro HTTP — bug histórico já visto).
           DURATION=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('duration_ms', -1))" 2>/dev/null || echo "-1")
           if [ "$DURATION" -le 0 ]; then
             echo "::error::Sync abortou em ${DURATION}ms — verifique CLICKUP_API_TOKEN no .env da VPS."
             exit 1
           fi
 
-          # Stats no Step Summary pra visibilidade
-          echo "## 🔄 ClickUp Sync Diário" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-          echo "$BODY" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          # errors>0 indica que o ClickUp respondeu, sync rodou, mas falhou em
+          # algumas tasks específicas. Hoje (descoberta MARAREIS) o errors:0 mas
+          # o cron caía em 422 antes do handler — validar isso aqui blinda contra
+          # regressões silenciosas de qualquer mudança futura do schema.
+          ERRORS=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('errors', -1))" 2>/dev/null || echo "-1")
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "::error::Sync teve $ERRORS erro(s) em tasks — inspecionar logs do backend."
+            exit 1
+          fi
+
+          # Métricas finais visíveis no log do step
+          TOTAL=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('total', 0))" 2>/dev/null || echo "?")
+          CREATED=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('created', 0))" 2>/dev/null || echo "?")
+          UPDATED=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('updated', 0))" 2>/dev/null || echo "?")
+          echo "✅ Sync OK: $TOTAL tasks, $CREATED novas, $UPDATED atualizadas em ${DURATION}ms"
 
       - name: Alert on failure (cria issue)
         if: failure()
@@ -75,6 +103,6 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `🚨 ClickUp sync diário falhou — ${today}`,
-              body: `Workflow [${context.runId}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) falhou.\n\nVerifique:\n1. CLICKUP_API_TOKEN no .env da VPS (\`gh secret list\`)\n2. CRON_SHARED_SECRET configurado\n3. Backend live: \`curl https://docs.foundersledgrowth.online/api/health\`\n4. Logs: \`gh workflow run fetch-logs.yml -f grep="[sync]"\``,
+              body: `Workflow [${context.runId}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) falhou.\n\nVerifique:\n1. CLICKUP_API_TOKEN no .env da VPS (\`gh secret list\`)\n2. CRON_SHARED_SECRET configurado\n3. Backend live: \`curl https://docs.foundersledgrowth.online/api/health\`\n4. Logs: \`gh workflow run fetch-logs.yml -f grep="[sync]"\`\n5. Step Summary do run pra ver stats parciais`,
               labels: ["bug", "integrations"],
             })
