@@ -19,7 +19,7 @@ from dataclasses import dataclass, asdict
 from typing import Optional
 
 import deps
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 
 from deps import get_current_user
 
@@ -140,3 +140,36 @@ async def get_user_scope(user=Depends(get_current_user)) -> UserScope:
         can_see_debriefings=can_see_d,
         can_see_debriefings_admin=can_see_da,
     )
+
+
+# ─── Helpers de gating pra endpoints (FastAPI levanta HTTPException → 403) ────
+
+
+def require_principal(scope: UserScope) -> None:
+    """Bloqueia acesso ao sistema principal (Clientes, Métricas, etc.).
+    Comerciais recebem 403."""
+    if not scope.can_see_principal:
+        raise HTTPException(
+            status_code=403,
+            detail="Acesso restrito ao sistema principal",
+        )
+
+
+def require_debriefings(scope: UserScope) -> None:
+    """Bloqueia acesso ao subsistema de Debriefings.
+    Consultores (não-diretores) recebem 403."""
+    if not scope.can_see_debriefings:
+        raise HTTPException(
+            status_code=403,
+            detail="Acesso restrito ao sistema de Debriefings",
+        )
+
+
+def require_debriefings_admin(scope: UserScope) -> None:
+    """Bloqueia acesso ao painel admin de Debriefings (KPIs, ranking).
+    Membros Comerciais regulares recebem 403."""
+    if not scope.can_see_debriefings_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Acesso restrito ao painel admin de Debriefings",
+        )

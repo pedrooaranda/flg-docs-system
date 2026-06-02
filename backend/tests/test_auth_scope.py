@@ -154,3 +154,60 @@ async def test_external_sem_ficha_nao_ve_nada(mock_supabase, fake_user_external)
     assert scope.can_see_principal is False
     assert scope.can_see_debriefings is False
     assert scope.can_see_debriefings_admin is False
+
+
+# ─── Helpers require_* (sub-projeto 1 — Debriefings) ─────────────────────
+
+from fastapi import HTTPException
+from lib.auth_scope import (
+    require_principal, require_debriefings, require_debriefings_admin,
+)
+
+
+def _make_scope(can_p=False, can_d=False, can_da=False):
+    """Helper pra montar UserScope mínimo só com as flags relevantes pros require_*."""
+    return UserScope(
+        user_id="u",
+        email="x@example.com",
+        can_see_all=False,
+        consultor_id=None,
+        consultor_nome=None,
+        categoria=None,
+        role=None,
+        can_see_principal=can_p,
+        can_see_debriefings=can_d,
+        can_see_debriefings_admin=can_da,
+    )
+
+
+def test_require_principal_403_sem_flag():
+    scope = _make_scope(can_p=False)
+    with pytest.raises(HTTPException) as exc:
+        require_principal(scope)
+    assert exc.value.status_code == 403
+
+
+def test_require_principal_passa_com_flag():
+    require_principal(_make_scope(can_p=True))  # não levanta
+
+
+def test_require_debriefings_403_sem_flag():
+    scope = _make_scope(can_d=False)
+    with pytest.raises(HTTPException) as exc:
+        require_debriefings(scope)
+    assert exc.value.status_code == 403
+
+
+def test_require_debriefings_passa_com_flag():
+    require_debriefings(_make_scope(can_d=True))
+
+
+def test_require_debriefings_admin_403_sem_flag():
+    scope = _make_scope(can_da=False)
+    with pytest.raises(HTTPException) as exc:
+        require_debriefings_admin(scope)
+    assert exc.value.status_code == 403
+
+
+def test_require_debriefings_admin_passa_com_flag():
+    require_debriefings_admin(_make_scope(can_da=True))
