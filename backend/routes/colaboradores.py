@@ -34,7 +34,7 @@ _supabase = supabase_client
 
 # ─── Modelos ─────────────────────────────────────────────────────────────────
 
-CATEGORIAS_VALIDAS = ("consultor", "diretor")
+CATEGORIAS_VALIDAS = ("consultor", "diretor", "comercial")
 TIERS_VALIDOS = ("junior", "pleno", "senior", "lead")
 ROLES_VALIDOS = ("owner", "admin", "member")
 ROLE_LEVEL = {"member": 0, "admin": 1, "owner": 2}
