@@ -1,0 +1,1078 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FLG Brasil &middot; Onboarding da Jornada &middot; Business Strategists</title>
+<link rel="icon" href="assets/logo-flg.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,30..100;1,9..144,300..700,30..100&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="v2.css">
+<style>
+/* ═══════════════════════════════════════════════════════
+   FLG · ONBOARDING DA JORNADA · Business Strategists
+   Identidade FLG · preto + dourado · padrão premium
+   ═══════════════════════════════════════════════════════ */
+.spec, .spec--thick, .spec--glow{display:none !important}
+
+.flg-mark{height:clamp(40px,5vw,60px);width:auto;margin-bottom:2rem;opacity:0.95}
+.flg-mark--corner{position:absolute;top:2rem;right:3rem;height:28px;width:auto;opacity:0.55;z-index:5}
+
+/* === DIVIDERS === */
+.gold-divider{display:flex;align-items:center;gap:1rem;width:min(560px,60vw)}
+.gold-divider .line{flex:1;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.gold-divider .dot{width:6px;height:6px;border-radius:50%;background:var(--gold)}
+.gold-divider--thick .line{height:2px}
+
+/* === SEC BADGE === */
+.sec-badge{display:inline-flex;align-items:center;gap:0.7rem;
+  font-family:var(--mono);font-size:0.65rem;letter-spacing:0.28em;text-transform:uppercase;
+  color:var(--gold);padding:0.45rem 1rem;
+  border:1px solid rgba(212,175,55,0.3);border-radius:100px;
+  background:rgba(5,5,10,0.4);margin-bottom:1.4rem;font-weight:500}
+.sec-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold)}
+
+/* === ENTRIES === */
+.entries{display:flex;flex-direction:column;gap:0.9rem;max-width:1200px;width:100%}
+.entry{display:flex;align-items:flex-start;gap:1.3rem;padding:1.2rem 1.6rem;
+  background:linear-gradient(90deg,rgba(212,175,55,0.06),transparent);
+  border-left:2px solid rgba(212,175,55,0.5);border-radius:0 12px 12px 0}
+.entry-icon{width:42px;height:42px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  border-radius:10px;background:linear-gradient(135deg,rgba(233,196,106,0.14),rgba(233,196,106,0.04));
+  border:1px solid rgba(233,196,106,0.4);color:var(--gold)}
+.entry-icon svg{width:22px;height:22px}
+.entry-num{font-family:var(--mono);font-size:0.8rem;color:var(--gold);min-width:42px;font-weight:600;letter-spacing:0.04em;padding-top:0.4rem;text-align:center}
+.entry-text{font-size:1.04rem;line-height:1.62;color:var(--ink);text-wrap:pretty;padding-top:0.2rem}
+.entry-text b, .entry-text strong{color:var(--gold);font-weight:600}
+.entry-text em{font-style:italic;color:var(--gold-hi);font-family:'Fraunces',serif;font-weight:400}
+.entry-title{display:block;font-family:var(--serif);font-weight:500;font-size:1.18rem;color:var(--gold-hi);margin-bottom:0.35rem;letter-spacing:-0.005em;font-variation-settings:"opsz" 96}
+
+/* === ARSENAL CARDS === */
+.arsenal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;max-width:1340px;width:100%}
+.arsenal-grid--2{grid-template-columns:repeat(2,1fr);max-width:1180px}
+.arsenal-grid--4{grid-template-columns:repeat(4,1fr);max-width:1400px;gap:1.05rem}
+.arsenal-grid--5{grid-template-columns:repeat(5,1fr);max-width:1440px;gap:0.95rem}
+
+.arsenal-card{padding:1.9rem 1.8rem;border:1px solid rgba(255,255,255,0.08);border-radius:18px;
+  background:linear-gradient(180deg,var(--bg-card),#0a0a14);
+  position:relative;overflow:hidden;isolation:isolate}
+.arsenal-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.85}
+.arsenal-icon{width:46px;height:46px;display:flex;align-items:center;justify-content:center;
+  border-radius:12px;background:linear-gradient(135deg,rgba(233,196,106,0.14),rgba(233,196,106,0.04));
+  border:1px solid rgba(233,196,106,0.4);color:var(--gold);margin-bottom:1.1rem}
+.arsenal-icon svg{width:24px;height:24px}
+.arsenal-num{font-family:var(--mono);font-size:0.7rem;letter-spacing:0.22em;color:var(--gold);margin-bottom:0.7rem;display:flex;align-items:center;gap:0.6rem;text-transform:uppercase;font-weight:500}
+.arsenal-num::before{content:'';width:18px;height:1px;background:var(--gold)}
+.arsenal-title{font-family:var(--serif);font-weight:400;font-size:1.32rem;color:var(--ink);margin-bottom:0.75rem;letter-spacing:-0.01em;line-height:1.22;font-variation-settings:"opsz" 96}
+.arsenal-title em{font-style:italic;color:var(--gold);font-family:'Fraunces',serif}
+.arsenal-desc{font-size:0.98rem;line-height:1.62;color:var(--ink-soft);text-wrap:pretty}
+.arsenal-desc strong, .arsenal-desc b{color:var(--gold);font-weight:500}
+.arsenal-desc em{font-style:italic;color:var(--gold);font-family:'Fraunces',serif}
+.arsenal-desc i{font-style:italic;color:var(--gold-hi);font-family:'Fraunces',serif;font-weight:400}
+
+/* === PILLAR CARDS (3 pilares) === */
+.pillars-row{display:grid;grid-template-columns:repeat(3,1fr);gap:1.3rem;max-width:1380px;width:100%}
+.pillar-card{padding:1.9rem 1.8rem;border-radius:18px;
+  background:linear-gradient(180deg,var(--bg-card),#0a0a14);
+  border:1px solid rgba(255,255,255,0.08);position:relative;overflow:hidden;min-height:240px}
+.pillar-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--gold-lo),var(--gold),var(--gold-hi))}
+.pillar-icon{width:50px;height:50px;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;background:radial-gradient(circle at 30% 30%,rgba(233,196,106,0.2),rgba(233,196,106,0.04) 70%);
+  border:1px solid rgba(233,196,106,0.45);color:var(--gold);margin-bottom:1.2rem}
+.pillar-icon svg{width:26px;height:26px}
+.pillar-num{font-family:'Fraunces',serif;font-weight:300;font-size:0.85rem;letter-spacing:0.3em;color:var(--gold);margin-bottom:0.5rem;text-transform:uppercase;font-variation-settings:"opsz" 144}
+.pillar-name{font-family:var(--serif);font-weight:400;font-size:1.4rem;color:var(--ink);letter-spacing:-0.01em;margin-bottom:0.85rem;line-height:1.22;font-variation-settings:"opsz" 144}
+.pillar-name em{font-style:italic;color:var(--gold);font-family:'Fraunces',serif}
+.pillar-desc{font-size:0.98rem;line-height:1.62;color:var(--ink-soft);text-wrap:pretty}
+.pillar-desc b{color:var(--gold);font-weight:500}
+
+/* === LIST WIDE === */
+.list-wide{display:flex;flex-direction:column;gap:0;max-width:1100px;width:100%}
+.list-wide .list-item{display:flex;gap:1.3rem;padding:1.05rem 0;border-bottom:1px solid rgba(255,255,255,0.07);
+  font-size:1.02rem;line-height:1.6;color:var(--ink);text-wrap:pretty;align-items:flex-start}
+.list-wide .list-item::before{
+  content:'';width:30px;height:30px;border-radius:50%;flex-shrink:0;margin-top:0.1rem;
+  background-image:
+    url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M5 12.5 L10 17 L19 7.5' stroke='%23F6DFA0' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 30% 30%,rgba(246,223,160,0.28),transparent 65%),
+    linear-gradient(135deg,rgba(233,196,106,0.16),rgba(233,196,106,0.03));
+  background-size:16px 16px,100% 100%,100% 100%;background-position:center,center,center;background-repeat:no-repeat;
+  border:1px solid rgba(233,196,106,0.5);
+}
+.list-wide .list-item:last-child{border-bottom:none}
+.list-wide .list-item strong, .list-wide .list-item b{color:var(--gold-hi);font-weight:600}
+.list-wide .list-item em{font-style:italic;color:var(--gold);font-family:'Fraunces',serif;font-weight:400}
+
+/* === HIGHLIGHT BOX === */
+.highlight-box{padding:1.6rem 1.9rem;border-radius:14px;
+  background:linear-gradient(135deg,rgba(233,196,106,0.07),rgba(233,196,106,0.015));
+  border:1px solid rgba(212,175,55,0.32);max-width:1200px;width:100%;position:relative;overflow:hidden}
+.highlight-box::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.highlight-text{font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:clamp(1.4rem,2vw,1.75rem);line-height:1.4;color:var(--gold);text-wrap:pretty;font-variation-settings:"opsz" 144,"SOFT" 80;letter-spacing:-0.015em}
+.highlight-text b{font-weight:500;color:var(--gold-hi)}
+
+/* === HERO QUOTE === */
+.hero-quote{
+  font-family:'Fraunces',serif;font-style:italic;font-weight:300;
+  font-size:clamp(1.7rem,2.7vw,2.3rem);line-height:1.38;color:var(--gold);
+  letter-spacing:-0.015em;text-wrap:pretty;max-width:1180px;text-align:center;
+  font-variation-settings:"opsz" 144,"SOFT" 80}
+.hero-quote b{font-weight:500;color:var(--gold-hi)}
+
+/* === PHASE CARD (overview das 3 fases) === */
+.phases-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem;max-width:1400px;width:100%}
+.phase-card{padding:2rem 1.9rem;border-radius:18px;
+  background:linear-gradient(180deg,var(--bg-card),#0a0a14);
+  border:1px solid rgba(255,255,255,0.08);position:relative;overflow:hidden;isolation:isolate}
+.phase-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--gold-lo),var(--gold),var(--gold-hi));opacity:var(--int,0.7)}
+.phase-card:nth-child(1){--int:0.55}
+.phase-card:nth-child(2){--int:0.8}
+.phase-card:nth-child(3){--int:1}
+.phase-num{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(4rem,7vw,6rem);line-height:0.85;color:var(--gold);letter-spacing:-0.04em;font-variation-settings:"opsz" 144;margin-bottom:0.4rem}
+.phase-lbl{font-family:var(--mono);font-size:0.66rem;letter-spacing:0.26em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:0.85rem}
+.phase-name{font-family:var(--serif);font-weight:400;font-size:1.6rem;color:var(--ink);letter-spacing:-0.015em;line-height:1.18;margin-bottom:1rem;font-variation-settings:"opsz" 144}
+.phase-name em{font-style:italic;color:var(--gold)}
+.phase-count{font-family:var(--mono);font-size:0.7rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px dashed rgba(212,175,55,0.2)}
+.phase-count b{color:var(--gold);font-weight:600}
+.phase-encs{display:flex;flex-direction:column;gap:0.4rem;font-size:0.88rem;line-height:1.5;color:var(--ink-soft)}
+.phase-encs .item{display:flex;gap:0.7rem;align-items:flex-start}
+.phase-encs .item .n{font-family:var(--mono);font-size:0.72rem;color:var(--gold);font-weight:600;min-width:24px;padding-top:0.1rem}
+.phase-encs .item .t{flex:1;color:var(--ink)}
+.phase-synth{margin-top:1.1rem;padding-top:1rem;border-top:1px dashed rgba(212,175,55,0.2);
+  font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:0.96rem;line-height:1.5;color:var(--gold-hi);font-variation-settings:"opsz" 96}
+
+/* === ENCOUNTER CARDS (4-5 encontros detalhados) === */
+.encs-list{display:flex;flex-direction:column;gap:0.95rem;max-width:1280px;width:100%}
+.enc-card{display:flex;gap:1.5rem;padding:1.3rem 1.7rem;border-radius:14px;
+  background:linear-gradient(90deg,rgba(212,175,55,0.05),transparent 60%);
+  border:1px solid rgba(255,255,255,0.07);border-left:2px solid rgba(212,175,55,0.5);align-items:flex-start}
+.enc-num{font-family:'Fraunces',serif;font-weight:300;font-size:2.4rem;line-height:1;color:var(--gold);letter-spacing:-0.03em;min-width:56px;font-variation-settings:"opsz" 144}
+.enc-icon{width:44px;height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  border-radius:10px;background:linear-gradient(135deg,rgba(233,196,106,0.14),rgba(233,196,106,0.04));
+  border:1px solid rgba(233,196,106,0.4);color:var(--gold);margin-top:0.2rem}
+.enc-icon svg{width:22px;height:22px}
+.enc-body{flex:1}
+.enc-title{font-family:var(--serif);font-weight:500;font-size:1.25rem;color:var(--gold-hi);letter-spacing:-0.005em;margin-bottom:0.4rem;line-height:1.2;font-variation-settings:"opsz" 96}
+.enc-text{font-size:0.98rem;line-height:1.6;color:var(--ink);text-wrap:pretty}
+.enc-text b, .enc-text strong{color:var(--gold);font-weight:500}
+.enc-text em{font-style:italic;color:var(--gold);font-family:'Fraunces',serif}
+.enc-meta{display:inline-block;margin-top:0.4rem;font-family:var(--mono);font-size:0.66rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);padding:0.3rem 0.7rem;border:1px solid rgba(212,175,55,0.3);border-radius:100px;background:rgba(212,175,55,0.05)}
+
+/* === GROUP CARDS (2 grupos) === */
+.group-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.6rem;max-width:1340px;width:100%}
+.group-card{padding:2rem 2.1rem;border-radius:18px;
+  background:linear-gradient(180deg,var(--bg-card),#0a0a14);
+  border:1px solid rgba(255,255,255,0.08);position:relative;overflow:hidden}
+.group-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.8}
+.group-tag{font-family:var(--mono);font-size:0.68rem;letter-spacing:0.26em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:0.7rem;display:flex;align-items:center;gap:0.55rem}
+.group-tag::before{content:'';width:16px;height:1px;background:var(--gold)}
+.group-title{font-family:var(--serif);font-weight:400;font-size:1.6rem;color:var(--ink);letter-spacing:-0.015em;margin-bottom:1.1rem;line-height:1.2;font-variation-settings:"opsz" 144}
+.group-title em{font-style:italic;color:var(--gold)}
+.group-icon-top{width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:radial-gradient(circle at 30% 30%,rgba(233,196,106,0.2),rgba(233,196,106,0.04) 70%);border:1px solid rgba(233,196,106,0.45);color:var(--gold);margin-bottom:1rem}
+.group-icon-top svg{width:24px;height:24px}
+.group-body{font-size:1rem;line-height:1.62;color:var(--ink-soft);text-wrap:pretty;margin-bottom:1.1rem}
+.group-body b{color:var(--gold);font-weight:500}
+.group-use{padding:0.85rem 1.1rem;border-radius:8px;background:rgba(212,175,55,0.06);border-left:2px solid var(--gold);font-size:0.92rem;line-height:1.55;color:var(--ink);font-style:italic}
+.group-use b{color:var(--gold);font-style:normal;font-weight:600}
+
+/* === COVER === */
+.cover-block{display:flex;flex-direction:column;align-items:center;text-align:center;max-width:1240px}
+.cover-shield{font-family:var(--mono);font-size:0.72rem;letter-spacing:0.34em;text-transform:uppercase;color:var(--gold);margin-bottom:1.4rem;font-weight:600;display:inline-flex;align-items:center;gap:0.8rem;padding:0.55rem 1.3rem;border:1px solid rgba(212,175,55,0.35);border-radius:100px;background:rgba(5,5,10,0.4)}
+.cover-shield::before,.cover-shield::after{content:'';width:18px;height:1px;background:var(--gold)}
+.cover-footer{margin-top:3rem;display:flex;gap:3rem;align-items:center;flex-wrap:wrap;justify-content:center;padding-top:1.6rem;border-top:1px solid rgba(212,175,55,0.22);font-family:var(--mono);font-size:0.68rem;letter-spacing:0.22em;text-transform:uppercase;color:var(--ink-mute)}
+.cover-footer .gold-acc{color:var(--gold)}
+
+/* === BIG NUMBER STATS === */
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:1.3rem;max-width:1240px;width:100%}
+.stat-hero{padding:1.8rem 1.5rem;border:1px solid rgba(212,175,55,0.22);border-radius:18px;
+  background:linear-gradient(180deg,rgba(212,175,55,0.06),rgba(212,175,55,0.01));text-align:center;position:relative;overflow:hidden;isolation:isolate}
+.stat-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(233,196,106,0.14),transparent 60%);z-index:-1}
+.stat-num{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(3rem,5.4vw,4.4rem);line-height:1;color:var(--gold);letter-spacing:-0.03em;font-variation-settings:"opsz" 144,"SOFT" 30;display:block;margin-bottom:0.5rem}
+.stat-lbl{font-family:var(--mono);font-size:0.68rem;letter-spacing:0.24em;text-transform:uppercase;color:var(--ink-soft)}
+
+/* === KPI BOX (regras do jogo) === */
+.kpi-row{display:grid;grid-template-columns:repeat(2,1fr);gap:1.2rem;max-width:1280px;width:100%}
+.kpi-box{padding:1.6rem 1.8rem;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,0.025),rgba(255,255,255,0.008));border:1px solid rgba(255,255,255,0.07);position:relative;overflow:hidden}
+.kpi-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.6}
+.kpi-icon{width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:linear-gradient(135deg,rgba(233,196,106,0.14),rgba(233,196,106,0.04));border:1px solid rgba(233,196,106,0.4);color:var(--gold);margin-bottom:0.95rem}
+.kpi-icon svg{width:22px;height:22px}
+.kpi-title{font-family:var(--serif);font-weight:500;font-size:1.18rem;color:var(--gold-hi);margin-bottom:0.6rem;letter-spacing:-0.005em;font-variation-settings:"opsz" 96}
+.kpi-body{font-size:0.96rem;line-height:1.6;color:var(--ink);text-wrap:pretty}
+.kpi-body b{color:var(--gold);font-weight:500}
+
+/* === MISSION CARDS === */
+.miss-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.6rem;max-width:1340px;width:100%}
+.miss-card{padding:2rem 2.2rem;border-radius:18px;background:linear-gradient(135deg,rgba(212,175,55,0.07),rgba(212,175,55,0.015));border:1px solid rgba(212,175,55,0.3);position:relative;overflow:hidden}
+.miss-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-lo),var(--gold),var(--gold-hi))}
+.miss-num{font-family:'Fraunces',serif;font-weight:300;font-size:clamp(4.5rem,7.5vw,6rem);line-height:0.85;color:var(--gold);letter-spacing:-0.04em;font-variation-settings:"opsz" 144;margin-bottom:0.5rem;display:block}
+.miss-tag{font-family:var(--mono);font-size:0.66rem;letter-spacing:0.26em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:0.6rem}
+.miss-title{font-family:var(--serif);font-weight:400;font-size:1.6rem;color:var(--ink);letter-spacing:-0.015em;margin-bottom:1rem;line-height:1.18;font-variation-settings:"opsz" 144}
+.miss-title em{font-style:italic;color:var(--gold)}
+.miss-body{font-size:1rem;line-height:1.62;color:var(--ink-soft);text-wrap:pretty}
+.miss-body b{color:var(--gold);font-weight:500}
+
+/* === BOOKING (slide 21) === */
+.book-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.6rem;max-width:1340px;width:100%}
+.book-meta{padding:1.7rem 1.9rem;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,0.025),rgba(255,255,255,0.008));border:1px solid rgba(255,255,255,0.07)}
+.book-meta-lbl{font-family:var(--mono);font-size:0.66rem;letter-spacing:0.26em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:1rem;display:flex;align-items:center;gap:0.55rem}
+.book-meta-lbl::before{content:'';width:16px;height:1px;background:var(--gold)}
+.book-row{display:flex;justify-content:space-between;align-items:baseline;padding:0.85rem 0;border-bottom:1px solid rgba(212,175,55,0.12);font-size:1rem}
+.book-row:last-child{border-bottom:none}
+.book-row .k{font-family:var(--mono);font-size:0.72rem;color:var(--ink-mute);letter-spacing:0.16em;text-transform:uppercase}
+.book-row .v{font-family:'Fraunces',serif;color:var(--gold);font-size:1.1rem;letter-spacing:-0.005em;font-variation-settings:"opsz" 96}
+.book-row .v.dash{font-family:var(--mono);color:var(--ink-mute);letter-spacing:0.18em;font-size:0.95rem}
+
+/* === RESPONSIVE === */
+@media (max-width:980px){
+  .arsenal-grid,.arsenal-grid--2,.arsenal-grid--4,.arsenal-grid--5,.pillars-row,.phases-grid,.group-grid,.kpi-row,.miss-grid,.book-grid{grid-template-columns:1fr}
+  .stat-row{grid-template-columns:1fr 1fr}
+}
+
+/* === PRINT MODE === */
+@media print {
+  @page { size: 1920px 1080px; margin: 0; }
+  html, body { background: #05050a !important; margin: 0 !important; padding: 0 !important;
+    width: 1920px !important; height: auto !important; overflow: visible !important;
+    -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .progress, .counter, .nav-hint, .nav-arrows, #stage-canvas, .grain { display: none !important; }
+  .deck { position: static !important; width: 1920px !important; height: auto !important; display: block !important; }
+  .slide { position: relative !important; inset: auto !important;
+    width: 1920px !important; height: 1080px !important;
+    opacity: 1 !important; visibility: visible !important; display: flex !important;
+    align-items: center !important; justify-content: center !important;
+    padding: clamp(2.5rem,5vh,5rem) clamp(3.5rem,7vw,8rem) !important;
+    overflow: hidden !important; page-break-after: always; break-after: page; }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+  .reveal, .title-split .w { opacity: 1 !important; transform: none !important; filter: none !important; visibility: visible !important; animation: none !important; transition: none !important; }
+  .stage-bg { position: absolute !important; inset: 0 !important; }
+  .stage { position: relative !important; width: 100% !important; height: 100% !important; max-width: 1500px !important; z-index: 5 !important; }
+  .aurora, .spotlight, .stage-floor, .wave-horizon { filter: none !important; mix-blend-mode: normal !important; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="stage-canvas"></canvas>
+<div class="grain"></div>
+
+<div class="progress"><div class="progress-fill"></div></div>
+<div class="counter"><span class="counter-dot"></span><span class="counter-num">01 / 20</span></div>
+<div class="nav-hint">&#8592; &#8594; &middot; ESPA&Ccedil;O &middot; SWIPE</div>
+<button class="nav-arrows nav-prev" aria-label="Anterior">&lsaquo;</button>
+<button class="nav-arrows nav-next" aria-label="Pr&oacute;ximo">&rsaquo;</button>
+
+<div class="deck" id="deck">
+
+<!-- ═════════════ 01 · CAPA ═════════════ -->
+<section class="slide" data-screen-label="01 Capa">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--left" style="--sl-color:rgba(233,196,106,0.28);left:0%;width:38%"></div>
+    <div class="spotlight spotlight--right" style="--sl-color:rgba(233,196,106,0.22);right:0%;width:38%"></div>
+    <div class="stage-floor" style="--floor-color:rgba(233,196,106,0.45)"></div>
+    <div class="wave-horizon"></div>
+  </div>
+  <div class="stage stage--center">
+    <img src="assets/logo-flg.png" alt="FLG Brasil" class="flg-mark reveal d0">
+    <div class="cover-block">
+      <div class="cover-shield reveal d1">F &middot; Founders Led Growth</div>
+      <div class="eyebrow reveal d2" style="justify-content:center">A jornada Business Strategists</div>
+      <h1 class="d-mega reveal d3" style="max-width:1280px;margin-top:0.5rem">
+        Onboarding da <em>Jornada</em>.
+      </h1>
+      <p class="d-md reveal d4" style="color:var(--ink-soft);margin-top:1.5rem;max-width:1020px;text-align:center;text-wrap:balance">
+        O in&iacute;cio do caminho que transforma o <em style="color:var(--gold);font-family:var(--serif)">Founder em refer&ecirc;ncia</em>.
+      </p>
+      <div class="gold-divider gold-divider--thick reveal d5" style="margin-top:2.5rem">
+        <div class="line"></div><div class="dot"></div><div class="line"></div>
+      </div>
+      <div class="cover-footer reveal d6">
+        <span class="gold-acc">Nosso escudo, nossa prote&ccedil;&atilde;o</span>
+        <span style="opacity:0.4">&middot;</span>
+        <span style="font-style:italic;font-family:var(--serif)">Ditando o mercado moderno</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 02 · O QUE É A FLG ═════════════ -->
+<section class="slide" data-screen-label="02 O que e a FLG">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.22);width:65%;left:17.5%"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">O que &eacute; a FLG</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.4rem">
+      O <em>Founder</em> como o maior canal de aquisi&ccedil;&atilde;o do pr&oacute;prio neg&oacute;cio.
+    </h2>
+    <p class="body-lg reveal d2" style="max-width:1280px;font-size:1.06rem;line-height:1.7;margin-bottom:2rem">
+      Os modelos tradicionais de crescimento, orientados a produto, a vendas e a marketing, est&atilde;o em esgotamento. A FLG antecipa a pr&oacute;xima onda do mercado: o <strong style="color:var(--gold)">Founders Led Growth</strong>, no qual a autoridade, a trajet&oacute;ria e a presen&ccedil;a do fundador se tornam o ativo central da marca.
+    </p>
+    <div class="pillars-row reveal d3">
+      <div class="pillar-card">
+        <div class="pillar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg></div>
+        <div class="pillar-num">Pilar 01</div>
+        <div class="pillar-name">Posicionamento <em>profissional</em></div>
+        <div class="pillar-desc">Assumir, com m&eacute;todo, o lugar de <b>autoridade que o mercado j&aacute; reconhece em voc&ecirc;</b>.</div>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l3 7h7l-6 4 2 7-6-4-6 4 2-7-6-4h7z"/></svg></div>
+        <div class="pillar-num">Pilar 02</div>
+        <div class="pillar-name">Autoridade <em>consolidada</em></div>
+        <div class="pillar-desc">Ser percebido como <b>refer&ecirc;ncia</b> pelo seu mercado e pelos seus concorrentes, e n&atilde;o como &ldquo;mais um&rdquo;.</div>
+      </div>
+      <div class="pillar-card">
+        <div class="pillar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></div>
+        <div class="pillar-num">Pilar 03</div>
+        <div class="pillar-name">Novo canal <em>vivo</em></div>
+        <div class="pillar-desc">Um <b>canal de aquisi&ccedil;&atilde;o sustent&aacute;vel</b>, conectado diretamente ao crescimento do seu neg&oacute;cio.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 03 · O QUE VOCÊ COMPROU ═════════════ -->
+<section class="slide" data-screen-label="03 O que voce comprou">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.2);width:60%;left:20%"></div>
+    <div class="stage-floor" style="--floor-color:rgba(233,196,106,0.3)"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">O que voc&ecirc; comprou</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.6rem">
+      Seis meses. Quinze encontros. <em>Um plano</em> desenhado encontro a encontro.
+    </h2>
+    <div class="stat-row reveal d2" style="margin-bottom:2rem">
+      <div class="stat-hero"><span class="stat-num">06</span><span class="stat-lbl">Meses</span></div>
+      <div class="stat-hero"><span class="stat-num">15</span><span class="stat-lbl">Encontros</span></div>
+      <div class="stat-hero"><span class="stat-num">03</span><span class="stat-lbl">Fases sequenciais</span></div>
+    </div>
+    <div class="reveal d3" style="display:grid;grid-template-columns:1fr 1.2fr;gap:2.2rem;width:100%;max-width:1440px;align-items:start">
+      <p class="body-lg" style="font-size:1.06rem;line-height:1.7">
+        Voc&ecirc; embarca em uma <strong style="color:var(--gold)">jornada estruturada de ponta a ponta</strong>. Cada encontro tem um prop&oacute;sito espec&iacute;fico, porque nada acontece no improviso. Ao final, voc&ecirc; ter&aacute; <em style="color:var(--gold);font-family:var(--serif)">posicionamento profissional, autoridade digital e um canal de aquisi&ccedil;&atilde;o ativo liderado por voc&ecirc;</em>.
+      </p>
+      <div class="entries">
+        <div class="entry">
+          <div class="entry-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+          <div class="entry-text"><span class="entry-title">Mapear e organizar.</span>Compreender quem voc&ecirc; &eacute;, decodificar o seu mercado e estruturar a base antes de se mostrar.</div>
+        </div>
+        <div class="entry">
+          <div class="entry-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6M9 14l2 2 4-4"/></svg></div>
+          <div class="entry-text"><span class="entry-title">Planejar e comunicar.</span>Um planejamento estrat&eacute;gico completo e uma comunica&ccedil;&atilde;o assertiva para <b>cada n&iacute;vel de consci&ecirc;ncia</b>.</div>
+        </div>
+        <div class="entry">
+          <div class="entry-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div>
+          <div class="entry-text"><span class="entry-title">Executar e monitorar.</span>A FLG assume a execu&ccedil;&atilde;o das pe&ccedil;as cruciais e, a cada ciclo, <b>validamos e otimizamos juntos</b>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 04 · POR QUE POSICIONAMENTO IMPORTA ═════════════ -->
+<section class="slide" data-screen-label="04 Posicionamento importa">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.26);width:62%;left:19%"></div>
+    <div class="stage-floor" style="--floor-color:rgba(233,196,106,0.35)"></div>
+  </div>
+  <div class="stage stage--center">
+    <div class="eyebrow reveal">Por que posicionamento importa</div>
+    <div class="highlight-box reveal d1" style="margin-bottom:2.4rem;max-width:1280px;padding:2.2rem 2.6rem">
+      <p class="highlight-text">N&atilde;o basta produzir mais um v&iacute;deo bem feito. Comunicamos para <b>cada n&iacute;vel de consci&ecirc;ncia</b> do seu p&uacute;blico, para que a percep&ccedil;&atilde;o de autoridade seja <b>inevit&aacute;vel</b>.</p>
+    </div>
+    <p class="body-lg reveal d2" style="max-width:1100px;text-align:center;text-wrap:pretty;font-size:1.1rem;line-height:1.7">
+      Quanto mais o mercado compreende a raz&atilde;o por tr&aacute;s das decis&otilde;es do seu p&uacute;blico, mais for&ccedil;a o seu posicionamento ganha. <em style="color:var(--gold);font-family:var(--serif)">&Eacute; isso que separa quem &eacute; seguido de quem &eacute; apenas visto.</em>
+    </p>
+  </div>
+</section>
+
+<!-- ═════════════ 05 · A CORRESPONSABILIDADE ═════════════ -->
+<section class="slide" data-screen-label="05 Corresponsabilidade">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--left" style="--sl-color:rgba(233,196,106,0.22)"></div>
+    <div class="spotlight spotlight--right" style="--sl-color:rgba(233,196,106,0.22)"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">A regra que sustenta tudo</div>
+    <h2 class="d-mega reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:2rem">
+      N&oacute;s guiamos. <em>Voc&ecirc; executa</em> com excel&ecirc;ncia.
+    </h2>
+    <p class="body-lg reveal d2" style="max-width:1240px;font-size:1.08rem;line-height:1.72;margin-bottom:1.8rem">
+      A estrat&eacute;gia &eacute; profundamente fundamentada, mas s&oacute; se converte em resultado quando <strong style="color:var(--gold)">a pessoa por tr&aacute;s dela a aplica</strong>. Por isso, a jornada &eacute; uma corresponsabilidade: a FLG entrega o direcionamento e a execu&ccedil;&atilde;o das pe&ccedil;as cruciais, e voc&ecirc; assume o protagonismo na aplica&ccedil;&atilde;o e na revis&atilde;o do que &eacute; produzido. <em style="color:var(--gold);font-family:var(--serif)">Ningu&eacute;m conhece o seu neg&oacute;cio melhor do que voc&ecirc;</em>, e o seu envolvimento &eacute; parte do m&eacute;todo.
+    </p>
+    <div class="highlight-box reveal d3" style="margin-top:1rem;max-width:1240px">
+      <p class="highlight-text" style="font-size:clamp(1.5rem,2.2vw,1.85rem)">Voc&ecirc; <b>n&atilde;o terceiriza</b> o protagonismo. Voc&ecirc; <b>se posiciona</b> com ele.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 06 · A IMPORTÂNCIA DE SEGUIR A JORNADA ═════════════ -->
+<section class="slide" data-screen-label="06 Importancia jornada">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.18);width:60%;left:20%"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">A import&acirc;ncia de seguir a jornada</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.4rem">
+      Cada fase prepara a pr&oacute;xima. <em>A ordem</em> &eacute; o que protege o seu resultado.
+    </h2>
+    <p class="body-lg reveal d2" style="max-width:1280px;font-size:1.02rem;line-height:1.7;margin-bottom:1.3rem">
+      A jornada foi desenhada como uma <strong style="color:var(--gold)">sequ&ecirc;ncia l&oacute;gica</strong>, na qual cada encontro constr&oacute;i a base do encontro seguinte. Respeitar essa ordem, cumprir os prazos e realizar as tarefas &eacute; o que transforma esfor&ccedil;o em resultado consistente, porque antecipar ou pular etapas compromete tudo o que vem depois.
+    </p>
+    <p class="body-md reveal d3" style="max-width:1280px;font-size:0.98rem;line-height:1.7;margin-bottom:1.8rem;color:var(--ink-soft)">
+      Isso exige corresponsabilidade, mas n&atilde;o significa caminhar sozinho. O seu <strong style="color:var(--gold)">Consultor Estrat&eacute;gico</strong> permanece sempre atento ao seu momento, pronto para trazer as melhores solu&ccedil;&otilde;es de acordo com o contexto real do seu neg&oacute;cio, ajustando o ritmo e as prioridades sem que voc&ecirc; perca a dire&ccedil;&atilde;o.
+    </p>
+    <div class="arsenal-grid reveal d4">
+      <div class="arsenal-card">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6h18M3 12h18M3 18h18"/><circle cx="6" cy="6" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="18" cy="18" r="1.5" fill="currentColor"/></svg></div>
+        <div class="arsenal-title"><em>Sequ&ecirc;ncia</em></div>
+        <div class="arsenal-desc">Confie na <strong>ordem dos encontros</strong>, porque ela existe por um motivo.</div>
+      </div>
+      <div class="arsenal-card">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l4-4M3 12l4 4M7 8l5 5 9-9M7 16l5 1 9 0"/></svg></div>
+        <div class="arsenal-title"><em>Const&acirc;ncia</em></div>
+        <div class="arsenal-desc">O resultado vem da <strong>soma das etapas bem executadas</strong>, e n&atilde;o de um &uacute;nico movimento.</div>
+      </div>
+      <div class="arsenal-card">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 6l3 6-3 6-3-6z" fill="currentColor"/></svg></div>
+        <div class="arsenal-title"><em>Dire&ccedil;&atilde;o</em></div>
+        <div class="arsenal-desc">A cada passo, o seu <strong>Consultor calibra</strong> a estrat&eacute;gia ao seu momento.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 07 · QUEM CAMINHA COM VOCÊ ═════════════ -->
+<section class="slide" data-screen-label="07 Quem caminha">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--left" style="--sl-color:rgba(233,196,106,0.18)"></div>
+    <div class="spotlight spotlight--right" style="--sl-color:rgba(233,196,106,0.18)"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">Quem caminha com voc&ecirc;</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.8rem">
+      Um time <em>multidisciplinar</em> por tr&aacute;s de cada decis&atilde;o.
+    </h2>
+    <div class="arsenal-grid arsenal-grid--4 reveal d2">
+      <div class="arsenal-card">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="3"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/><circle cx="18" cy="6" r="2"/><path d="M19 8l-1 2 2-1"/></svg></div>
+        <div class="arsenal-num">Time &middot; 01</div>
+        <div class="arsenal-title">Consultor <em>Estrat&eacute;gico</em></div>
+        <div class="arsenal-desc">Conduz a sua jornada <strong>do in&iacute;cio ao fim</strong>, &eacute; o seu ponto focal e o respons&aacute;vel por executar o planejamento estrat&eacute;gico junto com voc&ecirc;. Mant&eacute;m-se atento ao seu momento para trazer a melhor solu&ccedil;&atilde;o em cada etapa.</div>
+      </div>
+      <div class="arsenal-card">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3a3 3 0 016 0v1a4 4 0 014 4v0a4 4 0 01-1 2.6V13a4 4 0 01-3 4v3h-4v-3a4 4 0 01-3-4v-2.4A4 4 0 015 8v0a4 4 0 014-4z"/></svg></div>
+        <div class="arsenal-num">Time &middot; 02</div>
+        <div class="arsenal-title"><em>Estrategista</em></div>
+        <div class="arsenal-desc">Aporta <strong>vis&atilde;o multidisciplinar</strong> e profundidade estrat&eacute;gica. Conduz o Mapeamento e, no Planejamento Estrat&eacute;gico, atua junto com o Consultor.</div>
+      </div>
+      <div class="arsenal-card">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 4l4 4m-4-4l-7 7-2 7 7-2 7-7-5-5z"/><path d="M11 7l6 6"/></svg></div>
+        <div class="arsenal-num">Time &middot; 03</div>
+        <div class="arsenal-title"><em>Assessoria</em></div>
+        <div class="arsenal-desc">O <strong>bra&ccedil;o de execu&ccedil;&atilde;o</strong>, composto por copy, design, web e audiovisual, acionado exclusivamente pela ordem do seu Consultor.</div>
+      </div>
+      <div class="arsenal-card">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="8" r="3"/><path d="M3 21c0-4 4-7 7-7s7 3 7 7"/><path d="M19 3l0.9 2.1L22 6l-2.1 0.9L19 9l-0.9-2.1L16 6l2.1-0.9z" fill="currentColor" stroke="none"/></svg></div>
+        <div class="arsenal-num">Time &middot; 04</div>
+        <div class="arsenal-title">Experi&ecirc;ncia do <em>Cliente</em></div>
+        <div class="arsenal-desc">Conduz a sua experi&ecirc;ncia ao longo da Jornada: <strong>agendamento e confirma&ccedil;&otilde;es</strong> dos encontros, alinhamento de expectativas, respostas nos grupos, <strong>coleta de feedbacks</strong> e acompanhamento do que voc&ecirc; est&aacute; sentindo. Centraliza tamb&eacute;m links, relat&oacute;rio e banco de dados.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 08 · A JORNADA, VISÃO GERAL ═════════════ -->
+<section class="slide" data-screen-label="08 Jornada visao geral">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.22);width:65%;left:17.5%"></div>
+    <div class="stage-floor" style="--floor-color:rgba(233,196,106,0.32)"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">A jornada, vis&atilde;o geral</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.8rem">
+      Tr&ecirc;s fases. <em>Um movimento cont&iacute;nuo</em> de consolidar, expandir e escalar.
+    </h2>
+    <div class="phases-grid reveal d2">
+      <div class="phase-card">
+        <div class="phase-num">01</div>
+        <div class="phase-lbl">Fase de Consolida&ccedil;&atilde;o</div>
+        <div class="phase-name"><em>Consolida&ccedil;&atilde;o</em></div>
+        <div class="phase-count">Encontros <b>1 a 9</b></div>
+        <div class="phase-encs">
+          <div class="item"><span class="n">01</span><span class="t">Onboarding</span></div>
+          <div class="item"><span class="n">02</span><span class="t">Mapeamento Estrat&eacute;gico</span></div>
+          <div class="item"><span class="n">03</span><span class="t">Organiza&ccedil;&atilde;o</span></div>
+          <div class="item"><span class="n">04</span><span class="t">Planejamento Estrat&eacute;gico</span></div>
+          <div class="item"><span class="n">05</span><span class="t">Valida&ccedil;&atilde;o de M&iacute;dias</span></div>
+          <div class="item"><span class="n">06</span><span class="t">Estrutura da Campanha Piloto</span></div>
+          <div class="item"><span class="n">07</span><span class="t">In&iacute;cio da Capta&ccedil;&atilde;o da Campanha Piloto</span></div>
+          <div class="item"><span class="n">08</span><span class="t">Otimiza&ccedil;&atilde;o da Campanha Piloto</span></div>
+          <div class="item"><span class="n">09</span><span class="t">Reflow 01 &mdash; In&iacute;cio da Expans&atilde;o</span></div>
+        </div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-num">02</div>
+        <div class="phase-lbl">Fase de Expans&atilde;o</div>
+        <div class="phase-name"><em>Expans&atilde;o</em></div>
+        <div class="phase-count">Encontros <b>9 a 12</b></div>
+        <div class="phase-encs">
+          <div class="item"><span class="n">10</span><span class="t">In&iacute;cio da Capta&ccedil;&atilde;o Canais Expans&atilde;o</span></div>
+          <div class="item"><span class="n">11</span><span class="t">Valida&ccedil;&atilde;o e Otimiza&ccedil;&atilde;o da Expans&atilde;o</span></div>
+          <div class="item"><span class="n">12</span><span class="t">Debriefing + Reflow 02 &mdash; Etapa de Escala</span></div>
+        </div>
+        <div class="phase-synth">Ativar novos canais sobre um posicionamento j&aacute; validado e desenhar o plano de escala.</div>
+      </div>
+      <div class="phase-card">
+        <div class="phase-num">03</div>
+        <div class="phase-lbl">Fase de Escala</div>
+        <div class="phase-name"><em>Escala</em></div>
+        <div class="phase-count">Encontros <b>12 a 15</b></div>
+        <div class="phase-encs">
+          <div class="item"><span class="n">13</span><span class="t">In&iacute;cio da Capta&ccedil;&atilde;o Canais Escala</span></div>
+          <div class="item"><span class="n">14</span><span class="t">Valida&ccedil;&atilde;o e Otimiza&ccedil;&atilde;o da Escala</span></div>
+          <div class="item"><span class="n">15</span><span class="t">Debriefing Final da Jornada + Novo Ciclo</span></div>
+        </div>
+        <div class="phase-synth">Maximizar o que funciona, fortalecer os canais ativos e tra&ccedil;ar a expans&atilde;o seguinte.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 09 · FASE 01 · ENCONTROS 1 A 4 ═════════════ -->
+<section class="slide" data-screen-label="09 Fase 01 Enc 1-4">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--left" style="--sl-color:rgba(233,196,106,0.2)"></div>
+  </div>
+  <div class="stage">
+    <div class="sec-badge reveal">Fase 01 &middot; Consolida&ccedil;&atilde;o &middot; Encontros 1 a 4</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1rem">
+      O <em>primeiro m&ecirc;s</em>: estruturar a base antes de se mostrar ao mercado.
+    </h2>
+    <p class="body-md reveal d2" style="max-width:1180px;margin-bottom:1.6rem;font-family:'Fraunces',serif;font-style:italic;color:var(--gold);font-size:1.1rem;font-variation-settings:'opsz' 96">
+      Ritmo: <b style="font-weight:500">semanal</b>.
+    </p>
+    <div class="encs-list reveal d3">
+      <div class="enc-card">
+        <div class="enc-num">01</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-6 9 6v12H3z"/><path d="M9 21V12h6v9"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Onboarding</div>
+          <div class="enc-text">Alinhamento de expectativas, clareza total da jornada, defini&ccedil;&atilde;o das regras do jogo e entrega das primeiras miss&otilde;es. <em>&Eacute; hoje.</em></div>
+        </div>
+      </div>
+      <div class="enc-card">
+        <div class="enc-num">02</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Mapeamento Estrat&eacute;gico</div>
+          <div class="enc-text">A sua conversa mais profunda com o <b>Estrategista</b>. &Eacute; o momento de falar o m&aacute;ximo poss&iacute;vel sobre voc&ecirc; e sobre a empresa, porque &eacute; desse material que nasce todo o posicionamento. <em>Quanto mais voc&ecirc; compartilha, mais preciso ser&aacute; o plano.</em></div>
+          <span class="enc-meta">cerca de 2h</span>
+        </div>
+      </div>
+      <div class="enc-card">
+        <div class="enc-num">03</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Organiza&ccedil;&atilde;o</div>
+          <div class="enc-text">Estrutura&ccedil;&atilde;o da <b>presen&ccedil;a digital</b>: site, dom&iacute;nio, redes e identidade, com direcionamento de web design.</div>
+        </div>
+      </div>
+      <div class="enc-card">
+        <div class="enc-num">04</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v4M12 18v4M4 12H2M22 12h-2M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/><circle cx="12" cy="12" r="4"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Planejamento Estrat&eacute;gico</div>
+          <div class="enc-text">O <b>cora&ccedil;&atilde;o da jornada</b>. Estudo de mercado e do comportamento do p&uacute;blico. Aqui o <b>Estrategista atua junto com o Consultor</b>.</div>
+          <span class="enc-meta">cerca de 2h a 3h</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 10 · FASE 01 · ENCONTROS 5 A 9 ═════════════ -->
+<section class="slide" data-screen-label="10 Fase 01 Enc 5-9">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--right" style="--sl-color:rgba(233,196,106,0.2)"></div>
+  </div>
+  <div class="stage">
+    <div class="sec-badge reveal">Fase 01 &middot; Consolida&ccedil;&atilde;o &middot; Encontros 5 a 9</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1rem">
+      A partir daqui, o ciclo passa a ser <em>quinzenal</em>: executar, retornar com feedback, otimizar.
+    </h2>
+    <p class="body-md reveal d2" style="max-width:1180px;margin-bottom:1.4rem;font-family:'Fraunces',serif;font-style:italic;color:var(--gold);font-size:1.1rem;font-variation-settings:'opsz' 96">
+      Ritmo: <b style="font-weight:500">quinzenal</b>.
+    </p>
+    <div class="encs-list reveal d3">
+      <div class="enc-card">
+        <div class="enc-num">05</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M21 8l-4 3v2l4 3z" fill="currentColor"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Valida&ccedil;&atilde;o de M&iacute;dias</div>
+          <div class="enc-text">Valida&ccedil;&atilde;o dos primeiros <b>roteiros, criativos e linha editorial</b>. Come&ccedil;a a produ&ccedil;&atilde;o real, com intencionalidade.</div>
+        </div>
+      </div>
+      <div class="enc-card">
+        <div class="enc-num">06</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16v14H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Estrutura da Campanha Piloto</div>
+          <div class="enc-text">A estrutura da Campanha Piloto culmina em um <b>evento presencial ou webin&aacute;rio</b> de 2 horas, onde o p&uacute;blico vive a experi&ecirc;ncia ao inv&eacute;s de s&oacute; ouvir o conceito. Voc&ecirc; sai com clareza sobre o formato, a oferta, o criativo e o funil que v&atilde;o sustentar a campanha.</div>
+        </div>
+      </div>
+      <div class="enc-card">
+        <div class="enc-num">07</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2c4 0 6 4 6 8 0 4-2 6-6 8-4-2-6-4-6-8 0-4 2-8 6-8z"/><circle cx="12" cy="9" r="2"/><path d="M8 18l-2 4M16 18l2 4"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">In&iacute;cio da Capta&ccedil;&atilde;o da Campanha Piloto</div>
+          <div class="enc-text">A capta&ccedil;&atilde;o n&atilde;o &eacute; gravar v&iacute;deos pra postar, &eacute; <b>construir presen&ccedil;a m&aacute;xima com voc&ecirc; como protagonista</b>. Voc&ecirc; sai com clareza de por que cada pe&ccedil;a importa e por que a sua presen&ccedil;a em c&acirc;mera baixa o custo da pr&oacute;xima convers&atilde;o.</div>
+        </div>
+      </div>
+      <div class="enc-card">
+        <div class="enc-num">08</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Otimiza&ccedil;&atilde;o da Campanha Piloto</div>
+          <div class="enc-text">Olhamos pra tr&aacute;s, para o que rodou nas semanas anteriores, e preparamos pra frente, a sua performance no palco. Voc&ecirc; sai entendendo <b>o que &eacute; otimizar de verdade</b> e por que cada detalhe visual e de presen&ccedil;a ser&aacute; lido pelo p&uacute;blico em milissegundos.</div>
+        </div>
+      </div>
+      <div class="enc-card">
+        <div class="enc-num">09</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 21V5l5-3 6 3 5-3v16l-5 3-6-3-5 3z"/><path d="M9 2v19M15 5v19"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Reflow 01 &mdash; In&iacute;cio da Expans&atilde;o</div>
+          <div class="enc-text">Validamos o debriefing da piloto e apresentamos a virada de <b>campanha pontual para persegui&ccedil;&atilde;o cont&iacute;nua de marca</b>. Voc&ecirc; sai com clareza de que, a partir de agora, n&atilde;o roda mais uma campanha por vez, entra em modo de presen&ccedil;a sist&ecirc;mica.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 11 · FASE 02 · ENCONTROS 9 A 12 ═════════════ -->
+<section class="slide" data-screen-label="11 Fase 02 Expansao">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.22);width:62%;left:19%"></div>
+    <div class="stage-floor" style="--floor-color:rgba(233,196,106,0.3)"></div>
+  </div>
+  <div class="stage">
+    <div class="sec-badge reveal">Fase 02 &middot; Expans&atilde;o &middot; Encontros 9 a 12</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.2rem">
+      Ampliar o alcance sobre uma <em>base j&aacute; validada</em>.
+    </h2>
+    <p class="body-lg reveal d2" style="max-width:1280px;font-size:1.05rem;line-height:1.7;margin-bottom:2rem">
+      Com o posicionamento consolidado, abrimos novos canais e ampliamos a presen&ccedil;a, sempre dentro do fluxo de <strong style="color:var(--gold)">testar, retornar com feedback e otimizar</strong>.
+    </p>
+    <div class="encs-list reveal d3">
+      <div class="enc-card">
+        <div class="enc-num">10</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M2 12h20M5 5l14 14M19 5L5 19"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">In&iacute;cio da Capta&ccedil;&atilde;o Canais Expans&atilde;o</div>
+          <div class="enc-text">A capta&ccedil;&atilde;o agora alimenta <b>m&uacute;ltiplos canais ao mesmo tempo</b>, e isso n&atilde;o significa triplicar o tempo de grava&ccedil;&atilde;o, mas gravar com mais intencionalidade. Voc&ecirc; sai com clareza sobre efici&ecirc;ncia de produ&ccedil;&atilde;o e o seu papel como ponto fixo que se multiplica pelo sistema.</div>
+        </div>
+      </div>
+      <div class="enc-card">
+        <div class="enc-num">11</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Valida&ccedil;&atilde;o e Otimiza&ccedil;&atilde;o da Expans&atilde;o</div>
+          <div class="enc-text">Primeira <b>an&aacute;lise cruzada entre canais</b>, n&atilde;o para ranquear qual &eacute; melhor, mas para ler como eles se influenciam. Voc&ecirc; sai entendendo como um canal ensina sobre o outro e por que n&atilde;o podem ser cancelados prematuramente.</div>
+        </div>
+      </div>
+      <div class="enc-card">
+        <div class="enc-num">12</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 21V5l5-3 6 3 5-3v16l-5 3-6-3-5 3z"/><path d="M9 2v19M15 5v19"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Debriefing + Reflow 02 &mdash; Etapa de Escala</div>
+          <div class="enc-text">O debriefing consolidado da Expans&atilde;o e a apresenta&ccedil;&atilde;o da Etapa de Escala. Voc&ecirc; sai com a vis&atilde;o completa do que foi constru&iacute;do e com clareza de que o sistema deixa de ser <b>operar canais</b> e passa a ser <b>ocupar segmento</b>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 12 · FASE 03 · ENCONTROS 12 A 15 ═════════════ -->
+<section class="slide" data-screen-label="12 Fase 03 Escala">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.28);width:62%;left:19%"></div>
+    <div class="stage-floor" style="--floor-color:rgba(233,196,106,0.4)"></div>
+    <div class="wave-horizon"></div>
+  </div>
+  <div class="stage">
+    <div class="sec-badge reveal">Fase 03 &middot; Escala &middot; Encontros 12 a 15</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.2rem">
+      De autoridade a <em>refer&ecirc;ncia regional</em>, com canais ativos e sustent&aacute;veis.
+    </h2>
+    <p class="body-lg reveal d2" style="max-width:1280px;font-size:1.05rem;line-height:1.7;margin-bottom:2rem">
+      A <strong style="color:var(--gold)">reta final</strong> maximiza o que funciona, fortalece os canais de aquisi&ccedil;&atilde;o e prepara o pr&oacute;ximo cap&iacute;tulo do seu crescimento.
+    </p>
+    <div class="encs-list reveal d3">
+      <div class="enc-card">
+        <div class="enc-num">13</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">In&iacute;cio da Capta&ccedil;&atilde;o Canais Escala</div>
+          <div class="enc-text">A capta&ccedil;&atilde;o entra em <b>modo de escala</b>: volume alto sem perder qualidade, autenticidade em velocidade maior. Voc&ecirc; sai com clareza de que escalar produ&ccedil;&atilde;o n&atilde;o &eacute; repetir mais, &eacute; usar o mesmo m&eacute;todo em volume maior sem desgaste.</div>
+        </div>
+      </div>
+      <div class="enc-card">
+        <div class="enc-num">14</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l5 5 13-13"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Valida&ccedil;&atilde;o e Otimiza&ccedil;&atilde;o da Escala</div>
+          <div class="enc-text">&Uacute;ltima rodada de otimiza&ccedil;&atilde;o antes do encerramento da Jornada. Voc&ecirc; sai com clareza de que <b>otimizar nessa fase &eacute; refinar, n&atilde;o reconstruir</b>, com o mapa de maturidade dos canais em m&atilde;os.</div>
+        </div>
+      </div>
+      <div class="enc-card">
+        <div class="enc-num">15</div>
+        <div class="enc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6M8 14h8M8 18h5"/></svg></div>
+        <div class="enc-body">
+          <div class="enc-title">Debriefing Final da Jornada + Novo Ciclo</div>
+          <div class="enc-text"><b>Fechamento completo da Jornada.</b> Voc&ecirc; v&ecirc; o que foi constru&iacute;do nesses 6 meses, sente o impacto real do que mudou, e abre a possibilidade de um <b>novo ciclo com a FLG Brasil</b>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 13 · OS DOIS GRUPOS ═════════════ -->
+<section class="slide" data-screen-label="13 Os dois grupos">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--left" style="--sl-color:rgba(233,196,106,0.18)"></div>
+    <div class="spotlight spotlight--right" style="--sl-color:rgba(233,196,106,0.18)"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">Os dois grupos</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.6rem">
+      Dois canais, <em>fun&ccedil;&otilde;es complementares</em>.
+    </h2>
+    <div class="group-grid reveal d2" style="margin-bottom:1.4rem">
+      <div class="group-card">
+        <div class="group-icon-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9h.5a8.5 8.5 0 018 8v.5z"/></svg></div>
+        <div class="group-tag">Grupo 01</div>
+        <div class="group-title"><em>Estrat&eacute;gia</em></div>
+        <div class="group-body">O <b>canal direto</b> com o seu Consultor e o time do projeto. &Eacute; onde acontecem os alinhamentos, avisos, d&uacute;vidas, atualiza&ccedil;&otilde;es e o envio de materiais pontuais do dia a dia.</div>
+        <div class="group-use"><b>Use para:</b> falar com a estrat&eacute;gia, esclarecer d&uacute;vidas e enviar os seus materiais.</div>
+      </div>
+      <div class="group-card">
+        <div class="group-icon-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19V5a2 2 0 012-2h10l4 4v12a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg></div>
+        <div class="group-tag">Grupo 02</div>
+        <div class="group-title"><em>Assessoria</em></div>
+        <div class="group-body">Acesso r&aacute;pido aos <b>documentos do seu projeto</b>: relat&oacute;rio de entregas, banco de dados no Drive, links importantes e avisos formais. Comunica&ccedil;&atilde;o mais pontual e institucional.</div>
+        <div class="group-use"><b>Use para:</b> acessar entregas, links e o relat&oacute;rio de entregas do projeto.</div>
+      </div>
+    </div>
+    <div class="highlight-box reveal d3" style="max-width:1340px">
+      <p class="highlight-text" style="font-size:1.2rem">Para <b>otimizar o fluxo</b>, centralize os seus pedidos de ajuste em uma <b>ordem &uacute;nica</b>, porque cada ida e volta adicional representa mais tempo de retrabalho do time.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 14 · A ASSESSORIA, O NOSSO DIFERENCIAL ═════════════ -->
+<section class="slide" data-screen-label="14 Assessoria">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.2);width:60%;left:20%"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">A assessoria, o nosso diferencial</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.2rem">
+      A <em>mesma equipe</em> que pensa a estrat&eacute;gia executa as entregas.
+    </h2>
+    <p class="body-lg reveal d2" style="max-width:1280px;font-size:1.04rem;line-height:1.7;margin-bottom:1.8rem">
+      Voc&ecirc; <strong style="color:var(--gold)">n&atilde;o precisa montar e gerenciar fornecedores</strong>. Tudo &eacute; acionado por uma <em style="color:var(--gold);font-family:var(--serif)">ordem &uacute;nica e exclusiva do seu Consultor</em>, sempre alinhada ao Planejamento Estrat&eacute;gico.
+    </p>
+    <div class="arsenal-grid arsenal-grid--5 reveal d3">
+      <div class="arsenal-card" style="padding:1.5rem 1.4rem">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
+        <div class="arsenal-title" style="font-size:1.1rem">Roteiro &amp; <em>Copy</em></div>
+        <div class="arsenal-desc" style="font-size:0.88rem">Roteiros de conte&uacute;do e de campanha, e copy de p&aacute;ginas e materiais.</div>
+      </div>
+      <div class="arsenal-card" style="padding:1.5rem 1.4rem">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="M21 8l-4 3v2l4 3z" fill="currentColor"/></svg></div>
+        <div class="arsenal-title" style="font-size:1.1rem"><em>Audiovisual</em></div>
+        <div class="arsenal-desc" style="font-size:0.88rem">Direcionamento de grava&ccedil;&atilde;o e edi&ccedil;&atilde;o dos v&iacute;deos de conte&uacute;do e de campanha.</div>
+      </div>
+      <div class="arsenal-card" style="padding:1.5rem 1.4rem">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="9" r="1.5" fill="currentColor"/><circle cx="12" cy="7" r="1.5" fill="currentColor"/><circle cx="16" cy="9" r="1.5" fill="currentColor"/><path d="M12 17a4 4 0 100-8"/></svg></div>
+        <div class="arsenal-title" style="font-size:1.1rem"><em>Design</em></div>
+        <div class="arsenal-desc" style="font-size:0.88rem">Artes, carross&eacute;is e pe&ccedil;as de campanha com a sua identidade aplicada.</div>
+      </div>
+      <div class="arsenal-card" style="padding:1.5rem 1.4rem">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 22h8M12 18v4"/></svg></div>
+        <div class="arsenal-title" style="font-size:1.1rem">Web <em>Design</em></div>
+        <div class="arsenal-desc" style="font-size:0.88rem">P&aacute;ginas de captura e p&aacute;ginas de vendas estruturadas para converter.</div>
+      </div>
+      <div class="arsenal-card" style="padding:1.5rem 1.4rem">
+        <div class="arsenal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="18" height="12" rx="1"/><path d="M3 9h18M8 21h8M12 17v4"/></svg></div>
+        <div class="arsenal-title" style="font-size:1.1rem">Materiais <em>Comerciais</em></div>
+        <div class="arsenal-desc" style="font-size:0.88rem">PDFs comerciais, apresenta&ccedil;&otilde;es e a esteira do seu produto principal.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 15 · RELATÓRIO E BANCO DE DADOS ═════════════ -->
+<section class="slide" data-screen-label="15 Relatorio e Banco">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.2);width:60%;left:20%"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">Organiza&ccedil;&atilde;o, onde tudo vive</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.8rem">
+      Tudo <em>centralizado</em>, para que voc&ecirc; nunca se perca.
+    </h2>
+    <div class="group-grid reveal d2">
+      <div class="group-card">
+        <div class="group-icon-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/><circle cx="18" cy="6" r="2" fill="currentColor"/></svg></div>
+        <div class="group-tag">Relat&oacute;rio de Entregas &middot; link &uacute;nico</div>
+        <div class="group-title">Sua <em>linha do tempo</em>, sempre no mesmo lugar</div>
+        <div class="group-body">Um <b>link centralizado</b> que re&uacute;ne todas as entregas produzidas para voc&ecirc; ao longo da jornada, ao lado das <b>grava&ccedil;&otilde;es e transcri&ccedil;&otilde;es</b> de cada encontro. &Eacute; por esse relat&oacute;rio que voc&ecirc; acompanha a jornada do come&ccedil;o ao fim, sempre no mesmo lugar, com total visibilidade do que foi feito e do que est&aacute; por vir.</div>
+        <div class="group-use"><b>Mantido pelo time.</b> Voc&ecirc; acompanha tudo por l&aacute;.</div>
+      </div>
+      <div class="group-card">
+        <div class="group-icon-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg></div>
+        <div class="group-tag">Banco de Dados &middot; pasta no Drive</div>
+        <div class="group-title">Tudo o que o time precisa para <em>te conhecer a fundo</em></div>
+        <div class="group-body">Um link no Drive em que voc&ecirc; <b>centraliza tudo</b> que o time precisa para conhecer voc&ecirc; a fundo: <b>fotos, depoimentos, v&iacute;deos e refer&ecirc;ncias</b>. Qualquer pessoa do time encontra o seu material em um s&oacute; lugar.</div>
+        <div class="group-use"><b>Apenas voc&ecirc; alimenta.</b> A organiza&ccedil;&atilde;o &eacute; da sua responsabilidade.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 16 · AS REGRAS DO JOGO ═════════════ -->
+<section class="slide" data-screen-label="16 Regras do jogo">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.2);width:60%;left:20%"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">As regras do jogo</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.8rem">
+      Disciplina e ritmo: <em>&eacute; assim</em> que protegemos o seu resultado.
+    </h2>
+    <div class="kpi-row reveal d2" style="margin-bottom:1.6rem">
+      <div class="kpi-box">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><circle cx="8" cy="14" r="1.2" fill="currentColor"/></svg></div>
+        <div class="kpi-title">M&ecirc;s 1 &middot; encontros <em>semanais</em></div>
+        <div class="kpi-body">Os encontros <b>1 a 4</b> s&atilde;o semanais, para construir a base com profundidade.</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><circle cx="8" cy="14" r="1.2" fill="currentColor"/><circle cx="16" cy="14" r="1.2" fill="currentColor"/></svg></div>
+        <div class="kpi-title">A partir do encontro 5 &middot; <em>quinzenal</em></div>
+        <div class="kpi-body">A partir da <b>aprova&ccedil;&atilde;o do Planejamento Estrat&eacute;gico</b> e do <b>Encontro 5</b>, os encontros passam a acontecer a cada 15 dias, que &eacute; o tempo de executar e retornar com feedback.</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2" stroke-linecap="round"/></svg></div>
+        <div class="kpi-title">Prazo da <em>assessoria</em></div>
+        <div class="kpi-body">As entregas da assessoria ficam prontas em at&eacute; <b>7 dias &uacute;teis</b> ap&oacute;s o recebimento dos insumos.</div>
+      </div>
+      <div class="kpi-box">
+        <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 11.5a8.4 8.4 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.4 8.4 0 013.8-.9h.5a8.5 8.5 0 018 8v.5z"/></svg></div>
+        <div class="kpi-title">Resposta nos <em>grupos</em></div>
+        <div class="kpi-body">Respondemos em at&eacute; <b>24 horas &uacute;teis</b>. N&atilde;o h&aacute; atendimento aos finais de semana.</div>
+      </div>
+    </div>
+    <p class="reveal d3" style="max-width:1280px;font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:1.15rem;line-height:1.55;color:var(--gold);font-variation-settings:'opsz' 96;text-align:center;margin:0 auto">
+      Parte do prazo depende de voc&ecirc;. <b style="font-weight:500;color:var(--gold-hi)">Quanto antes os insumos e as revis&otilde;es chegam, mais cedo a entrega fica pronta</b> para a sua avalia&ccedil;&atilde;o.
+    </p>
+  </div>
+</section>
+
+<!-- ═════════════ 17 · DESPOLUIÇÃO E DISCIPLINA ═════════════ -->
+<section class="slide" data-screen-label="17 Despoluicao">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.26);width:62%;left:19%"></div>
+    <div class="stage-floor" style="--floor-color:rgba(233,196,106,0.32)"></div>
+  </div>
+  <div class="stage stage--center">
+    <div class="eyebrow reveal">Despolui&ccedil;&atilde;o e disciplina</div>
+    <div class="highlight-box reveal d1" style="margin-bottom:2.4rem;max-width:1300px;padding:2.4rem 2.8rem;text-align:center">
+      <p class="highlight-text" style="font-size:clamp(1.7rem,2.6vw,2.15rem)">N&atilde;o compare o seu <b>cap&iacute;tulo 1</b> no digital com o <b>cap&iacute;tulo 30</b> de outra pessoa.</p>
+    </div>
+    <p class="body-lg reveal d2" style="max-width:1100px;text-align:center;text-wrap:pretty;font-size:1.1rem;line-height:1.72">
+      Reduza a exposi&ccedil;&atilde;o &agrave; concorr&ecirc;ncia fraca e &agrave;s refer&ecirc;ncias de baixo n&iacute;vel. <strong style="color:var(--gold)">Concentre-se na sua casa</strong>, respeite o m&eacute;todo e cumpra as tarefas com rigor. <em style="color:var(--gold);font-family:var(--serif)">Ao executar o essencial com excel&ecirc;ncia, voc&ecirc; j&aacute; se torna refer&ecirc;ncia para muitos.</em>
+    </p>
+  </div>
+</section>
+
+<!-- ═════════════ 18 · SUAS PRIMEIRAS MISSÕES ═════════════ -->
+<section class="slide" data-screen-label="19 Primeiras missoes">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.24);width:62%;left:19%"></div>
+    <div class="stage-floor" style="--floor-color:rgba(233,196,106,0.34)"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">Suas primeiras miss&otilde;es</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.8rem">
+      O que <em>come&ccedil;a hoje mesmo</em>.
+    </h2>
+    <div class="miss-grid reveal d2">
+      <div class="miss-card">
+        <div class="miss-num">01</div>
+        <div class="miss-tag">Miss&atilde;o 01</div>
+        <div class="miss-title">Entrevista do <em>Founder</em></div>
+        <div class="miss-body">Responda, com <b>calma e profundidade</b>, &agrave; entrevista que enviaremos hoje. &Eacute; o material que nos permite decodificar voc&ecirc; e construir um plano sob medida. <em style="color:var(--gold-hi);font-family:var(--serif)">Quanto mais o seu Consultor conhece voc&ecirc;, mais assertivo ser&aacute; o posicionamento.</em></div>
+      </div>
+      <div class="miss-card">
+        <div class="miss-num">02</div>
+        <div class="miss-tag">Miss&atilde;o 02</div>
+        <div class="miss-title">Banco de <em>Dados</em></div>
+        <div class="miss-body">Alimente a sua pasta no Drive com <b>fotos, v&iacute;deos, depoimentos e refer&ecirc;ncias</b>, de forma organizada. <em style="color:var(--gold-hi);font-family:var(--serif)">&Eacute; a base que todo o time vai consultar ao longo da jornada.</em></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 20 · ENCERRAMENTO ═════════════ -->
+<section class="slide" data-screen-label="20 Encerramento">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.4);width:62%;left:19%"></div>
+    <div class="stage-floor" style="--floor-color:rgba(233,196,106,0.48)"></div>
+    <div class="wave-horizon"></div>
+  </div>
+  <div class="stage stage--center">
+    <img src="assets/logo-flg.png" alt="FLG Brasil" class="flg-mark reveal d0" style="height:clamp(48px,5.5vw,72px);margin-bottom:1.5rem">
+    <div class="eyebrow reveal d1" style="justify-content:center">Encerramento</div>
+    <h2 class="d-mega reveal d2 text-wrap-balance" style="max-width:1280px;margin-top:0.5rem">
+      A partir de hoje, voc&ecirc; <em>n&atilde;o caminha mais sozinho</em>.
+    </h2>
+    <div class="gold-divider gold-divider--thick reveal d3" style="margin-top:2.2rem">
+      <div class="line"></div><div class="dot"></div><div class="line"></div>
+    </div>
+    <p class="hero-quote reveal d4" style="margin-top:2.4rem;max-width:1180px">
+      Est&aacute; protegido pelo <b>escudo</b> e pela <b>espada</b> do Founders Led Growth. Respeite o m&eacute;todo, conte com a gente, e vamos <b>ditar o mercado moderno juntos</b>.
+    </p>
+    <div class="tech reveal d5" style="margin-top:2.6rem;display:flex;gap:1.4rem;flex-wrap:wrap;justify-content:center;align-items:center">
+      <span class="tech-gold">FLG</span>
+      <span style="opacity:0.4">&middot;</span>
+      <span>Founders Led Growth</span>
+      <span style="opacity:0.4">&middot;</span>
+      <span style="font-style:italic;font-family:var(--serif)">Business Strategists</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════ 21 · PRÓXIMO PASSO ═════════════ -->
+<section class="slide" data-screen-label="21 Proximo passo">
+  <img src="assets/logo-flg.png" alt="FLG" class="flg-mark--corner">
+  <div class="stage-bg">
+    <div class="aurora"></div>
+    <div class="spotlight spotlight--center" style="--sl-color:rgba(233,196,106,0.22);width:62%;left:19%"></div>
+    <div class="stage-floor" style="--floor-color:rgba(233,196,106,0.32)"></div>
+  </div>
+  <div class="stage">
+    <div class="eyebrow reveal">O seu pr&oacute;ximo passo</div>
+    <h2 class="d-xl reveal d1 text-wrap-balance" style="max-width:1280px;margin-bottom:1.2rem">
+      Vamos marcar o <em>Mapeamento Estrat&eacute;gico</em>.
+    </h2>
+    <p class="body-lg reveal d2" style="max-width:1280px;font-size:1.04rem;line-height:1.7;margin-bottom:1.8rem">
+      O pr&oacute;ximo encontro &eacute; o Mapeamento Estrat&eacute;gico, a sua <strong style="color:var(--gold)">conversa mais profunda com o Estrategista</strong>. Venha pronto para falar o m&aacute;ximo poss&iacute;vel sobre voc&ecirc; e sobre a empresa: <em style="color:var(--gold);font-family:var(--serif)">trajet&oacute;ria, bastidores, conquistas, desafios e aquilo que move voc&ecirc;</em>. Nenhum detalhe &eacute; pequeno demais, porque &eacute; desse material que nasce todo o seu posicionamento.
+    </p>
+    <div class="book-grid reveal d3" style="margin-bottom:1.4rem">
+      <div class="book-meta">
+        <div class="book-meta-lbl">Marca&ccedil;&atilde;o</div>
+        <div class="book-row"><span class="k">Data</span><span class="v dash">____ / ____ / ______</span></div>
+        <div class="book-row"><span class="k">Hor&aacute;rio</span><span class="v dash">____ : ____</span></div>
+        <div class="book-row"><span class="k">Dura&ccedil;&atilde;o</span><span class="v">cerca de 2 horas</span></div>
+        <div class="book-row"><span class="k">Formato</span><span class="v">online ou presencial</span></div>
+      </div>
+      <div class="book-meta">
+        <div class="book-meta-lbl">Para preparar</div>
+        <div class="entries" style="gap:0.7rem">
+          <div class="entry" style="padding:0.85rem 1.2rem">
+            <div class="entry-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6l-1 7h-2l-1-7zM9 13a1 1 0 102 0 1 1 0 00-2 0z" fill="currentColor"/><rect x="6" y="3" width="6" height="14" rx="3"/><path d="M14 11a5 5 0 01-10 0M9 21v-3M6 21h6"/></svg></div>
+            <div class="entry-text" style="font-size:0.94rem"><b>Entrevista do Founder</b> respondida</div>
+          </div>
+          <div class="entry" style="padding:0.85rem 1.2rem">
+            <div class="entry-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg></div>
+            <div class="entry-text" style="font-size:0.94rem"><b>Banco de Dados</b> iniciado</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="reveal d4" style="font-family:'Fraunces',serif;font-style:italic;font-weight:300;font-size:clamp(1.3rem,1.85vw,1.55rem);line-height:1.5;color:var(--gold);text-wrap:pretty;text-align:center;max-width:1100px;margin:0.6rem auto 0;font-variation-settings:'opsz' 144">
+      Quanto mais voc&ecirc; compartilha, mais <b style="font-weight:500;color:var(--gold-hi)">preciso e poderoso</b> ser&aacute; o plano que vamos construir juntos.
+    </p>
+  </div>
+</section>
+
+</div>
+
+<script src="v2.js"></script>
+<script>
+/* === SNAPSHOT MODE — URL: ?snap=N === */
+(function() {
+  const params = new URLSearchParams(location.search);
+  const snap = params.get('snap');
+  if (!snap) return;
+  const n = parseInt(snap, 10);
+  function applySnap() {
+    var killer = document.createElement('style');
+    killer.textContent = `
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .aurora, .spotlight, .stage-floor, .wave-horizon { filter: none !important; mix-blend-mode: normal !important; }
+      h1, h2, h3, em, b { text-shadow: none !important; }
+      [class*="card"], [class*="box"], [class*="cell"], [class*="item"], .gold-divider .line,
+      .gold-divider .dot, .progress-fill, .counter-dot, .entry-icon, .arsenal-icon, .pillar-icon, .group-icon-top, .kpi-icon, .enc-icon { box-shadow: none !important; }
+      .progress, .counter, .nav-hint, .nav-arrows, #stage-canvas, .grain { display: none !important; }
+      .spotlight { opacity: 0.32 !important; background: radial-gradient(ellipse 50% 80% at 50% 0%, var(--sl-color, rgba(233,196,106,0.35)) 0%, transparent 75%) !important; }
+      .stage-floor { opacity: 0.5 !important; background: radial-gradient(ellipse 60% 70% at center bottom, var(--floor-color, rgba(233,196,106,0.25)) 0%, transparent 70%) !important; }
+      .aurora { opacity: 0.4 !important; }
+      .reveal { opacity: 1 !important; transform: none !important; filter: none !important; visibility: visible !important; }
+    `;
+    document.head.appendChild(killer);
+    const slides = document.querySelectorAll('.slide');
+    slides.forEach((s, i) => {
+      if (i === n - 1) { s.classList.add('active'); s.style.opacity = '1'; s.style.visibility = 'visible'; s.style.display = 'flex'; }
+      else { s.classList.remove('active'); s.style.display = 'none'; }
+    });
+    document.title = 'snap_' + String(n).padStart(2,'0');
+  }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') setTimeout(applySnap, 100);
+  else document.addEventListener('DOMContentLoaded', () => setTimeout(applySnap, 100));
+})();
+</script>
+</body>
+</html>
