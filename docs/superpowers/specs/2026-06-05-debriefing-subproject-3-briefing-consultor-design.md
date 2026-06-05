@@ -60,11 +60,11 @@ CREATE TABLE briefings_consultor (
   atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(cliente_id, consultor_id)
 );
-
-CREATE INDEX briefings_consultor_cliente_id_idx ON briefings_consultor(cliente_id);
 ```
 
-Pedro já rodou via Supabase Dashboard. O arquivo `docs/migrations/012-briefings-consultor.sql` será criado com o conteúdo EXATO confirmado por ele na primeira task da implementação (pra ficar versionado no repo).
+Pedro rodou esse SQL exato via Supabase Dashboard em 2026-06-05. Migration vai ser arquivada em `docs/migrations/012-briefings-consultor.sql` com esse conteúdo na Task 1 da implementação.
+
+**Sobre índices:** a constraint `UNIQUE(cliente_id, consultor_id)` cria automaticamente um índice composto. Como `cliente_id` é a primeira coluna, esse índice já serve queries por `cliente_id` sozinho — não precisa de índice extra.
 
 ### Endpoints novos (`backend/routes/briefings_consultor.py`)
 
