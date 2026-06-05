@@ -1,7 +1,109 @@
 # FLG Debriefings — Handoff entre sessões
 
-**Última atualização:** 2026-05-26 noite (setup desbloqueado + smoke test inicial revelou bugs estruturais — corridos Phase 6.2; aguardando re-teste do Pedro)
-**Status:** Backend (Phases 1-6.2) + Frontend (Phase 5) em produção. Smoke test inicial 2026-05-26 manhã saiu vazio ("Não documentado" em ~80%) — 4 bugs estruturais identificados e corridos durante o dia. Aguardando re-teste com fixes aplicados.
+**Última atualização:** 2026-06-05 fim de tarde (Subsistema Comercial sub-projeto 1 entregue + sub-projeto 2 em brainstorming — seção 3/5 aprovada)
+**Status:**
+- **Pipeline de geração de PDF (feature original)**: Backend (Phases 1-6.2) + Frontend (Phase 5) em produção. Smoke test 2026-05-26 manhã saiu vazio — 4 bugs estruturais corridos durante o dia. Aguardando re-teste.
+- **Subsistema Comercial (novo, sub-projetos 1-5)**: Sub-projeto 1 entregue em produção 2026-06-05 (migration 011 aplicada). Sub-projeto 2 em brainstorming ativo — design aprovado até seção 3/5, faltam seções 4-5 + spec + plan + implementação.
+
+---
+
+## 2026-06-05 — Subsistema Comercial (Roles + Auth + UI separada)
+
+Plano maior decomposto em 5 sub-projetos sequenciais. Decomposição decidida no brainstorm de 2026-06-02:
+
+1. **Sub-projeto 1 — Identidade comercial + gating backend**: ✅ ENTREGUE em prod 2026-06-05
+2. **Sub-projeto 2 — Tela `/debriefings/login` + layouts + migração da UI do hub**: 🟡 brainstorming ativo (seção 3/5 aprovada)
+3. **Sub-projeto 3 — Aba "Briefing do Consultor" abaixo de Tutoriais no sistema principal**: ⏳ não iniciado
+4. **Sub-projeto 4 — Lista filtrada por Encerrado/Renovado + ponte de status briefing**: ⏳ não iniciado
+5. **Sub-projeto 5 — Painel admin de Debriefing com KPIs e ranking**: ⏳ não iniciado
+
+### Sub-projeto 1 entregue (10 commits em prod)
+
+Spec: `docs/superpowers/specs/2026-06-02-debriefing-subproject-1-roles-auth-design.md`
+Plan: `docs/superpowers/plans/2026-06-02-debriefing-subproject-1-roles-auth.md`
+
+**O que entrou em produção:**
+- Migration `011-colaboradores-categoria-comercial.sql` aplicada no Supabase
+- `categoria='comercial'` aceito no enum
+- `UserScope` ganhou `can_see_principal`, `can_see_debriefings`, `can_see_debriefings_admin` (calculados em `_compute_flags`)
+- Helpers `require_principal`, `require_debriefings`, `require_debriefings_admin` em `lib/auth_scope.py`
+- Gating aplicado: `/clientes/*` + `/metricas/*` (8 endpoints) com `require_principal`; `/debriefings/*` (6 endpoints) com `require_debriefings`
+- Endpoints abertos pra qualquer logado: `/me/scope`, `/admin/clickup/sync`
+- Frontend: aba "Comerciais" em `/colaboradores`, modal aceita categoria=Comercial, `useUserScope` expõe `canSeePrincipal/Debriefings/DebriefingsAdmin`
+
+**Matriz de acesso vigente:**
+| Categoria | Role | Sistema Principal | Sistema Debriefing |
+|---|---|---|---|
+| consultor | member/admin | ✓ | ✗ |
+| diretor | member/admin | ✓ | ✓ |
+| comercial | member (Membro Comercial) | ✗ | ✓ |
+| comercial | admin (Diretor Comercial) | ✗ | ✓ + painel admin |
+| qualquer | owner | ✓ | ✓ |
+
+**Tests:** 83 passing, 5 failing em `test_admin_clickup_sync.py` (débito antigo do refactor cron `c2e35e7`, signature mismatch — `trigger_clickup_sync() got an unexpected keyword argument 'scope'`). Fora do escopo do sub-projeto 1.
+
+### Sub-projeto 2 em brainstorming — decisões já fechadas
+
+Brainstorm em curso seguindo `superpowers:brainstorming`. Visual Companion ativo em `http://localhost:53233` (porta pode mudar entre sessões — recriar via `.superpowers/brainstorm/<session>/state/server-info`).
+
+**Perguntas alinhadas:**
+1. **Home `/debriefings`** = lista simples de TODOS os clientes ativos (sem filtros). Sub-projeto 4 vai refinar com Encerrado/Renovado + status briefing preenchido.
+2. **Aba "Debriefings" do PerfilCliente** = some, vira botão "Abrir Debriefings deste cliente" que navega pra `/debriefings/cliente/:id`.
+3. **Branding tela login `/debriefings/login`** = opção A do mockup (eyebrow gold "FLG BRASIL · COMERCIAL" + título h1 grande "FLG Comercial" + subtítulo "Hub de Debriefings"). Mesmo dark+gold+glow do `/login` atual.
+
+**Design — seções aprovadas (1 a 3 de 5):**
+
+**Seção 1 (rotas):**
+```
+PÚBLICAS:
+  /login                                        atual (não muda)
+  /debriefings/login                            NOVA
+
+SISTEMA PRINCIPAL (gate canSeePrincipal):
+  / · /clientes/* · /metricas/* · /ranking · /materiais/* · /colaboradores · /tutoriais/* · /configuracoes
+  [todas as rotas atuais, sem mudança de path]
+
+SISTEMA DEBRIEFING (gate canSeeDebriefings):
+  /debriefings                                  NOVA — home (lista clientes ativos)
+  /debriefings/cliente/:id                      NOVA — hub do cliente (UI atual movida)
+  /debriefings/cliente/:id/:debriefingId        NOVA — viewer (UI atual movida)
+```
+
+**Seção 2 (tela login):** Componente novo `DebriefingLogin.jsx`. Reusa `supabase.auth.signInWithPassword`. Pós-login: se `canSeeDebriefings=true` vai pra `/debriefings`; se false, mostra erro + botão "Ir pra /login". Sem link "criar conta".
+
+**Seção 3 (layouts e gating):** Dois wrappers React Router (`MainLayout` + `DebriefingLayout`) com `<Outlet />`. Cada um lê `useUserScope` no mount: enquanto carrega mostra spinner, redireciona pra porta de login da outra persona quando flag for `false`. `App.jsx` reorganizado pra agrupar rotas dentro de `<Route element={<MainLayout />}>` e `<Route element={<DebriefingLayout />}>`. `AuthGuard` atual fica como camada interna do `MainLayout` (preserva sidebar + redirect-pra-login). Backend já gateia tudo no sub-projeto 1 — defesa em profundidade.
+
+**Faltam: seções 4 e 5 + spec + plan + implementação**
+
+- **Seção 4 (provavelmente):** estrutura concreta dos novos componentes (`DebriefingsHome.jsx` na nova rota, `DebriefingsClienteHub.jsx` adaptado do `Debriefings/index.jsx` atual, viewer da página separada). Como o hub atual passa de "ler clienteId via useParams interno" pra "receber por URL `/debriefings/cliente/:id`".
+- **Seção 5 (provavelmente):** o lifecycle do `PerfilCliente.jsx` — onde a aba é removida, qual ícone/cópia do botão "Abrir Debriefings", se ele aparece pra todos ou só pra quem tem `canSeeDebriefings`. Discussão de rollout/rollback.
+
+**Como retomar pós-compact:**
+
+```
+Pedro: "vamos seguir o brainstorming do sub-projeto 2 Debriefings"
+
+Você:
+1. Lê HANDOFF-debriefings.md (este arquivo)
+2. Lê spec do sub-projeto 1 pra ter o contexto da matriz de acesso
+3. Confirma se Visual Companion ainda está rodando (curl http://localhost:53233/health ou similar; se não, reinicia)
+4. Invoca superpowers:brainstorming (vai entrar de novo no fluxo)
+5. Continua direto na Seção 4/5 — não precisa re-perguntar nada das seções 1-3 (decisões registradas acima)
+```
+
+### Recovery — checklist se sessão crashar
+
+- [ ] HANDOFF-debriefings.md (este arquivo)
+- [ ] `docs/superpowers/specs/2026-06-02-debriefing-subproject-1-roles-auth-design.md` (spec do 1)
+- [ ] `docs/superpowers/plans/2026-06-02-debriefing-subproject-1-roles-auth.md` (plano do 1)
+- [ ] Commits 8b60c5b..HEAD listam todo o trabalho do sub-projeto 1 + commits do sub-projeto 2 (ainda nenhum quando este HANDOFF foi escrito)
+- [ ] Visual Companion files em `.superpowers/brainstorm/<id>/content/` — mockup login-branding.html mostra a opção A escolhida
+
+### Débito antigo a tratar separadamente (mencionado no sub-projeto 1)
+
+5 tests em `backend/tests/test_admin_clickup_sync.py` falhando desde `c2e35e7` (refactor cron). Signature de `trigger_clickup_sync` mudou (`(request, authorization)` em vez de `(request, scope)`), tests ainda chamam com `scope=...`. Precisa sprint dedicada pra atualizar os tests pra autenticar via `Authorization: Bearer` ou `X-Cron-Token`. Não afeta produção (cron diário funciona normal).
+
+---
 
 ## Atualização 2026-05-26 noite — Phase 6.2 bugs corridos
 
