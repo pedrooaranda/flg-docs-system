@@ -19,12 +19,13 @@ export const ROLE_CONFIG = {
 export const CATEGORIA_CONFIG = {
   consultor: { label: 'Consultor' },
   diretor:   { label: 'Diretor' },
+  comercial: { label: 'Comercial' },
 }
 
 // Enums em arrays — usados em dropdowns de formulário e validação.
 export const TIERS      = ['junior', 'pleno', 'senior', 'lead']
 export const ROLES      = ['owner', 'admin', 'member']
-export const CATEGORIAS = ['consultor', 'diretor']
+export const CATEGORIAS = ['consultor', 'diretor', 'comercial']
 
 // Campos que member pode editar do próprio registro. Espelha SELF_EDITABLE_FIELDS
 // no backend (backend/routes/colaboradores.py) — manter sincronizado.
