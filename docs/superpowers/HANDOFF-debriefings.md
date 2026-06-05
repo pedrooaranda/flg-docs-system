@@ -1,9 +1,9 @@
 # FLG Debriefings — Handoff entre sessões
 
-**Última atualização:** 2026-06-05 fim de tarde (Subsistema Comercial sub-projeto 1 entregue + sub-projeto 2 em brainstorming — seção 3/5 aprovada)
+**Última atualização:** 2026-06-05 fim de tarde (Subsistema Comercial sub-projetos 1 + 2 entregues em prod)
 **Status:**
 - **Pipeline de geração de PDF (feature original)**: Backend (Phases 1-6.2) + Frontend (Phase 5) em produção. Smoke test 2026-05-26 manhã saiu vazio — 4 bugs estruturais corridos durante o dia. Aguardando re-teste.
-- **Subsistema Comercial (novo, sub-projetos 1-5)**: Sub-projeto 1 entregue em produção 2026-06-05 (migration 011 aplicada). Sub-projeto 2 em brainstorming ativo — design aprovado até seção 3/5, faltam seções 4-5 + spec + plan + implementação.
+- **Subsistema Comercial (novo, sub-projetos 1-5)**: Sub-projetos 1 + 2 entregues em produção 2026-06-05. Sub-projeto 1 (backend roles + auth gating) — migration 011 aplicada. Sub-projeto 2 (tela /debriefings/login + MainLayout/DebriefingLayout + migração da UI) — 9 commits em prod (3ª tentativa de deploy passou, 2 anteriores falharam com SSH timeout intermitente). Smoke matriz autenticado é pelo Pedro. Sub-projetos 3-5 não iniciados.
 
 ---
 
@@ -12,7 +12,7 @@
 Plano maior decomposto em 5 sub-projetos sequenciais. Decomposição decidida no brainstorm de 2026-06-02:
 
 1. **Sub-projeto 1 — Identidade comercial + gating backend**: ✅ ENTREGUE em prod 2026-06-05
-2. **Sub-projeto 2 — Tela `/debriefings/login` + layouts + migração da UI do hub**: 🟡 brainstorming ativo (seção 3/5 aprovada)
+2. **Sub-projeto 2 — Tela `/debriefings/login` + layouts + migração da UI do hub**: ✅ ENTREGUE em prod 2026-06-05 (9 commits, smoke matriz autenticado pelo Pedro)
 3. **Sub-projeto 3 — Aba "Briefing do Consultor" abaixo de Tutoriais no sistema principal**: ⏳ não iniciado
 4. **Sub-projeto 4 — Lista filtrada por Encerrado/Renovado + ponte de status briefing**: ⏳ não iniciado
 5. **Sub-projeto 5 — Painel admin de Debriefing com KPIs e ranking**: ⏳ não iniciado
