@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
+import { useToast } from '../lib/toast'
 import { Spinner } from './ui/Spinner'
 
 export default function Login() {
@@ -8,6 +10,18 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const location = useLocation()
+  const toast = useToast()
+
+  // Lê toast da rota anterior (vindo de DebriefingLayout redirect)
+  useEffect(() => {
+    const t = location.state?.toast
+    if (t) {
+      toast(t)
+      window.history.replaceState({}, '')
+    }
+  }, [location.state, toast])
 
   async function handleSubmit(e) {
     e.preventDefault()

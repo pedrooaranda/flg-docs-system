@@ -1,14 +1,16 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useParams } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import { ToastProvider } from './lib/toast'
 import { AppProvider } from './contexts/AppContext'
 import { ThemeProvider } from './contexts/ThemeContext'
-import Layout from './components/layout/Layout'
 import Login from './components/Login'
 import PasswordChangeRequired from './components/auth/PasswordChangeRequired'
 import { PageSpinner } from './components/ui/Spinner'
 import { needsPasswordChange } from './lib/utils'
+
+import MainLayout from './layouts/MainLayout'
+import DebriefingLayout from './layouts/DebriefingLayout'
 
 // Lazy-loaded routes
 const Dashboard        = lazy(() => import('./components/Dashboard'))
@@ -42,7 +44,11 @@ const LegalPage        = lazy(() => import('./components/LegalPage'))
 const ConectarInstagram = lazy(() => import('./components/ConectarInstagram'))
 const TutoriaisHub       = lazy(() => import('./components/Tutoriais'))
 const TutorialConectarIG = lazy(() => import('./components/Tutoriais/ConectarInstagramCliente'))
-const DebriefingsHub     = lazy(() => import('./components/Debriefings'))
+
+// Sub-projeto 2 Debriefings
+const DebriefingLogin    = lazy(() => import('./components/Debriefings/DebriefingLogin'))
+const DebriefingsHome    = lazy(() => import('./components/Debriefings/DebriefingsHome'))
+const ClienteHub         = lazy(() => import('./components/Debriefings/ClienteHub'))
 const DebriefingViewer   = lazy(() => import('./components/Debriefings/Viewer'))
 
 // Resolve qual componente renderizar baseado em ?plataforma= da URL.
@@ -53,17 +59,6 @@ function RouteByPlatform({ ig, li, yt, tt, fallback }) {
   const map = { instagram: ig, linkedin: li, youtube: yt, tiktok: tt }
   const Comp = map[platform] || fallback || ig
   return Comp ? <Comp /> : null
-}
-
-function AuthGuard({ session, children, title, subtitle }) {
-  if (!session) return <Navigate to="/login" replace />
-  return (
-    <Layout session={session} title={title} subtitle={subtitle}>
-      <Suspense fallback={<PageSpinner />}>
-        {children}
-      </Suspense>
-    </Layout>
-  )
 }
 
 export default function App() {
@@ -98,7 +93,13 @@ export default function App() {
     <ToastProvider>
       <BrowserRouter>
         <Routes>
+          {/* Públicas */}
           <Route path="/login" element={session ? <Navigate to="/" replace /> : <Login />} />
+          <Route path="/debriefings/login" element={
+            <Suspense fallback={<PageSpinner />}>
+              <DebriefingLogin />
+            </Suspense>
+          } />
 
           {/* Páginas legais públicas (sem auth) — exigidas pela Meta para Instagram OAuth */}
           <Route path="/legal/:page" element={
@@ -114,151 +115,68 @@ export default function App() {
             </Suspense>
           } />
 
-          <Route path="/" element={
-            <AuthGuard session={session} title="Home">
-              <Dashboard session={session} />
-            </AuthGuard>
-          } />
+          {/* Sistema Principal — gate canSeePrincipal via MainLayout */}
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<Dashboard session={session} />} />
+            <Route path="/clientes" element={<Clientes session={session} />} />
+            <Route path="/clientes/novo" element={<NovoCliente />} />
+            <Route path="/clientes/:clientId" element={<PerfilCliente />} />
+            <Route path="/clientes/:clientId/encontro/:encontroNum" element={<PreparacaoEncontro />} />
 
-          <Route path="/clientes/novo" element={
-            <AuthGuard session={session} title="Novo Cliente">
-              <NovoCliente />
-            </AuthGuard>
-          } />
+            {/* Métricas — sub-rotas por aba (Geral / Posts / Reels / Stories) */}
+            <Route path="/metricas" element={<Metricas session={session} />}>
+              <Route index element={<MetricasGeral />} />
+              <Route path=":clienteId" element={<MetricasGeral />} />
+              <Route path=":clienteId/geral" element={<MetricasGeral />} />
+              <Route path=":clienteId/posts" element={<RouteByPlatform ig={MetricasPosts} li={MetricasLIPosts} />} />
+              <Route path=":clienteId/reels" element={<MetricasReels />} />
+              <Route path=":clienteId/stories" element={<MetricasStories />} />
+              <Route path=":clienteId/videos" element={<RouteByPlatform yt={MetricasYTVideos} tt={MetricasTTVideos} fallback={MetricasYTVideos} />} />
+              <Route path=":clienteId/shorts" element={<MetricasYTShorts />} />
+              <Route path=":clienteId/artigos" element={<MetricasLIArtigos />} />
+            </Route>
 
-          <Route path="/clientes" element={
-            <AuthGuard session={session} title="Clientes">
-              <Clientes session={session} />
-            </AuthGuard>
-          } />
+            <Route path="/ranking" element={<Ranking />} />
 
-          <Route path="/clientes/:clientId" element={
-            <AuthGuard session={session}>
-              <PerfilCliente />
-            </AuthGuard>
-          } />
+            {/* Materiais: cliente como hub central (escolha de cliente → área do cliente) */}
+            <Route path="/materiais" element={<MateriaisHome session={session} />} />
 
-          <Route path="/clientes/:clientId/encontro/:encontroNum" element={
-            session ? (
-              <Layout session={session}>
-                <Suspense fallback={<PageSpinner />}>
-                  <PreparacaoEncontro />
-                </Suspense>
-              </Layout>
-            ) : <Navigate to="/login" replace />
-          } />
+            {/* Redirects de rotas antigas (compatibilidade com bookmarks anteriores) */}
+            <Route path="/materiais/diarios" element={<Navigate to="/materiais" replace />} />
+            <Route path="/materiais/reunioes" element={<Navigate to="/materiais" replace />} />
+            <Route path="/materiais/reunioes/:cid/:n" element={<Navigate to="/materiais" replace />} />
 
-          {/* Métricas — sub-rotas por aba (Geral / Posts / Reels / Stories) */}
-          <Route path="/metricas" element={
-            <AuthGuard session={session} title="Métricas Instagram">
-              <Metricas session={session} />
-            </AuthGuard>
-          }>
-            <Route index element={<Suspense fallback={<PageSpinner />}><MetricasGeral /></Suspense>} />
-            <Route path=":clienteId" element={<Suspense fallback={<PageSpinner />}><MetricasGeral /></Suspense>} />
-            <Route path=":clienteId/geral" element={<Suspense fallback={<PageSpinner />}><MetricasGeral /></Suspense>} />
-            <Route path=":clienteId/posts" element={<Suspense fallback={<PageSpinner />}><RouteByPlatform ig={MetricasPosts} li={MetricasLIPosts} /></Suspense>} />
-            <Route path=":clienteId/reels" element={<Suspense fallback={<PageSpinner />}><MetricasReels /></Suspense>} />
-            <Route path=":clienteId/stories" element={<Suspense fallback={<PageSpinner />}><MetricasStories /></Suspense>} />
-            <Route path=":clienteId/videos" element={<Suspense fallback={<PageSpinner />}><RouteByPlatform yt={MetricasYTVideos} tt={MetricasTTVideos} fallback={MetricasYTVideos} /></Suspense>} />
-            <Route path=":clienteId/shorts" element={<Suspense fallback={<PageSpinner />}><MetricasYTShorts /></Suspense>} />
-            <Route path=":clienteId/artigos" element={<Suspense fallback={<PageSpinner />}><MetricasLIArtigos /></Suspense>} />
+            <Route path="/materiais/cliente/:cid" element={<ClienteArea />}>
+              <Route index element={<Navigate to="diarios" replace />} />
+              <Route path="diarios" element={<ClienteDiarios />} />
+              <Route path="reunioes" element={<ClienteReunioes />} />
+            </Route>
+
+            {/* Editor (tela inteira, fora do layout normal) — mantido dentro do MainLayout pra herdar gate */}
+            <Route path="/materiais/cliente/:cid/reunioes/:n" element={<EditorReuniao session={session} />} />
+
+            <Route path="/copywriter" element={<Copywriter />} />
+            <Route path="/colaboradores" element={<Colaboradores session={session} />} />
+
+            <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/admin/conhecimento" element={<ConhecimentoBase />} />
+            <Route path="/admin/intelecto" element={<IntelecFLG />} />
+            <Route path="/admin/agentes" element={<AgentesConfig />} />
+
+            <Route path="/tutoriais" element={<TutoriaisHub />} />
+            <Route path="/tutoriais/conectar-instagram-cliente" element={<TutorialConectarIG />} />
+
+            {/* Redirects das URLs antigas /clientes/:id/debriefings → /debriefings/cliente/:id */}
+            <Route path="/clientes/:clientId/debriefings" element={<RedirectClienteDebriefings />} />
+            <Route path="/clientes/:clientId/debriefings/:debriefingId" element={<RedirectClienteDebriefings withDebriefing />} />
           </Route>
 
-          <Route path="/ranking" element={
-            <AuthGuard session={session} title="Ranking de Clientes">
-              <Ranking />
-            </AuthGuard>
-          } />
-
-          {/* Materiais: cliente como hub central (escolha de cliente → área do cliente) */}
-          <Route path="/materiais" element={
-            <AuthGuard session={session} title="Materiais">
-              <MateriaisHome session={session} />
-            </AuthGuard>
-          } />
-
-          {/* Redirects de rotas antigas (compatibilidade com bookmarks anteriores) */}
-          <Route path="/materiais/diarios" element={<Navigate to="/materiais" replace />} />
-          <Route path="/materiais/reunioes" element={<Navigate to="/materiais" replace />} />
-          <Route path="/materiais/reunioes/:cid/:n" element={<Navigate to="/materiais" replace />} />
-
-          <Route path="/materiais/cliente/:cid" element={
-            <AuthGuard session={session} title="Materiais">
-              <ClienteArea />
-            </AuthGuard>
-          }>
-            <Route index element={<Navigate to="diarios" replace />} />
-            <Route path="diarios" element={<Suspense fallback={<PageSpinner />}><ClienteDiarios /></Suspense>} />
-            <Route path="reunioes" element={<Suspense fallback={<PageSpinner />}><ClienteReunioes /></Suspense>} />
+          {/* Sistema Debriefing — gate canSeeDebriefings via DebriefingLayout */}
+          <Route element={<DebriefingLayout />}>
+            <Route path="/debriefings" element={<DebriefingsHome />} />
+            <Route path="/debriefings/cliente/:id" element={<ClienteHub />} />
+            <Route path="/debriefings/cliente/:id/:debriefingId" element={<DebriefingViewer />} />
           </Route>
-
-          {/* Editor (tela inteira, fora do layout) */}
-          <Route path="/materiais/cliente/:cid/reunioes/:n" element={
-            <AuthGuard session={session} title="Preparação de Reunião">
-              <EditorReuniao session={session} />
-            </AuthGuard>
-          } />
-
-          <Route path="/copywriter" element={
-            <AuthGuard session={session} title="Copywriter FLG">
-              <Copywriter />
-            </AuthGuard>
-          } />
-
-          <Route path="/colaboradores" element={
-            <AuthGuard session={session} title="Colaboradores">
-              <Colaboradores session={session} />
-            </AuthGuard>
-          } />
-
-          <Route path="/admin" element={
-            <AuthGuard session={session} title="Configurações">
-              <AdminPanel />
-            </AuthGuard>
-          } />
-
-          <Route path="/admin/conhecimento" element={
-            <AuthGuard session={session} title="Base de Conhecimento">
-              <ConhecimentoBase />
-            </AuthGuard>
-          } />
-
-          <Route path="/admin/intelecto" element={
-            <AuthGuard session={session} title="Intelecto FLG">
-              <IntelecFLG />
-            </AuthGuard>
-          } />
-
-          <Route path="/admin/agentes" element={
-            <AuthGuard session={session} title="Agentes FLG">
-              <AgentesConfig />
-            </AuthGuard>
-          } />
-
-          <Route path="/clientes/:clientId/debriefings" element={
-            <AuthGuard session={session} title="Debriefings">
-              <DebriefingsHub />
-            </AuthGuard>
-          } />
-
-          <Route path="/clientes/:clientId/debriefings/:debriefingId" element={
-            <AuthGuard session={session} title="Debriefing">
-              <DebriefingViewer />
-            </AuthGuard>
-          } />
-
-          <Route path="/tutoriais" element={
-            <AuthGuard session={session} title="Tutoriais">
-              <TutoriaisHub />
-            </AuthGuard>
-          } />
-
-          <Route path="/tutoriais/conectar-instagram-cliente" element={
-            <AuthGuard session={session} title="Tutorial · Conectar Instagram">
-              <TutorialConectarIG />
-            </AuthGuard>
-          } />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -267,4 +185,13 @@ export default function App() {
     </AppProvider>
     </ThemeProvider>
   )
+}
+
+// Redirect helper: bookmark antigo /clientes/:id/debriefings[/:debriefingId] → /debriefings/cliente/:id[/:debriefingId]
+function RedirectClienteDebriefings({ withDebriefing = false }) {
+  const { clientId, debriefingId } = useParams()
+  const dest = withDebriefing && debriefingId
+    ? `/debriefings/cliente/${clientId}/${debriefingId}`
+    : `/debriefings/cliente/${clientId}`
+  return <Navigate to={dest} replace />
 }
