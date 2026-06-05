@@ -102,7 +102,7 @@ export function AppProvider({ children, session }) {
   }, [session])
 
   return (
-    <AppCtx.Provider value={{ ...state, dispatch }}>
+    <AppCtx.Provider value={{ ...state, dispatch, session }}>
       {children}
     </AppCtx.Provider>
   )
