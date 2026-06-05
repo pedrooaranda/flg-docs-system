@@ -33,7 +33,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from deps import supabase_client
-from lib.auth_scope import UserScope, get_user_scope, require_debriefings
+from lib.auth_scope import (
+    UserScope,
+    get_user_scope,
+    require_debriefings,
+    require_debriefings_or_consultor,
+)
 from services.debriefing_generator import DebriefingRequest, run_debriefing
 from services import debriefing_pdf
 
@@ -517,7 +522,7 @@ async def list_debriefings(
     scope: UserScope = Depends(get_user_scope),
 ):
     """Lista debriefings, opcionalmente filtrados por cliente. Mais recentes primeiro."""
-    require_debriefings(scope)
+    require_debriefings_or_consultor(scope)
     q = _supabase.table("debriefings").select("*").order("gerado_at", desc=True)
     if cliente_id:
         q = q.eq("cliente_id", cliente_id)
@@ -528,7 +533,7 @@ async def list_debriefings(
 @router.get("/{debriefing_id}")
 async def get_debriefing(debriefing_id: str, scope: UserScope = Depends(get_user_scope)):
     """Detalhe completo de um debriefing (inclui markdown_content)."""
-    require_debriefings(scope)
+    require_debriefings_or_consultor(scope)
     result = _supabase.table("debriefings").select("*").eq("id", debriefing_id).single().execute()
     if not result.data:
         raise HTTPException(404, "Debriefing não encontrado")
@@ -580,7 +585,7 @@ async def download_pdf(debriefing_id: str, scope: UserScope = Depends(get_user_s
     Retorna URL assinada pro PDF no Supabase Storage (válida ~1h).
     Phase 4: implementação real.
     """
-    require_debriefings(scope)
+    require_debriefings_or_consultor(scope)
     row = _supabase.table("debriefings").select("pdf_storage_path,status").eq(
         "id", debriefing_id
     ).single().execute()

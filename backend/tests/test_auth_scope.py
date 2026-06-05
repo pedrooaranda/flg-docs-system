@@ -211,3 +211,44 @@ def test_require_debriefings_admin_403_sem_flag():
 
 def test_require_debriefings_admin_passa_com_flag():
     require_debriefings_admin(_make_scope(can_da=True))
+
+
+# ─── Helper composto (sub-projeto 3 — Briefing do Consultor) ─────────────
+
+
+def test_require_debriefings_or_consultor_aceita_comercial():
+    """Comercial (canSeeDebriefings=True, sem consultor_id) passa."""
+    from lib.auth_scope import require_debriefings_or_consultor
+    scope = UserScope(
+        user_id="u-1", email="x@flg.com", role="member",
+        consultor_id=None, consultor_nome=None, categoria="comercial",
+        can_see_all=False,
+        can_see_principal=False, can_see_debriefings=True, can_see_debriefings_admin=False,
+    )
+    require_debriefings_or_consultor(scope)  # não levanta
+
+
+def test_require_debriefings_or_consultor_aceita_consultor():
+    """Consultor (canSeeDebriefings=False, com consultor_id) passa."""
+    from lib.auth_scope import require_debriefings_or_consultor
+    scope = UserScope(
+        user_id="u-1", email="c@flg.com", role="member",
+        consultor_id="cons-1", consultor_nome="Consultor X", categoria="consultor",
+        can_see_all=False,
+        can_see_principal=True, can_see_debriefings=False, can_see_debriefings_admin=False,
+    )
+    require_debriefings_or_consultor(scope)  # não levanta
+
+
+def test_require_debriefings_or_consultor_rejeita_nem_um_nem_outro():
+    """Sem canSeeDebriefings E sem consultor_id → 403."""
+    from lib.auth_scope import require_debriefings_or_consultor
+    scope = UserScope(
+        user_id="u-1", email="x@flg.com", role="member",
+        consultor_id=None, consultor_nome=None, categoria="comercial",
+        can_see_all=False,
+        can_see_principal=False, can_see_debriefings=False, can_see_debriefings_admin=False,
+    )
+    with pytest.raises(HTTPException) as exc:
+        require_debriefings_or_consultor(scope)
+    assert exc.value.status_code == 403

@@ -165,6 +165,23 @@ def require_debriefings(scope: UserScope) -> None:
         )
 
 
+def require_debriefings_or_consultor(scope: UserScope) -> None:
+    """
+    Aceita ou quem pode ver Debriefings (canSeeDebriefings) ou qualquer pessoa
+    registrada como consultor (consultor_id NOT NULL).
+
+    Usado nos 3 GETs de leitura de /debriefings/* (lista, detalhe, PDF) pra
+    permitir consultor ler histórico de debriefings dos clientes — necessário
+    pra tela "Briefing do Consultor" (sub-projeto 3).
+
+    POST/DELETE/stream em /debriefings/* continuam com require_debriefings
+    (consultor não gera nem apaga).
+    """
+    if scope.can_see_debriefings or scope.consultor_id is not None:
+        return
+    raise HTTPException(status_code=403, detail="Acesso restrito")
+
+
 def require_debriefings_admin(scope: UserScope) -> None:
     """Bloqueia acesso ao painel admin de Debriefings (KPIs, ranking).
     Membros Comerciais regulares recebem 403."""

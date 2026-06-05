@@ -14,7 +14,6 @@ import sys
 import types
 import pytest
 from unittest.mock import MagicMock, patch
-from fastapi import HTTPException
 
 from lib.auth_scope import get_user_scope
 
@@ -130,18 +129,24 @@ def mock_debriefings_supabase():
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
 
-async def test_consultor_recebe_403_em_list_debriefings(mock_supabase, fake_user_consultor):
-    """Consultor regular recebe 403 ao listar debriefings."""
+async def test_consultor_acessa_list_debriefings(mock_supabase, mock_debriefings_supabase, fake_user_consultor):
+    """Consultor regular passa em /debriefings (read-only, sub-projeto 3).
+
+    Mudou em sub-projeto 3: GETs de leitura aceitam consultor via
+    require_debriefings_or_consultor pra tela 'Briefing do Consultor'.
+    POST/DELETE continuam restritos (require_debriefings).
+    """
     list_debriefings = _debriefings_mod.list_debriefings
 
     mock_supabase.table().select().eq().eq().maybe_single().execute.return_value = MagicMock(
         data={"id": "id-c", "nome": "Lucas", "email": fake_user_consultor.email,
               "categoria": "consultor", "role": "member"}
     )
+    mock_debriefings_supabase.chain.execute.return_value = MagicMock(data=[])
+
     scope = await get_user_scope(user=fake_user_consultor)
-    with pytest.raises(HTTPException) as exc:
-        await list_debriefings(scope=scope)
-    assert exc.value.status_code == 403
+    result = await list_debriefings(scope=scope)
+    assert "debriefings" in result and "total" in result
 
 
 async def test_diretor_acessa_list_debriefings(mock_supabase, mock_debriefings_supabase, fake_user_diretor):
