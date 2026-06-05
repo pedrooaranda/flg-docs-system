@@ -19,7 +19,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from deps import get_current_user, supabase_client
+from deps import supabase_client
 from lib.auth_scope import UserScope, get_user_scope, require_principal
 from services.social import get_platform_repository, PLATAFORMAS_VALIDAS
 
@@ -524,8 +524,9 @@ async def get_historico(
     cliente_id: str,
     dias: int = 30,
     plataforma: str = "instagram",
-    user=Depends(get_current_user),
+    scope: UserScope = Depends(get_user_scope),
 ):
+    require_principal(scope)
     if dias < 1 or dias > 365:
         raise HTTPException(400, "dias deve estar entre 1 e 365")
     repo = _get_repo(plataforma, cliente_id)
@@ -542,8 +543,9 @@ async def get_posts(
     plataforma: str = "instagram",
     tipo: str = "all",
     ordenar: str = "engajamento",
-    user=Depends(get_current_user),
+    scope: UserScope = Depends(get_user_scope),
 ):
+    require_principal(scope)
     if limit > 50:
         limit = 50
     if tipo not in VALID_TIPO:
@@ -566,8 +568,9 @@ async def get_posts(
 async def get_horarios(
     cliente_id: str,
     plataforma: str = "instagram",
-    user=Depends(get_current_user),
+    scope: UserScope = Depends(get_user_scope),
 ):
+    require_principal(scope)
     repo = _get_repo(plataforma, cliente_id)
     return {"cliente_id": cliente_id, "plataforma": plataforma,
             "horarios": repo.get_horarios(cliente_id)}
@@ -580,8 +583,9 @@ async def get_demografia(
     cliente_id: str,
     tipo: str = "follower",
     plataforma: str = "instagram",
-    user=Depends(get_current_user),
+    scope: UserScope = Depends(get_user_scope),
 ):
+    require_principal(scope)
     if tipo not in ("follower", "engaged_audience"):
         raise HTTPException(400, "tipo deve ser 'follower' ou 'engaged_audience'")
     if plataforma != "instagram":
@@ -620,14 +624,15 @@ class MetricaManualInput(BaseModel):
 async def post_manual(
     cliente_id: str,
     body: MetricaManualInput,
-    user=Depends(get_current_user),
+    scope: UserScope = Depends(get_user_scope),
 ):
+    require_principal(scope)
     data_ref = body.data or str(date.today())
     payload = {
         "cliente_id": cliente_id,
         "data": data_ref,
         "plataforma": body.plataforma,
-        "inserido_por": user.email,
+        "inserido_por": scope.email,
         **{k: v for k, v in body.model_dump().items() if v is not None and k not in ("data", "plataforma")},
     }
     try:
