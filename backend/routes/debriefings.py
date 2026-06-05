@@ -32,7 +32,8 @@ from fastapi import (
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from deps import get_current_user, supabase_client
+from deps import supabase_client
+from lib.auth_scope import UserScope, get_user_scope, require_debriefings
 from services.debriefing_generator import DebriefingRequest, run_debriefing
 from services import debriefing_pdf
 
@@ -356,8 +357,9 @@ async def _parse_create_payload(request: Request) -> tuple[DebriefingCreate, Opt
 async def create_debriefing(
     request: Request,
     background_tasks: BackgroundTasks,
-    user=Depends(get_current_user),
+    scope: UserScope = Depends(get_user_scope),
 ):
+    require_debriefings(scope)
     """
     Cria um debriefing e dispara a geração em background.
     Retorna 202 Accepted com o id pro frontend abrir o SSE stream.
@@ -402,7 +404,7 @@ async def create_debriefing(
             )
 
     cliente = _load_cliente(body.cliente_id)
-    gerado_por = getattr(user, "email", "") or ""
+    gerado_por = (scope.email or "")
 
     debriefing_id = _insert_debriefing(body, gerado_por)
 
@@ -454,7 +456,8 @@ async def create_debriefing(
 
 
 @router.get("/clientes/{cliente_id}/ciclos")
-async def list_ciclos_for_cliente(cliente_id: str, user=Depends(get_current_user)):
+async def list_ciclos_for_cliente(cliente_id: str, scope: UserScope = Depends(get_user_scope)):
+    require_debriefings(scope)
     """
     Retorna os ciclos disponíveis no Drive pra um cliente, ordenados cronologicamente.
 
@@ -511,8 +514,9 @@ async def list_ciclos_for_cliente(cliente_id: str, user=Depends(get_current_user
 @router.get("")
 async def list_debriefings(
     cliente_id: Optional[str] = Query(None),
-    user=Depends(get_current_user),
+    scope: UserScope = Depends(get_user_scope),
 ):
+    require_debriefings(scope)
     """Lista debriefings, opcionalmente filtrados por cliente. Mais recentes primeiro."""
     q = _supabase.table("debriefings").select("*").order("gerado_at", desc=True)
     if cliente_id:
@@ -522,7 +526,8 @@ async def list_debriefings(
 
 
 @router.get("/{debriefing_id}")
-async def get_debriefing(debriefing_id: str, user=Depends(get_current_user)):
+async def get_debriefing(debriefing_id: str, scope: UserScope = Depends(get_user_scope)):
+    require_debriefings(scope)
     """Detalhe completo de um debriefing (inclui markdown_content)."""
     result = _supabase.table("debriefings").select("*").eq("id", debriefing_id).single().execute()
     if not result.data:
@@ -531,7 +536,8 @@ async def get_debriefing(debriefing_id: str, user=Depends(get_current_user)):
 
 
 @router.get("/{debriefing_id}/stream")
-async def stream_debriefing(debriefing_id: str, user=Depends(get_current_user)):
+async def stream_debriefing(debriefing_id: str, scope: UserScope = Depends(get_user_scope)):
+    require_debriefings(scope)
     """
     SSE com progresso ao vivo. Cliente se inscreve, recebe eventos das fases até 'done'.
     Cada evento é uma linha "data: {json}\\n\\n".
@@ -569,7 +575,8 @@ async def stream_debriefing(debriefing_id: str, user=Depends(get_current_user)):
 
 
 @router.get("/{debriefing_id}/pdf")
-async def download_pdf(debriefing_id: str, user=Depends(get_current_user)):
+async def download_pdf(debriefing_id: str, scope: UserScope = Depends(get_user_scope)):
+    require_debriefings(scope)
     """
     Retorna URL assinada pro PDF no Supabase Storage (válida ~1h).
     Phase 4: implementação real.
