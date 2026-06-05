@@ -51,6 +51,9 @@ const DebriefingsHome    = lazy(() => import('./components/Debriefings/Debriefin
 const ClienteHub         = lazy(() => import('./components/Debriefings/ClienteHub'))
 const DebriefingViewer   = lazy(() => import('./components/Debriefings/Viewer'))
 
+// Sub-projeto 3 Briefing do Consultor
+const BriefingConsultor   = lazy(() => import('./components/BriefingConsultor'))
+
 // Resolve qual componente renderizar baseado em ?plataforma= da URL.
 // Mesma rota (ex: /metricas/:id/posts) serve Instagram E LinkedIn — distingue por query param.
 function RouteByPlatform({ ig, li, yt, tt, fallback }) {
@@ -122,6 +125,7 @@ export default function App() {
             <Route path="/clientes/novo" element={<NovoCliente />} />
             <Route path="/clientes/:clientId" element={<PerfilCliente />} />
             <Route path="/clientes/:clientId/encontro/:encontroNum" element={<PreparacaoEncontro />} />
+            <Route path="/clientes/:id/briefing-consultor" element={<BriefingConsultor />} />
 
             {/* Métricas — sub-rotas por aba (Geral / Posts / Reels / Stories) */}
             <Route path="/metricas" element={<Metricas session={session} />}>
