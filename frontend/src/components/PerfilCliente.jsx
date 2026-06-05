@@ -10,7 +10,7 @@ import { Spinner, PageSpinner } from './ui/Spinner'
 import { useToast } from '../lib/toast'
 import { formatDate, progressPercent, cn } from '../lib/utils'
 import { useAutoSave, AutoSaveIndicator } from '../hooks/useAutoSave.jsx'
-import DebriefingsHub from './Debriefings'
+import { useUserScope } from '../hooks/useUserScope'
 
 const CAMPOS_PERFIL = [
   { key: 'tom_de_voz',          label: 'Tom de Voz' },
@@ -224,7 +224,9 @@ function NotasTab({ clientId }) {
 
 export default function PerfilCliente() {
   const { clientId } = useParams()
+  const navigate = useNavigate()
   const toast = useToast()
+  const { canSeeDebriefings } = useUserScope()
   const [cliente, setCliente] = useState(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(null)
@@ -295,6 +297,21 @@ export default function PerfilCliente() {
                       ClickUp
                     </a>
                   )}
+                  {canSeeDebriefings && (
+                    <button
+                      onClick={() => navigate(`/debriefings/cliente/${cliente.id}`)}
+                      className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors"
+                      style={{
+                        color: '#C9A84C',
+                        background: 'rgba(201,168,76,0.10)',
+                        borderColor: 'rgba(201,168,76,0.30)',
+                      }}
+                      title="Abrir Debriefings deste cliente"
+                    >
+                      <FileText size={11} />
+                      Debriefings
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
@@ -329,7 +346,6 @@ export default function PerfilCliente() {
             { value: 'notas',        label: 'Notas' },
             { value: 'jornada',      label: 'Jornada' },
             { value: 'documentos',   label: 'Documentos' },
-            { value: 'debriefings',  label: 'Debriefings' },
           ].map(tab => (
             <Tabs.Trigger
               key={tab.value}
@@ -410,10 +426,6 @@ export default function PerfilCliente() {
             </div>
           </div>
           <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={handleFileChange} />
-        </Tabs.Content>
-
-        <Tabs.Content value="debriefings">
-          <DebriefingsHub />
         </Tabs.Content>
       </Tabs.Root>
     </motion.div>
