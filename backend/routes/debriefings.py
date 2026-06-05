@@ -359,7 +359,6 @@ async def create_debriefing(
     background_tasks: BackgroundTasks,
     scope: UserScope = Depends(get_user_scope),
 ):
-    require_debriefings(scope)
     """
     Cria um debriefing e dispara a geração em background.
     Retorna 202 Accepted com o id pro frontend abrir o SSE stream.
@@ -370,6 +369,7 @@ async def create_debriefing(
       - multipart/form-data: campos como form fields + opcional `file`
         (PDF/DOCX/MD/TXT, max 5MB) com a perspectiva extraída via Docling.
     """
+    require_debriefings(scope)
     body, uploaded_file = await _parse_create_payload(request)
 
     if body.periodo_fim < body.periodo_inicio:
@@ -457,7 +457,6 @@ async def create_debriefing(
 
 @router.get("/clientes/{cliente_id}/ciclos")
 async def list_ciclos_for_cliente(cliente_id: str, scope: UserScope = Depends(get_user_scope)):
-    require_debriefings(scope)
     """
     Retorna os ciclos disponíveis no Drive pra um cliente, ordenados cronologicamente.
 
@@ -468,6 +467,7 @@ async def list_ciclos_for_cliente(cliente_id: str, scope: UserScope = Depends(ge
     Se cliente não tem CICLO|* subfolders (padrão "novo"), retorna lista
     com 1 elemento marcado como ciclo único.
     """
+    require_debriefings(scope)
     cliente = _load_cliente(cliente_id)
     cliente_nome = cliente.get("nome", "")
 
@@ -516,8 +516,8 @@ async def list_debriefings(
     cliente_id: Optional[str] = Query(None),
     scope: UserScope = Depends(get_user_scope),
 ):
-    require_debriefings(scope)
     """Lista debriefings, opcionalmente filtrados por cliente. Mais recentes primeiro."""
+    require_debriefings(scope)
     q = _supabase.table("debriefings").select("*").order("gerado_at", desc=True)
     if cliente_id:
         q = q.eq("cliente_id", cliente_id)
@@ -527,8 +527,8 @@ async def list_debriefings(
 
 @router.get("/{debriefing_id}")
 async def get_debriefing(debriefing_id: str, scope: UserScope = Depends(get_user_scope)):
-    require_debriefings(scope)
     """Detalhe completo de um debriefing (inclui markdown_content)."""
+    require_debriefings(scope)
     result = _supabase.table("debriefings").select("*").eq("id", debriefing_id).single().execute()
     if not result.data:
         raise HTTPException(404, "Debriefing não encontrado")
@@ -537,11 +537,11 @@ async def get_debriefing(debriefing_id: str, scope: UserScope = Depends(get_user
 
 @router.get("/{debriefing_id}/stream")
 async def stream_debriefing(debriefing_id: str, scope: UserScope = Depends(get_user_scope)):
-    require_debriefings(scope)
     """
     SSE com progresso ao vivo. Cliente se inscreve, recebe eventos das fases até 'done'.
     Cada evento é uma linha "data: {json}\\n\\n".
     """
+    require_debriefings(scope)
     queue = _event_queues.get(debriefing_id)
     if queue is None:
         # Job já terminou ou nunca existiu — devolve estado final em um evento
@@ -576,11 +576,11 @@ async def stream_debriefing(debriefing_id: str, scope: UserScope = Depends(get_u
 
 @router.get("/{debriefing_id}/pdf")
 async def download_pdf(debriefing_id: str, scope: UserScope = Depends(get_user_scope)):
-    require_debriefings(scope)
     """
     Retorna URL assinada pro PDF no Supabase Storage (válida ~1h).
     Phase 4: implementação real.
     """
+    require_debriefings(scope)
     row = _supabase.table("debriefings").select("pdf_storage_path,status").eq(
         "id", debriefing_id
     ).single().execute()
