@@ -25,6 +25,7 @@ import { TIERS, INPUT_CLASS } from './shared/constants'
 const TABS = [
   { key: 'consultores', label: 'Consultores', categoria: 'consultor' },
   { key: 'diretores',   label: 'Diretores',   categoria: 'diretor' },
+  { key: 'comerciais',  label: 'Comerciais',  categoria: 'comercial' },
 ]
 
 export default function Colaboradores({ session }) {
