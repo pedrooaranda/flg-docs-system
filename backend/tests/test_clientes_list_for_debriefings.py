@@ -9,10 +9,8 @@ Regra:
   - Owner passa
   - Consultor recebe 403 (canSeeDebriefings=False)
 """
-import os
-import sys
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from fastapi import HTTPException
 
 from lib.auth_scope import UserScope
@@ -60,6 +58,17 @@ async def test_diretor_passa(mock_main_supabase):
     from main import list_clientes_for_debriefings
     scope = _make_scope("diretor", "member")
     fake_data = [{"id": "c1", "nome": "X", "empresa": "Y"}]
+    mock_main_supabase.table.return_value.select.return_value.is_.return_value.order.return_value.execute.return_value = MagicMock(data=fake_data)
+    result = await list_clientes_for_debriefings(scope=scope)
+    assert result == fake_data
+
+
+@pytest.mark.asyncio
+async def test_owner_passa(mock_main_supabase):
+    """Owner sem categoria (categoria=None) passa pelo gate via is_owner short-circuit."""
+    from main import list_clientes_for_debriefings
+    scope = _make_scope(None, "owner")
+    fake_data = [{"id": "c1", "nome": "Z", "empresa": "W"}]
     mock_main_supabase.table.return_value.select.return_value.is_.return_value.order.return_value.execute.return_value = MagicMock(data=fake_data)
     result = await list_clientes_for_debriefings(scope=scope)
     assert result == fake_data
