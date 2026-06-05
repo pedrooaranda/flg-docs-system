@@ -4,7 +4,7 @@
  * Lista histórico (Ciclo 1, 2, 3...) + botão "Novo debriefing" que abre modal.
  * Cards mostram status (gerando / pronto / falhou), data, consultor responsável.
  *
- * Click num debriefing pronto → /clientes/:id/debriefings/:debriefingId (viewer).
+ * Click num debriefing pronto → /debriefings/cliente/:id/:debriefingId (viewer).
  * Click num "gerando" → modal de progresso SSE.
  */
 
@@ -138,7 +138,7 @@ function DebriefingCard({ debriefing, onClick }) {
 }
 
 export default function DebriefingsHub() {
-  const { clientId } = useParams()
+  const { id: clientId } = useParams()
   const navigate = useNavigate()
   const { clientes } = useApp()
   const cliente = clientes?.find(c => c.id === clientId)
@@ -181,7 +181,7 @@ export default function DebriefingsHub() {
     if (debriefing.status === 'gerando') {
       setStreamingId(debriefing.id)
     } else {
-      navigate(`/clientes/${clientId}/debriefings/${debriefing.id}`)
+      navigate(`/debriefings/cliente/${clientId}/${debriefing.id}`)
     }
   }
 

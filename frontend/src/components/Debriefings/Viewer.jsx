@@ -100,7 +100,7 @@ function renderMarkdown(md) {
 }
 
 export default function DebriefingViewer() {
-  const { clientId, debriefingId } = useParams()
+  const { id: clientId, debriefingId } = useParams()
   const navigate = useNavigate()
   const [debriefing, setDebriefing] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -156,7 +156,7 @@ export default function DebriefingViewer() {
       {/* Breadcrumb */}
       <button
         type="button"
-        onClick={() => navigate(`/clientes/${clientId}/debriefings`)}
+        onClick={() => navigate(`/debriefings/cliente/${clientId}`)}
         className="inline-flex items-center gap-1.5 text-xs text-white/45 hover:text-gold-mid transition-colors cursor-pointer"
       >
         <ArrowLeft size={11} /> Histórico de Debriefings
