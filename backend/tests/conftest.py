@@ -127,7 +127,7 @@ def _ensure_stubs():
         "routes.uploads", "routes.metricas", "routes.conexoes", "routes.notas",
         "routes.admin_clickup", "routes.instagram_oauth", "routes.colaboradores",
         "routes.encontros_intelecto", "routes.reunioes", "routes.apresentar",
-        "routes.meta_callbacks", "routes.debriefings",
+        "routes.meta_callbacks", "routes.debriefings", "routes.briefings_consultor",
         # routes.me NÃO é stubado aqui — é um módulo real importado por test_me_scope.py
     ]
     for _mod_name in _internal_mods:
