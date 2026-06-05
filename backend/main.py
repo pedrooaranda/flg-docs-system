@@ -40,7 +40,7 @@ from routes.apresentar import router as apresentar_router
 from routes.meta_callbacks import router as meta_callbacks_router
 from routes.debriefings import router as debriefings_router
 from routes import me as me_router_module
-from lib.auth_scope import UserScope, get_user_scope, require_principal
+from lib.auth_scope import UserScope, get_user_scope, require_principal, require_debriefings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("flg")
@@ -442,6 +442,32 @@ async def list_clientes_basic(scope: UserScope = Depends(get_user_scope)):
     Filtra archived_at IS NULL pra evitar poluir UI com ex-clientes.
     """
     require_principal(scope)
+    result = (
+        _supabase.table("clientes")
+        .select("id, nome, empresa")
+        .is_("archived_at", "null")
+        .order("nome")
+        .execute()
+    )
+    return result.data
+
+
+@app.get("/clientes/list-for-debriefings")
+async def list_clientes_for_debriefings(scope: UserScope = Depends(get_user_scope)):
+    """
+    Lista enxuta de clientes (id, nome, empresa) pra home /debriefings.
+
+    Caso de uso: comercial loga em /debriefings/login → cai em /debriefings →
+    precisa ver grid de clientes pra escolher um e abrir o hub.
+
+    Bloqueado pra categoria='consultor' (sistema principal, sem acesso ao
+    subsistema de Debriefings).
+
+    Filtra archived_at IS NULL.
+
+    Sub-projeto 4 vai refinar com filtro Encerrado/Renovado + status briefing.
+    """
+    require_debriefings(scope)
     result = (
         _supabase.table("clientes")
         .select("id, nome, empresa")
