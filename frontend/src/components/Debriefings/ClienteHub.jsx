@@ -19,6 +19,7 @@ import { api } from '../../lib/api'
 import { useApp } from '../../contexts/AppContext'
 import NovoDebriefingModal from './NovoDebriefingModal'
 import StreamPanel from './StreamPanel'
+import BriefingPercepcoesCard from './BriefingPercepcoesCard'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -235,6 +236,9 @@ export default function DebriefingsHub() {
           onCancel={() => setStreamingId(null)}
         />
       )}
+
+      {/* Percepções dos consultores — insumo pra debriefing */}
+      <BriefingPercepcoesCard clienteId={clientId} />
 
       {/* Lista */}
       {loading ? (
