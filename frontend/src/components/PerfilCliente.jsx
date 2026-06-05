@@ -300,16 +300,17 @@ export default function PerfilCliente() {
                   {canSeeDebriefings && (
                     <button
                       onClick={() => navigate(`/debriefings/cliente/${cliente.id}`)}
-                      className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors"
+                      className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border transition-all hover:scale-[1.02]"
                       style={{
-                        color: '#C9A84C',
-                        background: 'rgba(201,168,76,0.10)',
-                        borderColor: 'rgba(201,168,76,0.30)',
+                        color: '#0a0a0a',
+                        background: 'linear-gradient(135deg, #D4B85E 0%, #C9A84C 100%)',
+                        borderColor: 'rgba(201,168,76,0.50)',
+                        boxShadow: '0 2px 12px rgba(201,168,76,0.25)',
                       }}
                       title="Abrir Debriefings deste cliente"
                     >
-                      <FileText size={11} />
-                      Debriefings
+                      <FileText size={15} />
+                      Abrir Debriefings
                     </button>
                   )}
                 </div>
