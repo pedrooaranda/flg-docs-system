@@ -1,35 +1,21 @@
 /**
  * Dashboard do FLG Comercial (/debriefings).
  *
- * Mostra SÓ clientes com status ClickUp ENCERRADO ou RENOVADO — esses são os
- * que demandam debriefing oficial (ciclo terminou). Status puxado direto do
- * ClickUp pelo endpoint /clientes/dashboard-comercial (cache 5min no backend).
+ * Mostra SÓ clientes com status ClickUp RENOVADO — esses são os que demandam
+ * debriefing oficial pra renovação. Status puxado direto do ClickUp pelo
+ * endpoint /clientes/dashboard-comercial (cache 5min no backend).
  *
  * Cada card tem: badge de status colorido, nome+empresa, consultor responsável,
- * contador de percepções dos consultores já preenchidas. Filtros pill no topo.
+ * contador de percepções dos consultores já preenchidas.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Users, ChevronRight, FileText, Check, Filter,
+  Users, ChevronRight, FileText, Check,
   RefreshCw, AlertCircle, Building2, User,
 } from 'lucide-react'
 import { api } from '../../lib/api'
-
-const FILTERS = [
-  { key: 'all',       label: 'Todos' },
-  { key: 'renovado',  label: 'Renovados' },
-  { key: 'encerrado', label: 'Encerrados' },
-]
-
-// Mapeia o status ClickUp pra uma chave canônica usada nos filtros.
-function classifyStatus(raw) {
-  const s = (raw || '').toLowerCase()
-  if (s.includes('renovado')) return 'renovado'
-  if (s.includes('encerrado')) return 'encerrado'
-  return 'other'
-}
 
 function StatusBadge({ raw, color }) {
   const tone = color || '#888'
@@ -139,7 +125,6 @@ function CardSkeleton() {
 export default function DebriefingsHome() {
   const [clientes, setClientes] = useState(null)
   const [error, setError] = useState(null)
-  const [filter, setFilter] = useState('all')
   const [refreshing, setRefreshing] = useState(false)
   const navigate = useNavigate()
 
@@ -163,22 +148,17 @@ export default function DebriefingsHome() {
   }
 
   const counts = useMemo(() => {
-    const c = { all: 0, renovado: 0, encerrado: 0, briefings: 0 }
+    let total = 0
+    let briefings = 0
+    let comPercepcao = 0
     for (const cl of (clientes || [])) {
-      c.all += 1
-      const kind = classifyStatus(cl.clickup_status)
-      if (kind === 'renovado') c.renovado += 1
-      else if (kind === 'encerrado') c.encerrado += 1
-      c.briefings += (cl.briefings_count || 0)
+      total += 1
+      const b = cl.briefings_count || 0
+      briefings += b
+      if (b > 0) comPercepcao += 1
     }
-    return c
+    return { total, briefings, comPercepcao, semPercepcao: total - comPercepcao }
   }, [clientes])
-
-  const visible = useMemo(() => {
-    if (!clientes) return null
-    if (filter === 'all') return clientes
-    return clientes.filter(c => classifyStatus(c.clickup_status) === filter)
-  }, [clientes, filter])
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
@@ -188,9 +168,9 @@ export default function DebriefingsHome() {
           <p className="text-[10px] tracking-[0.25em] uppercase font-bold mb-2" style={{ color: '#C9A84C' }}>
             FLG Comercial
           </p>
-          <h1 className="font-display text-3xl font-bold text-white">Clientes em renovação</h1>
+          <h1 className="font-display text-3xl font-bold text-white">Clientes a renovar</h1>
           <p className="text-white/45 text-sm mt-1">
-            Clientes com status ClickUp <span className="text-white/65">Renovado</span> ou <span className="text-white/65">Encerrado</span>.
+            Clientes com status ClickUp <span className="text-white/65">Renovado</span>.
             Use as percepções dos consultores como insumo pro debriefing.
           </p>
         </div>
@@ -206,34 +186,11 @@ export default function DebriefingsHome() {
 
       {/* Métricas */}
       {clientes && clientes.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <MetricChip icon={Users}    value={counts.all}        label="Total"      tone="#C9A84C" />
-          <MetricChip icon={Check}    value={counts.renovado}   label="Renovados"  tone="#34D399" />
-          <MetricChip icon={AlertCircle} value={counts.encerrado} label="Encerrados" tone="#F87171" />
-          <MetricChip icon={FileText} value={counts.briefings}  label="Percepções" tone="#60A5FA" />
-        </div>
-      )}
-
-      {/* Filtros */}
-      {clientes && clientes.length > 0 && (
-        <div className="flex items-center gap-2 mb-6 flex-wrap">
-          <Filter size={13} className="text-white/35" />
-          {FILTERS.map(f => {
-            const active = filter === f.key
-            const count =
-              f.key === 'all' ? counts.all
-                : f.key === 'renovado' ? counts.renovado
-                  : counts.encerrado
-            return (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key)}
-                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${active ? 'border-[#C9A84C]/50 text-[#C9A84C] bg-[#C9A84C]/10' : 'border-white/10 text-white/55 hover:text-white/85 hover:border-white/25'}`}
-              >
-                {f.label} <span className="opacity-60 ml-1">{count}</span>
-              </button>
-            )
-          })}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+          <MetricChip icon={Users}    value={counts.total}        label="Total"            tone="#C9A84C" />
+          <MetricChip icon={Check}    value={counts.comPercepcao} label="Com percepção"    tone="#34D399" />
+          <MetricChip icon={AlertCircle} value={counts.semPercepcao} label="Sem percepção" tone="#F87171" />
+          <MetricChip icon={FileText} value={counts.briefings}    label="Percepções tot."  tone="#60A5FA" />
         </div>
       )}
 
@@ -246,18 +203,16 @@ export default function DebriefingsHome() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
         </div>
-      ) : visible.length === 0 ? (
+      ) : clientes.length === 0 ? (
         <div className="card-flg p-12 text-center">
           <Users size={32} className="mx-auto text-white/20 mb-3" />
           <p className="text-white/55 text-sm">
-            {clientes.length === 0
-              ? 'Nenhum cliente com status Renovado ou Encerrado no ClickUp.'
-              : `Nenhum cliente no filtro "${FILTERS.find(f => f.key === filter)?.label}".`}
+            Nenhum cliente com status Renovado no ClickUp.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {visible.map(c => (
+          {clientes.map(c => (
             <ClienteCard key={c.id} cliente={c} onClick={() => navigate(`/debriefings/cliente/${c.id}`)} />
           ))}
         </div>

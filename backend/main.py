@@ -491,23 +491,38 @@ _CLICKUP_CACHE_TTL_SEC = 300
 async def dashboard_comercial(scope: UserScope = Depends(get_user_scope)):
     """
     Dashboard do FLG Comercial — só clientes com status ClickUp
-    ENCERRADO ou RENOVADO. Esses são os que demandam debriefing oficial
-    (ciclo terminou).
+    RENOVADO. Esses são os que demandam debriefing oficial pra renovação.
 
     Puxa status NATIVO direto do ClickUp (1 chamada paginada da lista
-    principal de clientes). Cache em memória 5 min. Junta com clientes
-    do DB que têm clickup_task_id. Conta briefings_consultor preenchidos.
+    principal de clientes). Cache em memória 5 min.
 
-    Retorno:
+    Match com tabela clientes em 2 caminhos (em ordem):
+      1. clickup_task_id exato (clientes já sincronizados)
+      2. nome normalizado (clientes criados manualmente / sem task_id)
+
+    A normalização tira espaços, acentos e separadores e baixa pra
+    minúsculas — bate "Leonardo Souza" (DB) com "LEONARDOSOUZA | CICLO01"
+    (ClickUp) via prefixo, ou só "LEONARDOSOUZA" via igualdade.
+
+    Conta briefings_consultor preenchidos por cliente. Retorno:
       [{id, nome, empresa, consultor_responsavel, clickup_status,
         clickup_status_color, briefings_count}]
     """
+    import re
     import time
+    import unicodedata
     from tools.clickup_tools import list_all_tasks
 
     require_debriefings(scope)
 
     LIST_CLIENTES_BS = "901315392942"
+
+    def _norm(s: str) -> str:
+        if not s:
+            return ""
+        s = unicodedata.normalize("NFD", s)
+        s = "".join(c for c in s if not unicodedata.combining(c))
+        return re.sub(r"[\s\-_.|\[\]]+", "", s.lower())
 
     now = time.time()
     if (
@@ -515,49 +530,70 @@ async def dashboard_comercial(scope: UserScope = Depends(get_user_scope)):
         or now - _CLICKUP_CACHE["fetched_at"] > _CLICKUP_CACHE_TTL_SEC
     ):
         tasks = list_all_tasks(LIST_CLIENTES_BS)
-        # Monta dict {task_id: (status_raw_lower, status_raw, status_color)}.
-        # Ignora subtarefas (task.parent != None) — só interessam as tasks
-        # principais que representam o cliente em si.
-        by_task = {}
+        # Lista de (task_id, nome_normalizado, prefix_normalizado, status_raw, status_color).
+        # prefix = parte antes de "|" (ex: "LEONARDOSOUZA | CICLO01" → "LEONARDOSOUZA")
+        # pra bater com nomes do banco que não têm "| CICLON".
+        # Ignora subtarefas (task.parent != None).
+        catalog = []
         for t in tasks:
             if t.get("parent"):
                 continue
             tid = t.get("id")
+            raw_name = (t.get("name") or "").strip()
             st = (t.get("status") or {})
-            raw = (st.get("status") or "").strip()
+            raw_status = (st.get("status") or "").strip()
             color = st.get("color") or "#888"
-            if tid and raw:
-                by_task[tid] = (raw.lower(), raw, color)
-        _CLICKUP_CACHE["data"] = by_task
+            if not (tid and raw_status):
+                continue
+            prefix = raw_name.split("|")[0].strip() if "|" in raw_name else raw_name
+            catalog.append({
+                "task_id": tid,
+                "name_norm": _norm(raw_name),
+                "prefix_norm": _norm(prefix),
+                "status": raw_status,
+                "status_lower": raw_status.lower(),
+                "color": color,
+            })
+        _CLICKUP_CACHE["data"] = catalog
         _CLICKUP_CACHE["fetched_at"] = now
 
-    by_task = _CLICKUP_CACHE["data"]
+    catalog = _CLICKUP_CACHE["data"]
 
-    # Filtra task_ids cujo status é encerrado ou renovado
-    eligible_task_ids = [
-        tid for tid, (lower, _, _) in by_task.items()
-        if "encerrado" in lower or "renovado" in lower
-    ]
-
-    if not eligible_task_ids:
+    # Filtra tasks elegíveis (só renovado)
+    eligible = [t for t in catalog if "renovado" in t["status_lower"]]
+    if not eligible:
         return []
 
-    # Busca clientes que batem com esses task_ids
+    # Carrega clientes ativos do banco em 1 query
     clientes_res = (
         _supabase.table("clientes")
         .select("id, nome, empresa, consultor_responsavel, clickup_task_id")
-        .in_("clickup_task_id", eligible_task_ids)
         .is_("archived_at", "null")
-        .order("nome")
         .execute()
     )
     clientes = clientes_res.data or []
-
     if not clientes:
         return []
 
-    # Conta briefings_consultor por cliente (1 query, group_by no app)
-    cliente_ids = [c["id"] for c in clientes]
+    # Indices pra match O(1)
+    by_task_id = {c["clickup_task_id"]: c for c in clientes if c.get("clickup_task_id")}
+    by_name_norm = {_norm(c.get("nome") or ""): c for c in clientes if c.get("nome")}
+
+    # Faz match em 2 passos pra cada task elegível
+    matched: dict = {}  # cliente_id → (cliente, status, color)
+    for t in eligible:
+        c = by_task_id.get(t["task_id"])
+        if not c:
+            c = by_name_norm.get(t["name_norm"]) or by_name_norm.get(t["prefix_norm"])
+        if c:
+            matched.setdefault(c["id"], (c, t["status"], t["color"]))
+
+    if not matched:
+        return []
+
+    cliente_ids = list(matched.keys())
+
+    # Conta briefings_consultor por cliente
     briefings_res = (
         _supabase.table("briefings_consultor")
         .select("cliente_id")
@@ -570,20 +606,19 @@ async def dashboard_comercial(scope: UserScope = Depends(get_user_scope)):
         if cid:
             briefings_count[cid] = briefings_count.get(cid, 0) + 1
 
-    # Monta resposta enriquecida
+    # Monta resposta ordenada por nome
     result = []
-    for c in clientes:
-        lower, raw, color = by_task.get(c["clickup_task_id"], ("", "", "#888"))
+    for cid, (c, status, color) in matched.items():
         result.append({
             "id": c["id"],
             "nome": c["nome"],
             "empresa": c.get("empresa"),
             "consultor_responsavel": c.get("consultor_responsavel"),
-            "clickup_status": raw,
+            "clickup_status": status,
             "clickup_status_color": color,
-            "briefings_count": briefings_count.get(c["id"], 0),
+            "briefings_count": briefings_count.get(cid, 0),
         })
-
+    result.sort(key=lambda x: (x.get("nome") or "").lower())
     return result
 
 
