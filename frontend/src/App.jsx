@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase'
 import { ToastProvider } from './lib/toast'
 import { AppProvider } from './contexts/AppContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { UserScopeProvider } from './contexts/UserScopeContext'
 import Login from './components/Login'
 import PasswordChangeRequired from './components/auth/PasswordChangeRequired'
 import { PageSpinner } from './components/ui/Spinner'
@@ -93,6 +94,7 @@ export default function App() {
   return (
     <ThemeProvider>
     <AppProvider session={session}>
+    <UserScopeProvider>
     <ToastProvider>
       <BrowserRouter>
         <Routes>
@@ -186,6 +188,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </ToastProvider>
+    </UserScopeProvider>
     </AppProvider>
     </ThemeProvider>
   )
