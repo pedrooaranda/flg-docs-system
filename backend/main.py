@@ -511,7 +511,7 @@ async def dashboard_comercial(scope: UserScope = Depends(get_user_scope)):
     import re
     import time
     import unicodedata
-    from tools.clickup_tools import list_all_tasks
+    from tools.clickup_tools import list_all_tasks, _get_users_field_name
 
     require_debriefings(scope)
 
@@ -546,6 +546,13 @@ async def dashboard_comercial(scope: UserScope = Depends(get_user_scope)):
             if not (tid and raw_status):
                 continue
             prefix = raw_name.split("|")[0].strip() if "|" in raw_name else raw_name
+            # Consultor vem do custom field "Consultor" no ClickUp (autoritativo).
+            # Fallback pro assignees se custom field não tiver.
+            consultor = _get_users_field_name(t, "Consultor")
+            if not consultor:
+                assignees = t.get("assignees", [])
+                if assignees:
+                    consultor = assignees[0].get("username") or ""
             catalog.append({
                 "task_id": tid,
                 "name_norm": _norm(raw_name),
@@ -553,6 +560,7 @@ async def dashboard_comercial(scope: UserScope = Depends(get_user_scope)):
                 "status": raw_status,
                 "status_lower": raw_status.lower(),
                 "color": color,
+                "consultor": consultor or None,
             })
         _CLICKUP_CACHE["data"] = catalog
         _CLICKUP_CACHE["fetched_at"] = now
@@ -580,13 +588,13 @@ async def dashboard_comercial(scope: UserScope = Depends(get_user_scope)):
     by_name_norm = {_norm(c.get("nome") or ""): c for c in clientes if c.get("nome")}
 
     # Faz match em 2 passos pra cada task elegível
-    matched: dict = {}  # cliente_id → (cliente, status, color)
+    matched: dict = {}  # cliente_id → (cliente, status, color, consultor)
     for t in eligible:
         c = by_task_id.get(t["task_id"])
         if not c:
             c = by_name_norm.get(t["name_norm"]) or by_name_norm.get(t["prefix_norm"])
         if c:
-            matched.setdefault(c["id"], (c, t["status"], t["color"]))
+            matched.setdefault(c["id"], (c, t["status"], t["color"], t.get("consultor")))
 
     if not matched:
         return []
@@ -606,14 +614,15 @@ async def dashboard_comercial(scope: UserScope = Depends(get_user_scope)):
         if cid:
             briefings_count[cid] = briefings_count.get(cid, 0) + 1
 
-    # Monta resposta ordenada por nome
+    # Monta resposta ordenada por nome. Consultor vem do ClickUp (autoritativo);
+    # fallback pro banco se ClickUp não tiver atribuído.
     result = []
-    for cid, (c, status, color) in matched.items():
+    for cid, (c, status, color, consultor_clickup) in matched.items():
         result.append({
             "id": c["id"],
             "nome": c["nome"],
             "empresa": c.get("empresa"),
-            "consultor_responsavel": c.get("consultor_responsavel"),
+            "consultor_responsavel": consultor_clickup or c.get("consultor_responsavel"),
             "clickup_status": status,
             "clickup_status_color": color,
             "briefings_count": briefings_count.get(cid, 0),
