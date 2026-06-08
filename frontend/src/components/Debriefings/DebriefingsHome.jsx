@@ -1,68 +1,264 @@
-import { useEffect, useState } from 'react'
+/**
+ * Dashboard do FLG Comercial (/debriefings).
+ *
+ * Mostra SÓ clientes com status ClickUp ENCERRADO ou RENOVADO — esses são os
+ * que demandam debriefing oficial (ciclo terminou). Status puxado direto do
+ * ClickUp pelo endpoint /clientes/dashboard-comercial (cache 5min no backend).
+ *
+ * Cada card tem: badge de status colorido, nome+empresa, consultor responsável,
+ * contador de percepções dos consultores já preenchidas. Filtros pill no topo.
+ */
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Users, ChevronRight } from 'lucide-react'
+import {
+  Users, ChevronRight, FileText, Check, Filter,
+  RefreshCw, AlertCircle, Building2, User,
+} from 'lucide-react'
 import { api } from '../../lib/api'
+
+const FILTERS = [
+  { key: 'all',       label: 'Todos' },
+  { key: 'renovado',  label: 'Renovados' },
+  { key: 'encerrado', label: 'Encerrados' },
+]
+
+// Mapeia o status ClickUp pra uma chave canônica usada nos filtros.
+function classifyStatus(raw) {
+  const s = (raw || '').toLowerCase()
+  if (s.includes('renovado')) return 'renovado'
+  if (s.includes('encerrado')) return 'encerrado'
+  return 'other'
+}
+
+function StatusBadge({ raw, color }) {
+  const tone = color || '#888'
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-full uppercase"
+      style={{
+        color: tone,
+        background: `${tone}1A`,
+        border: `1px solid ${tone}55`,
+      }}
+    >
+      {raw}
+    </span>
+  )
+}
+
+function MetricChip({ icon: Icon, value, label, tone }) {
+  return (
+    <div
+      className="flex items-center gap-2 px-3 py-2 rounded-lg border"
+      style={{
+        background: 'rgba(255,255,255,0.025)',
+        borderColor: 'rgba(255,255,255,0.06)',
+      }}
+    >
+      <div
+        className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
+        style={{ background: `${tone}1A`, color: tone }}
+      >
+        <Icon size={14} />
+      </div>
+      <div className="min-w-0">
+        <div className="text-lg font-bold text-white leading-none">{value}</div>
+        <div className="text-[10px] uppercase tracking-wider text-white/40 mt-0.5">{label}</div>
+      </div>
+    </div>
+  )
+}
+
+function ClienteCard({ cliente, onClick }) {
+  const briefings = cliente.briefings_count || 0
+  const hasBriefings = briefings > 0
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      onClick={onClick}
+      className="card-flg p-5 text-left transition-all hover:scale-[1.01] hover:border-[#C9A84C]/40 group block w-full"
+    >
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-white font-semibold truncate text-base">{cliente.nome}</h3>
+          {cliente.empresa && (
+            <div className="flex items-center gap-1.5 mt-0.5 text-white/45 text-xs truncate">
+              <Building2 size={11} className="flex-shrink-0" />
+              <span className="truncate">{cliente.empresa}</span>
+            </div>
+          )}
+        </div>
+        <StatusBadge raw={cliente.clickup_status} color={cliente.clickup_status_color} />
+      </div>
+
+      {cliente.consultor_responsavel && (
+        <div className="flex items-center gap-1.5 mb-3 text-white/55 text-xs">
+          <User size={11} className="text-white/35" />
+          <span className="truncate">{cliente.consultor_responsavel}</span>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between pt-3 border-t border-white/5">
+        <div
+          className="flex items-center gap-1.5 text-xs"
+          style={{ color: hasBriefings ? '#34D399' : 'rgba(255,255,255,0.35)' }}
+        >
+          {hasBriefings ? <Check size={12} /> : <FileText size={12} />}
+          <span>
+            {hasBriefings
+              ? `${briefings} percepção${briefings > 1 ? 'es' : ''} preenchida${briefings > 1 ? 's' : ''}`
+              : 'Sem percepções ainda'}
+          </span>
+        </div>
+        <ChevronRight size={14} className="text-white/25 group-hover:text-[#C9A84C] transition-colors" />
+      </div>
+    </motion.button>
+  )
+}
+
+function CardSkeleton() {
+  return (
+    <div className="card-flg p-5 animate-pulse">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex-1">
+          <div className="h-4 bg-white/5 rounded w-2/3 mb-2" />
+          <div className="h-3 bg-white/5 rounded w-1/2" />
+        </div>
+        <div className="h-6 bg-white/5 rounded-full w-20" />
+      </div>
+      <div className="h-3 bg-white/5 rounded w-1/3 mb-3" />
+      <div className="pt-3 border-t border-white/5">
+        <div className="h-3 bg-white/5 rounded w-2/5" />
+      </div>
+    </div>
+  )
+}
 
 export default function DebriefingsHome() {
   const [clientes, setClientes] = useState(null)
   const [error, setError] = useState(null)
+  const [filter, setFilter] = useState('all')
+  const [refreshing, setRefreshing] = useState(false)
   const navigate = useNavigate()
 
-  useEffect(() => {
-    let cancelled = false
-    api('/clientes/list-for-debriefings')
-      .then(data => { if (!cancelled) setClientes(data || []) })
-      .catch(err => { if (!cancelled) setError(err?.message || 'Falha ao carregar clientes') })
-    return () => { cancelled = true }
-  }, [])
-
-  if (error) {
-    return (
-      <div className="max-w-5xl mx-auto px-6 py-12">
-        <div className="text-center text-red-400 text-sm">{error}</div>
-      </div>
-    )
+  async function load() {
+    setError(null)
+    try {
+      const data = await api('/clientes/dashboard-comercial')
+      setClientes(data || [])
+    } catch (err) {
+      setError(err?.message || 'Falha ao carregar clientes')
+      setClientes([])
+    }
   }
 
+  useEffect(() => { load() }, [])
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    await load()
+    setTimeout(() => setRefreshing(false), 400)
+  }
+
+  const counts = useMemo(() => {
+    const c = { all: 0, renovado: 0, encerrado: 0, briefings: 0 }
+    for (const cl of (clientes || [])) {
+      c.all += 1
+      const kind = classifyStatus(cl.clickup_status)
+      if (kind === 'renovado') c.renovado += 1
+      else if (kind === 'encerrado') c.encerrado += 1
+      c.briefings += (cl.briefings_count || 0)
+    }
+    return c
+  }, [clientes])
+
+  const visible = useMemo(() => {
+    if (!clientes) return null
+    if (filter === 'all') return clientes
+    return clientes.filter(c => classifyStatus(c.clickup_status) === filter)
+  }, [clientes, filter])
+
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10">
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold text-white">Clientes</h1>
-        <p className="text-white/45 text-sm mt-1">Escolha um cliente pra acessar os debriefings</p>
+    <div className="max-w-6xl mx-auto px-6 py-8">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 mb-8 flex-wrap">
+        <div>
+          <p className="text-[10px] tracking-[0.25em] uppercase font-bold mb-2" style={{ color: '#C9A84C' }}>
+            FLG Comercial
+          </p>
+          <h1 className="font-display text-3xl font-bold text-white">Clientes em renovação</h1>
+          <p className="text-white/45 text-sm mt-1">
+            Clientes com status ClickUp <span className="text-white/65">Renovado</span> ou <span className="text-white/65">Encerrado</span>.
+            Use as percepções dos consultores como insumo pro debriefing.
+          </p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing || clientes === null}
+          className="flex items-center gap-2 text-xs text-white/55 hover:text-white/90 disabled:opacity-50 transition-colors px-3 py-2 rounded-lg border border-white/10"
+        >
+          <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+          Atualizar
+        </button>
       </div>
 
-      {clientes === null ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="card-flg p-5 animate-pulse">
-              <div className="h-5 bg-white/5 rounded w-2/3 mb-2" />
-              <div className="h-3 bg-white/5 rounded w-1/2" />
-            </div>
-          ))}
+      {/* Métricas */}
+      {clientes && clientes.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <MetricChip icon={Users}    value={counts.all}        label="Total"      tone="#C9A84C" />
+          <MetricChip icon={Check}    value={counts.renovado}   label="Renovados"  tone="#34D399" />
+          <MetricChip icon={AlertCircle} value={counts.encerrado} label="Encerrados" tone="#F87171" />
+          <MetricChip icon={FileText} value={counts.briefings}  label="Percepções" tone="#60A5FA" />
         </div>
-      ) : clientes.length === 0 ? (
+      )}
+
+      {/* Filtros */}
+      {clientes && clientes.length > 0 && (
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          <Filter size={13} className="text-white/35" />
+          {FILTERS.map(f => {
+            const active = filter === f.key
+            const count =
+              f.key === 'all' ? counts.all
+                : f.key === 'renovado' ? counts.renovado
+                  : counts.encerrado
+            return (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${active ? 'border-[#C9A84C]/50 text-[#C9A84C] bg-[#C9A84C]/10' : 'border-white/10 text-white/55 hover:text-white/85 hover:border-white/25'}`}
+              >
+                {f.label} <span className="opacity-60 ml-1">{count}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Grid */}
+      {error ? (
+        <div className="card-flg p-6 text-red-400 text-sm flex items-center gap-2">
+          <AlertCircle size={16} /> {error}
+        </div>
+      ) : clientes === null ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+        </div>
+      ) : visible.length === 0 ? (
         <div className="card-flg p-12 text-center">
           <Users size={32} className="mx-auto text-white/20 mb-3" />
-          <p className="text-white/55 text-sm">Nenhum cliente disponível no momento.</p>
+          <p className="text-white/55 text-sm">
+            {clientes.length === 0
+              ? 'Nenhum cliente com status Renovado ou Encerrado no ClickUp.'
+              : `Nenhum cliente no filtro "${FILTERS.find(f => f.key === filter)?.label}".`}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {clientes.map((c, idx) => (
-            <motion.button
-              key={c.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.03 }}
-              onClick={() => navigate(`/debriefings/cliente/${c.id}`)}
-              className="card-flg p-5 text-left hover:border-[#C9A84C]/40 transition-colors group flex items-center justify-between"
-            >
-              <div className="min-w-0 flex-1">
-                <h3 className="text-white font-semibold truncate">{c.nome}</h3>
-                <p className="text-white/45 text-xs mt-0.5 truncate">{c.empresa}</p>
-              </div>
-              <ChevronRight size={16} className="text-white/25 group-hover:text-[#C9A84C] flex-shrink-0 ml-3" />
-            </motion.button>
+          {visible.map(c => (
+            <ClienteCard key={c.id} cliente={c} onClick={() => navigate(`/debriefings/cliente/${c.id}`)} />
           ))}
         </div>
       )}

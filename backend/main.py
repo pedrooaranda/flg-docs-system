@@ -481,6 +481,108 @@ async def list_clientes_for_debriefings(scope: UserScope = Depends(get_user_scop
     return result.data
 
 
+# ─── Dashboard Comercial: clientes filtrados por status ClickUp ──────────────
+# Cache em memória (5 min) pra não bater no ClickUp a cada page load.
+_CLICKUP_CACHE: dict = {"data": None, "fetched_at": 0.0}
+_CLICKUP_CACHE_TTL_SEC = 300
+
+
+@app.get("/clientes/dashboard-comercial")
+async def dashboard_comercial(scope: UserScope = Depends(get_user_scope)):
+    """
+    Dashboard do FLG Comercial — só clientes com status ClickUp
+    ENCERRADO ou RENOVADO. Esses são os que demandam debriefing oficial
+    (ciclo terminou).
+
+    Puxa status NATIVO direto do ClickUp (1 chamada paginada da lista
+    principal de clientes). Cache em memória 5 min. Junta com clientes
+    do DB que têm clickup_task_id. Conta briefings_consultor preenchidos.
+
+    Retorno:
+      [{id, nome, empresa, consultor_responsavel, clickup_status,
+        clickup_status_color, briefings_count}]
+    """
+    import time
+    from tools.clickup_tools import list_all_tasks
+
+    require_debriefings(scope)
+
+    LIST_CLIENTES_BS = "901315392942"
+
+    now = time.time()
+    if (
+        _CLICKUP_CACHE["data"] is None
+        or now - _CLICKUP_CACHE["fetched_at"] > _CLICKUP_CACHE_TTL_SEC
+    ):
+        tasks = list_all_tasks(LIST_CLIENTES_BS)
+        # Monta dict {task_id: (status_raw_lower, status_raw, status_color)}
+        by_task = {}
+        for t in tasks:
+            tid = t.get("id")
+            st = (t.get("status") or {})
+            raw = (st.get("status") or "").strip()
+            color = st.get("color") or "#888"
+            if tid and raw:
+                by_task[tid] = (raw.lower(), raw, color)
+        _CLICKUP_CACHE["data"] = by_task
+        _CLICKUP_CACHE["fetched_at"] = now
+
+    by_task = _CLICKUP_CACHE["data"]
+
+    # Filtra task_ids cujo status é encerrado ou renovado
+    eligible_task_ids = [
+        tid for tid, (lower, _, _) in by_task.items()
+        if "encerrado" in lower or "renovado" in lower
+    ]
+
+    if not eligible_task_ids:
+        return []
+
+    # Busca clientes que batem com esses task_ids
+    clientes_res = (
+        _supabase.table("clientes")
+        .select("id, nome, empresa, consultor_responsavel, clickup_task_id")
+        .in_("clickup_task_id", eligible_task_ids)
+        .is_("archived_at", "null")
+        .order("nome")
+        .execute()
+    )
+    clientes = clientes_res.data or []
+
+    if not clientes:
+        return []
+
+    # Conta briefings_consultor por cliente (1 query, group_by no app)
+    cliente_ids = [c["id"] for c in clientes]
+    briefings_res = (
+        _supabase.table("briefings_consultor")
+        .select("cliente_id")
+        .in_("cliente_id", cliente_ids)
+        .execute()
+    )
+    briefings_count: dict = {}
+    for row in (briefings_res.data or []):
+        cid = row.get("cliente_id")
+        if cid:
+            briefings_count[cid] = briefings_count.get(cid, 0) + 1
+
+    # Monta resposta enriquecida
+    result = []
+    for c in clientes:
+        lower, raw, color = by_task.get(c["clickup_task_id"], ("", "", "#888"))
+        result.append({
+            "id": c["id"],
+            "nome": c["nome"],
+            "empresa": c.get("empresa"),
+            "consultor_responsavel": c.get("consultor_responsavel"),
+            "clickup_status": raw,
+            "clickup_status_color": color,
+            "briefings_count": briefings_count.get(c["id"], 0),
+        })
+
+    return result
+
+
 @app.get("/clientes-summary")
 async def list_clientes_summary(
     consultor_id: Optional[str] = None,
