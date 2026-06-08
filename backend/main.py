@@ -515,9 +515,13 @@ async def dashboard_comercial(scope: UserScope = Depends(get_user_scope)):
         or now - _CLICKUP_CACHE["fetched_at"] > _CLICKUP_CACHE_TTL_SEC
     ):
         tasks = list_all_tasks(LIST_CLIENTES_BS)
-        # Monta dict {task_id: (status_raw_lower, status_raw, status_color)}
+        # Monta dict {task_id: (status_raw_lower, status_raw, status_color)}.
+        # Ignora subtarefas (task.parent != None) — só interessam as tasks
+        # principais que representam o cliente em si.
         by_task = {}
         for t in tasks:
+            if t.get("parent"):
+                continue
             tid = t.get("id")
             st = (t.get("status") or {})
             raw = (st.get("status") or "").strip()
