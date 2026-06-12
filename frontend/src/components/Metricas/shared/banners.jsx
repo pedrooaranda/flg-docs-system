@@ -1,11 +1,96 @@
 import { useState, useEffect } from 'react'
-import { RefreshCw, Wifi, ExternalLink } from 'lucide-react'
+import { RefreshCw, Wifi, ExternalLink, PlugZap, AlertCircle } from 'lucide-react'
 import { api } from '../../../lib/api'
 import { GOLD } from './constants'
 import { MockDataBanner } from '../../MetricasParts'
 
-// Re-export pra outros componentes
+// Re-export pra outros componentes (deprecated — usa NaoConectadoBanner)
 export { MockDataBanner }
+
+// Banner: cliente ainda não conectou Instagram (não tem instagram_conexoes ativa).
+// Substitui a tela de métricas inteira — não mostramos KPIs, gráficos, posts.
+// "A gente é consultoria de métricas. Não pode mostrar número errado." — Pedro 2026-06-09.
+export function NaoConectadoBanner({ plataforma = 'instagram', onConectar, clienteNome }) {
+  const labels = {
+    instagram: 'Instagram',
+    linkedin: 'LinkedIn',
+    youtube: 'YouTube',
+    tiktok: 'TikTok',
+  }
+  const label = labels[plataforma] || 'esta plataforma'
+  const colors = {
+    instagram: '#E4405F',
+    linkedin: '#0A66C2',
+    youtube: '#FF0000',
+    tiktok: '#000000',
+  }
+  const accent = colors[plataforma] || GOLD
+  const canConectar = plataforma === 'instagram' && !!onConectar
+
+  return (
+    <div
+      className="rounded-2xl p-8 sm:p-12 flex flex-col items-center text-center"
+      style={{
+        background: 'var(--flg-bg-raised)',
+        border: '1px dashed var(--flg-border)',
+      }}
+    >
+      <div
+        className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+        style={{
+          background: `${accent}1A`,
+          border: `1px solid ${accent}55`,
+          color: accent,
+        }}
+      >
+        <PlugZap size={28} />
+      </div>
+
+      <p
+        className="text-[10px] tracking-[0.3em] uppercase font-bold mb-3"
+        style={{ color: accent }}
+      >
+        Cliente ainda não conectado
+      </p>
+
+      <h2 className="font-display text-2xl sm:text-3xl font-bold text-white mb-2">
+        {clienteNome ? `${clienteNome} ainda` : 'Esse cliente ainda'} não conectou o {label}
+      </h2>
+
+      <p className="text-white/55 text-sm max-w-md mb-6 leading-relaxed">
+        Pra acompanhar as métricas em tempo real, o cliente precisa autorizar o acesso ao perfil.
+        Enquanto isso, o painel fica em branco — a gente não mostra número que não é real.
+      </p>
+
+      {canConectar ? (
+        <button
+          onClick={onConectar}
+          className="flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-lg transition-all hover:scale-[1.02]"
+          style={{
+            color: '#0a0a0a',
+            background: 'linear-gradient(135deg, #D4B85E 0%, #C9A84C 100%)',
+            boxShadow: '0 2px 12px rgba(201,168,76,0.25)',
+          }}
+        >
+          <Wifi size={15} />
+          Conectar Instagram do cliente
+        </button>
+      ) : (
+        <div
+          className="flex items-center gap-2 text-xs font-medium px-4 py-2 rounded-full"
+          style={{
+            background: 'rgba(255,255,255,0.05)',
+            color: 'rgba(255,255,255,0.55)',
+            border: '1px solid rgba(255,255,255,0.10)',
+          }}
+        >
+          <AlertCircle size={12} />
+          Integração com {label} ainda não disponível
+        </div>
+      )}
+    </div>
+  )
+}
 
 // Badge: avatar + @username do IG conectado, clicável → instagram.com
 export function IGProfileBadge({ clienteId }) {

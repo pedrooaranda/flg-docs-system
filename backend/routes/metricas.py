@@ -298,7 +298,6 @@ async def get_ranking(
     scope: UserScope = Depends(get_user_scope),
 ):
     require_principal(scope)
-    repo = _get_repo(plataforma, None)
 
     # Filtra clientes por scope: consultor regular só vê os seus
     clientes_query = _supabase.table("clientes").select(
@@ -312,8 +311,8 @@ async def get_ranking(
     clientes_query = clientes_query.is_("archived_at", "null")
     clientes = clientes_query.order("nome").execute()
 
-    # Última data de post por cliente (pra calcular dias_sem_postar)
-    # Faz 1 query batch quando possível (Instagram tem tabela; outras plataformas usam mock)
+    # Última data de post por cliente (pra calcular dias_sem_postar). Só faz sentido
+    # pra Instagram — outras plataformas ainda não têm tabela de posts.
     ultimas_publicacoes = {}
     if plataforma == "instagram":
         try:
@@ -329,16 +328,56 @@ async def get_ranking(
 
     ranking = []
     for c in (clientes.data or []):
+        cliente_repo = _get_repo(plataforma, c["id"])
+        is_conn = cliente_repo.is_connected(c["id"])
+
+        # Cliente sem conexão real → entra no ranking com flag conectado=False
+        # e dados zerados. Frontend mostra "—" nas colunas numéricas. Sem mock.
+        if not is_conn:
+            ranking.append({
+                "cliente_id": c["id"],
+                "nome": c["nome"],
+                "empresa": c["empresa"],
+                "consultor": c.get("consultor_responsavel"),
+                "encontro_atual": c.get("encontro_atual", 1),
+                "conectado": False,
+                "audiencia": None,
+                "crescimento": None,
+                "crescimento_pct": None,
+                "taxa_engajamento": None,
+                "alcance_medio": None,
+                "posts_mes": None,
+                "dias_sem_postar": None,
+            })
+            continue
+
         try:
-            hist = repo.get_historico(c["id"], 30)
+            hist = cliente_repo.get_historico(c["id"], 30)
             if not hist:
+                # Conectado mas sync ainda não populou. Mostra cliente mas zerado.
+                ranking.append({
+                    "cliente_id": c["id"],
+                    "nome": c["nome"],
+                    "empresa": c["empresa"],
+                    "consultor": c.get("consultor_responsavel"),
+                    "encontro_atual": c.get("encontro_atual", 1),
+                    "conectado": True,
+                    "aguardando_sync": True,
+                    "audiencia": None,
+                    "crescimento": None,
+                    "crescimento_pct": None,
+                    "taxa_engajamento": None,
+                    "alcance_medio": None,
+                    "posts_mes": None,
+                    "dias_sem_postar": None,
+                })
                 continue
             # Audiência atual + crescimento absoluto no período
             seg_atual = hist[-1].get("seguidores") or hist[-1].get("inscritos", 0)
             seg_inicio = hist[0].get("seguidores") or hist[0].get("inscritos", 0)
             crescimento = seg_atual - seg_inicio
             crescimento_pct = round((crescimento / seg_inicio * 100), 2) if seg_inicio else 0
-            # Alcance médio do período (Instagram: alcance_total; outros: visualizacoes/visualizacoes_video)
+            # Alcance médio do período (Instagram: alcance_total)
             alcance_medio = int(_avg(hist, "alcance_total")) or int(_avg(hist, "visualizacoes")) or int(_avg(hist, "visualizacoes_video"))
             # Posts totais (cobre todas plataformas)
             posts_total = sum(
@@ -350,10 +389,8 @@ async def get_ranking(
                 (d.get("artigos_publicados") or 0)
                 for d in hist
             )
-            # Dias sem postar: real se Instagram conectado, mock determinístico caso contrário.
-            # Lista DIAS_DEMO garante distribuição rica (pelo menos 1 de cada tier
-            # CRÍTICO/CRISE/ATENÇÃO pra demonstração no all-hands).
-            DIAS_DEMO = [18, 9, 5, 2, 14, 7, 6, 1, 16, 11, 4, 0, 12, 8, 3, 0, 21, 10, 5, 2]
+            # Dias sem postar: SÓ valor real do último post; se não há posts, None.
+            # Nada de DIAS_DEMO fake — consultoria de métricas não inventa número.
             dias_sem_postar = None
             ultimo_post = ultimas_publicacoes.get(c["id"])
             if ultimo_post:
@@ -362,15 +399,13 @@ async def get_ranking(
                     dias_sem_postar = (datetime.now(timezone.utc) - last_dt).days
                 except Exception:
                     pass
-            if dias_sem_postar is None:
-                seed = sum(ord(ch) for ch in c["id"])
-                dias_sem_postar = DIAS_DEMO[seed % len(DIAS_DEMO)]
             ranking.append({
                 "cliente_id": c["id"],
                 "nome": c["nome"],
                 "empresa": c["empresa"],
                 "consultor": c.get("consultor_responsavel"),
                 "encontro_atual": c.get("encontro_atual", 1),
+                "conectado": True,
                 "audiencia": seg_atual,
                 "crescimento": crescimento,
                 "crescimento_pct": crescimento_pct,
@@ -382,7 +417,11 @@ async def get_ranking(
         except Exception:
             pass
 
-    ranking.sort(key=lambda x: x["taxa_engajamento"], reverse=True)
+    # Ordena conectados (por engajamento desc) acima dos não-conectados
+    ranking.sort(key=lambda x: (
+        0 if x.get("conectado") else 1,
+        -(x.get("taxa_engajamento") or 0),
+    ))
     return {"ranking": ranking, "total": len(ranking), "plataforma": plataforma}
 
 
@@ -412,12 +451,6 @@ async def get_overview(
     if tipo.lower() not in ("all", "feed", "reels", "story"):
         raise HTTPException(400, "tipo deve ser all, feed, reels ou story")
     repo = _get_repo(plataforma, cliente_id)
-    # Pega 2x o período pra ter janela "atual" + "anterior" pro delta_pct.
-    # Tipo só é repassado pro Live IG — Mocks ignoram via **kwargs.
-    if plataforma == "instagram":
-        historico = repo.get_historico(cliente_id, dias * 2, tipo=tipo)
-    else:
-        historico = repo.get_historico(cliente_id, dias * 2)
     connected = repo.is_connected(cliente_id)
 
     cliente_row = _supabase.table("clientes").select("nome, empresa").eq(
@@ -425,31 +458,53 @@ async def get_overview(
     ).single().execute()
     cliente_nome = cliente_row.data.get("nome", "—") if cliente_row.data else "—"
 
-    # Diagnóstico: se for IG conectado, traz última sync e último erro pra UI poder
-    # explicar quando dados ficam zerados (ex: sync rodou mas insights falharam).
+    # Cliente NÃO conectado à plataforma: devolve payload vazio com conectado=False.
+    # Frontend renderiza empty state "Cliente ainda não conectado". Decisão Pedro
+    # 2026-06-09: zero dados mock. Consultoria de métricas não pode inventar número.
+    if not connected:
+        return {
+            "cliente_id": cliente_id,
+            "cliente_nome": cliente_nome,
+            "plataforma": plataforma,
+            "periodo": {"inicio": None, "fim": None},
+            "dias_periodo": dias,
+            "tipo": tipo,
+            "conectado": False,
+            "aguardando_sync": False,
+            "kpis": {},
+            "sparklines": {},
+            "diagnostico": None,
+        }
+
+    # Pega 2x o período pra ter janela "atual" + "anterior" pro delta_pct.
+    # Tipo só é repassado pro Live IG.
+    if plataforma == "instagram":
+        historico = repo.get_historico(cliente_id, dias * 2, tipo=tipo)
+    else:
+        historico = repo.get_historico(cliente_id, dias * 2)
+
+    # Diagnóstico: traz última sync e último erro pra UI poder explicar quando
+    # dados ficam zerados (ex: sync rodou mas insights falharam).
     diagnostico = None
-    if plataforma == "instagram" and connected:
+    if plataforma == "instagram":
         diagnostico = _build_ig_diagnostico(cliente_id, historico, dias=dias)
 
     # Cliente conectado mas sync ainda não populou as tabelas — devolve overview
     # vazio com flag pro frontend mostrar estado "aguardando primeira sync".
-    # Mock sempre devolve histórico, então isso só dispara no caminho Live.
     if not historico:
-        if connected:
-            return {
-                "cliente_id": cliente_id,
-                "cliente_nome": cliente_nome,
-                "plataforma": plataforma,
-                "periodo": {"inicio": None, "fim": None},
-                "dias_periodo": dias,
-                "tipo": tipo,
-                "conectado": True,
-                "aguardando_sync": True,
-                "kpis": {},
-                "sparklines": {},
-                "diagnostico": diagnostico,
-            }
-        raise HTTPException(404, "Sem dados para este cliente")
+        return {
+            "cliente_id": cliente_id,
+            "cliente_nome": cliente_nome,
+            "plataforma": plataforma,
+            "periodo": {"inicio": None, "fim": None},
+            "dias_periodo": dias,
+            "tipo": tipo,
+            "conectado": True,
+            "aguardando_sync": True,
+            "kpis": {},
+            "sparklines": {},
+            "diagnostico": diagnostico,
+        }
 
     atual = historico[dias:]
     anterior = historico[:dias]
@@ -530,8 +585,14 @@ async def get_historico(
     if dias < 1 or dias > 365:
         raise HTTPException(400, "dias deve estar entre 1 e 365")
     repo = _get_repo(plataforma, cliente_id)
-    return {"cliente_id": cliente_id, "dias": dias, "plataforma": plataforma,
-            "dados": repo.get_historico(cliente_id, dias)}
+    connected = repo.is_connected(cliente_id)
+    return {
+        "cliente_id": cliente_id,
+        "dias": dias,
+        "plataforma": plataforma,
+        "conectado": connected,
+        "dados": repo.get_historico(cliente_id, dias) if connected else [],
+    }
 
 
 # ─── Posts ────────────────────────────────────────────────────────────────────
@@ -553,12 +614,14 @@ async def get_posts(
     if ordenar not in VALID_ORDENAR:
         raise HTTPException(400, f"ordenar deve ser um de: {sorted(VALID_ORDENAR)}")
     repo = _get_repo(plataforma, cliente_id)
+    connected = repo.is_connected(cliente_id)
     return {
         "cliente_id": cliente_id,
         "plataforma": plataforma,
         "tipo": tipo,
         "ordenar": ordenar,
-        "posts": repo.get_posts(cliente_id, limit, tipo=tipo, ordenar=ordenar),
+        "conectado": connected,
+        "posts": repo.get_posts(cliente_id, limit, tipo=tipo, ordenar=ordenar) if connected else [],
     }
 
 
@@ -572,8 +635,13 @@ async def get_horarios(
 ):
     require_principal(scope)
     repo = _get_repo(plataforma, cliente_id)
-    return {"cliente_id": cliente_id, "plataforma": plataforma,
-            "horarios": repo.get_horarios(cliente_id)}
+    connected = repo.is_connected(cliente_id)
+    return {
+        "cliente_id": cliente_id,
+        "plataforma": plataforma,
+        "conectado": connected,
+        "horarios": repo.get_horarios(cliente_id) if connected else [],
+    }
 
 
 # ─── Demografia (Instagram apenas — gênero/idade/região) ──────────────────────
@@ -591,11 +659,20 @@ async def get_demografia(
     if plataforma != "instagram":
         raise HTTPException(400, "Demografia disponível apenas para Instagram")
     repo = _get_repo(plataforma, cliente_id)
+    connected = repo.is_connected(cliente_id)
+    if not connected:
+        return {
+            "cliente_id": cliente_id,
+            "plataforma": plataforma,
+            "conectado": False,
+            "demografia": None,
+        }
     if not hasattr(repo, "get_demografia"):
         raise HTTPException(501, "Demografia não implementada para esta plataforma")
     return {
         "cliente_id": cliente_id,
         "plataforma": plataforma,
+        "conectado": True,
         "demografia": repo.get_demografia(cliente_id, tipo),
     }
 

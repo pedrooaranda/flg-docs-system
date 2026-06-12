@@ -4,7 +4,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { api } from '../../lib/api'
 import { ChartSkeleton, KpiGridSkeleton, HeatmapSkeleton, PostsGridSkeleton, DemographicsSection } from '../MetricasParts'
 import KpiCard from './shared/KpiCard'
-import { DadosZeradosBanner, AguardandoSyncBanner, MockDataBanner } from './shared/banners'
+import { DadosZeradosBanner, AguardandoSyncBanner, NaoConectadoBanner } from './shared/banners'
 import { KPIS_GERAL, KPIS_YT_GERAL, KPIS_LI_GERAL, KPIS_TT_GERAL, KPI_WEIGHT, GOLD } from './shared/constants'
 import EngagementFunnel from './shared/charts/EngagementFunnel'
 import RetentionCurve from './shared/charts/RetentionCurve'
@@ -141,6 +141,18 @@ export default function MetricasGeral() {
 
   if (!overview) return null
 
+  // Cliente não conectado à plataforma → mostra banner em tela cheia, sem KPIs/gráficos/posts.
+  // A gente não inventa número.
+  if (conectado === false) {
+    return (
+      <NaoConectadoBanner
+        plataforma={platform}
+        clienteNome={overview?.cliente_nome}
+        onConectar={platform === 'instagram' ? () => navigate(`/clientes/${clienteId}`) : null}
+      />
+    )
+  }
+
   return (
     <>
       {aguardandoSync && (
@@ -149,9 +161,6 @@ export default function MetricasGeral() {
 
       {!aguardandoSync && (
         <>
-          {!conectado && (
-            <MockDataBanner onConectar={() => navigate('/admin')} />
-          )}
           {mostrarDiagnostico && (
             <DadosZeradosBanner
               diagnostico={diagnostico}

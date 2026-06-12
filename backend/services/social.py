@@ -9,7 +9,6 @@ Factory: get_platform_repository(plataforma, cliente_id) → retorna o mock corr
 
 import hashlib
 import logging
-import os
 import random
 from abc import ABC, abstractmethod
 from datetime import date, timedelta
@@ -464,32 +463,51 @@ class MockTikTokRepository(BaseMockRepository):
         return self._base_horarios(cliente_id)
 
 
+# ─── UnconnectedRepository ───────────────────────────────────────────────────
+# Substitui todos os mocks. Quando cliente não tem conexão real à plataforma,
+# o backend NÃO inventa dados — sinaliza "não conectado" e o frontend mostra
+# empty state. Decisão Pedro 2026-06-09: "tira tudo que é mock, deixa zerado.
+# A gente é consultoria de métricas, não pode mostrar número errado."
+
+
+class UnconnectedRepository(SocialRepository):
+    """Devolve dados vazios pra qualquer cliente. Usado quando plataforma
+    não tem conexão ativa — frontend usa is_connected=False pra renderizar
+    empty state com mensagem 'Cliente ainda não conectado'."""
+
+    def __init__(self, plataforma: str):
+        self.plataforma = plataforma
+
+    def is_connected(self, cliente_id: str) -> bool:
+        return False
+
+    def get_historico(self, cliente_id: str, dias: int = 30, **kwargs) -> list:
+        return []
+
+    def get_posts(self, cliente_id: str, limit: int = 12, **kwargs) -> list:
+        return []
+
+    def get_horarios(self, cliente_id: str, **kwargs) -> list:
+        return []
+
+
 # ─── Factory ─────────────────────────────────────────────────────────────────
-
-_REPOS = {
-    "instagram": MockInstagramRepository,
-    "linkedin": MockLinkedInRepository,
-    "youtube": MockYouTubeRepository,
-    "tiktok": MockTikTokRepository,
-}
-
 
 def get_platform_repository(plataforma: str = "instagram", cliente_id: str = None) -> SocialRepository:
     """
-    Retorna repositório real (lê das tabelas sincronizadas) quando o cliente tem
-    conexão OAuth ativa para a plataforma. Caso contrário, retorna mock.
-    Override forçado: USE_INSTAGRAM_MOCK=true sempre retorna mock.
-    """
-    import os
+    Retorna repositório REAL pra plataforma. Nunca devolve dados mock.
 
-    cls = _REPOS.get(plataforma)
-    if not cls:
+    - Instagram: se cliente tem `instagram_conexoes` ativa → LiveInstagramRepository
+                  (lê tabelas populadas pelo sync diário). Senão → UnconnectedRepository.
+    - LinkedIn / YouTube / TikTok: sem OAuth integrado ainda → UnconnectedRepository
+                  sempre. Quando integrar, adicionar branch igual ao Instagram aqui.
+
+    Decisão Pedro 2026-06-09: zero tolerância a dados inventados. Cliente sem
+    conexão real → dashboard mostra "não conectado", não números mock.
+    """
+    if plataforma not in PLATAFORMAS_VALIDAS:
         raise ValueError(f"Plataforma inválida: {plataforma}. Use: {', '.join(PLATAFORMAS_VALIDAS)}")
 
-    if os.getenv("USE_INSTAGRAM_MOCK", "false").lower() == "true":
-        return cls()
-
-    # Para Instagram, checa se há conexão ativa e retorna LiveInstagramRepository
     if plataforma == "instagram" and cliente_id:
         try:
             from deps import supabase_client as sb
@@ -499,15 +517,11 @@ def get_platform_repository(plataforma: str = "instagram", cliente_id: str = Non
             if r and r.data:
                 from services.instagram import LiveInstagramRepository
                 return LiveInstagramRepository(sb)
-            else:
-                logger.info(
-                    f"get_platform_repository: cliente={cliente_id} sem conexão ativa "
-                    f"em instagram_conexoes — usando MockInstagramRepository"
-                )
         except Exception as e:
             logger.warning(
                 f"get_platform_repository: falha ao consultar instagram_conexoes "
-                f"para cliente={cliente_id} — fallback Mock. Erro: {type(e).__name__}: {str(e)[:200]}"
+                f"para cliente={cliente_id}. Tratando como não conectado. "
+                f"Erro: {type(e).__name__}: {str(e)[:200]}"
             )
 
-    return cls()
+    return UnconnectedRepository(plataforma)
