@@ -253,6 +253,202 @@ async def get_status(cliente_id: str, user=Depends(get_current_user)):
     }
 
 
+# ─── Diagnóstico SGI ──────────────────────────────────────────────────────────
+# Peça do Sistema de Governança de Informação: pra QUALQUER cliente conectado,
+# faz comparação live (Meta API agora) vs banco (último snapshot) + estatísticas
+# do histórico. Detecta os modos de falha conhecidos:
+#   - Snapshots insuficientes (cliente conectado há pouco mas frontend pede 180d)
+#   - Token zumbi (válido formalmente mas Meta retorna ig_user_id diferente)
+#   - Sync travado (last_sync_at antigo + 0 deltas recentes)
+#   - Gaps grandes nos snapshots (cron quebrou em algum período)
+
+@router.get("/diagnostico/{cliente_id}")
+async def diagnostico_instagram(cliente_id: str, user=Depends(get_current_user)):
+    """
+    Retorna diagnóstico completo do estado da informação de seguidores deste
+    cliente. Útil quando consultor reporta divergência com Meta Business Suite.
+
+    Faz CHAMADA EM RUNTIME ao Meta Graph API pra comparar com o banco.
+    """
+    import httpx
+
+    # 1) Estado da conexão
+    conn_result = _supabase.table("instagram_conexoes").select(
+        "id, username, ig_user_id, fb_page_id, access_token, status, "
+        "followers_count, follows_count, media_count, "
+        "last_sync_at, last_error, token_expires_at, next_refresh_at, created_at"
+    ).eq("cliente_id", cliente_id).execute()
+
+    if not conn_result.data:
+        return {
+            "cliente_id": cliente_id,
+            "conectado": False,
+            "diagnostico": "Cliente sem conexão Instagram. Snapshots não existem porque não há sync rodando.",
+        }
+
+    conn = conn_result.data[0]
+
+    # 2) Histórico de snapshots
+    hist_result = _supabase.table("instagram_followers_historico").select(
+        "data, followers_count, delta_followers"
+    ).eq("cliente_id", cliente_id).order("data", desc=False).execute()
+    snapshots = hist_result.data or []
+
+    stats = {
+        "total_snapshots": len(snapshots),
+        "primeiro_snapshot_data": snapshots[0]["data"] if snapshots else None,
+        "primeiro_snapshot_followers": snapshots[0]["followers_count"] if snapshots else None,
+        "ultimo_snapshot_data": snapshots[-1]["data"] if snapshots else None,
+        "ultimo_snapshot_followers": snapshots[-1]["followers_count"] if snapshots else None,
+    }
+
+    # Calcula gaps entre snapshots (esperado: 1 dia entre consecutivos)
+    gaps_grandes = []  # gaps > 1 dia
+    if len(snapshots) >= 2:
+        from datetime import date as date_cls
+        for i in range(1, len(snapshots)):
+            d_prev = date_cls.fromisoformat(snapshots[i - 1]["data"])
+            d_curr = date_cls.fromisoformat(snapshots[i]["data"])
+            gap = (d_curr - d_prev).days
+            if gap > 1:
+                gaps_grandes.append({
+                    "de": snapshots[i - 1]["data"],
+                    "ate": snapshots[i]["data"],
+                    "dias": gap,
+                    "delta_followers_no_gap": (snapshots[i]["followers_count"] or 0) - (snapshots[i - 1]["followers_count"] or 0),
+                })
+    stats["gaps_grandes_count"] = len(gaps_grandes)
+    stats["gaps_grandes"] = gaps_grandes[:10]  # primeiros 10 pra não estourar payload
+
+    # Crescimento em várias janelas (do snapshot mais recente pra trás)
+    def janela_growth(dias: int):
+        if not snapshots:
+            return {"dias": dias, "available": False}
+        from datetime import date as date_cls, timedelta as td
+        target = date_cls.today() - td(days=dias)
+        # primeiro snapshot >= target
+        baseline = None
+        for s in snapshots:
+            if date_cls.fromisoformat(s["data"]) >= target:
+                baseline = s
+                break
+        if baseline is None:
+            return {"dias": dias, "available": False, "motivo": "sem snapshot no início do periodo"}
+        last = snapshots[-1]
+        return {
+            "dias": dias,
+            "available": True,
+            "baseline_data": baseline["data"],
+            "baseline_followers": baseline["followers_count"],
+            "ultimo_data": last["data"],
+            "ultimo_followers": last["followers_count"],
+            "crescimento_absoluto": (last["followers_count"] or 0) - (baseline["followers_count"] or 0),
+        }
+
+    crescimento = {
+        "ultimos_7_dias": janela_growth(7),
+        "ultimos_30_dias": janela_growth(30),
+        "ultimos_90_dias": janela_growth(90),
+        "ultimos_180_dias": janela_growth(180),
+    }
+
+    # 3) CHAMADA LIVE AO META API pra comparar
+    live_meta = None
+    drift_vs_banco = None
+    if conn.get("access_token") and conn.get("ig_user_id"):
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(
+                    f"https://graph.facebook.com/v22.0/{conn['ig_user_id']}",
+                    params={
+                        "fields": "id,username,followers_count,follows_count,media_count",
+                        "access_token": conn["access_token"],
+                    },
+                )
+                if resp.status_code == 200:
+                    live_data = resp.json()
+                    live_meta = {
+                        "ok": True,
+                        "ig_user_id_retornado": live_data.get("id"),
+                        "username_retornado": live_data.get("username"),
+                        "followers_count_live": live_data.get("followers_count"),
+                        "follows_count_live": live_data.get("follows_count"),
+                        "media_count_live": live_data.get("media_count"),
+                    }
+                    # Drift: diferença entre o que Meta diz AGORA vs último snapshot
+                    if snapshots:
+                        ultimo_db = snapshots[-1]["followers_count"]
+                        live_count = live_data.get("followers_count")
+                        if live_count is not None and ultimo_db is not None:
+                            drift_vs_banco = {
+                                "ultimo_banco": ultimo_db,
+                                "agora_meta": live_count,
+                                "drift_absoluto": live_count - ultimo_db,
+                            }
+                    # Detecta ig_user_id zumbi
+                    if live_data.get("id") and live_data.get("id") != conn.get("ig_user_id"):
+                        live_meta["alerta_ig_user_id_mudou"] = True
+                else:
+                    live_meta = {
+                        "ok": False,
+                        "http_status": resp.status_code,
+                        "error_body": resp.text[:500],
+                    }
+        except Exception as e:
+            live_meta = {"ok": False, "exception": f"{type(e).__name__}: {str(e)[:200]}"}
+
+    # 4) Veredito automático
+    veredito = []
+    if not snapshots:
+        veredito.append("CRITICO: nenhum snapshot no banco. Sync nunca rodou ou sempre falha.")
+    elif live_meta and live_meta.get("ok") and drift_vs_banco:
+        drift = drift_vs_banco["drift_absoluto"]
+        if abs(drift) > 1000:
+            veredito.append(
+                f"CRITICO: banco está {drift:+d} seguidores atrás do Meta agora. "
+                f"Sync travado ou snapshot desatualizado."
+            )
+        elif abs(drift) > 100:
+            veredito.append(f"ATENCAO: drift de {drift:+d} seguidores entre banco e Meta.")
+    if conn.get("last_error"):
+        veredito.append(f"Sync com último erro: {str(conn.get('last_error'))[:200]}")
+    if stats["total_snapshots"] < 7:
+        veredito.append(
+            f"ATENCAO: só {stats['total_snapshots']} snapshots no banco. "
+            f"Crescimento em janelas > {stats['total_snapshots']} dias subestimado por design."
+        )
+    if stats["gaps_grandes_count"] > 0:
+        veredito.append(
+            f"ATENCAO: {stats['gaps_grandes_count']} gaps maiores que 1 dia entre snapshots. "
+            f"Sync com falhas intermitentes."
+        )
+    if not veredito:
+        veredito.append("OK: estado coerente entre banco e Meta API, sem gaps grandes.")
+
+    return {
+        "cliente_id": cliente_id,
+        "conectado": (conn.get("status") or "") == "ativo",
+        "conexao": {
+            "id": conn["id"],
+            "username": conn.get("username"),
+            "ig_user_id_no_banco": conn.get("ig_user_id"),
+            "fb_page_id": conn.get("fb_page_id"),
+            "status": conn.get("status"),
+            "last_sync_at": conn.get("last_sync_at"),
+            "last_error": conn.get("last_error"),
+            "token_expires_at": conn.get("token_expires_at"),
+            "next_refresh_at": conn.get("next_refresh_at"),
+            "created_at": conn.get("created_at"),
+            "followers_count_no_banco": conn.get("followers_count"),
+        },
+        "snapshots_stats": stats,
+        "crescimento_por_janela": crescimento,
+        "live_meta": live_meta,
+        "drift_vs_banco": drift_vs_banco,
+        "veredito": veredito,
+    }
+
+
 # ─── Desconectar ──────────────────────────────────────────────────────────────
 
 @router.post("/disconnect/{cliente_id}")
