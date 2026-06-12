@@ -21,19 +21,24 @@ import { CATEGORIAS } from './shared/constants'
 export default function RankingClientes({ ranking, loading }) {
   const navigate = useNavigate()
 
-  // Maximums pra normalizar mini-bars
+  // Só rankeia clientes conectados — não-conectados ficam num bloco separado
+  // pra não distorcer médias e máximos com dados nulos.
+  const conectados = useMemo(() => ranking.filter(r => r.conectado !== false), [ranking])
+  const naoConectados = useMemo(() => ranking.filter(r => r.conectado === false), [ranking])
+
+  // Maximums pra normalizar mini-bars (só conectados)
   const max = useMemo(() => {
-    return ranking.reduce((acc, r) => ({
+    return conectados.reduce((acc, r) => ({
       eng: Math.max(acc.eng, r.taxa_engajamento || 0),
       aud: Math.max(acc.aud, r.audiencia || 0),
       posts: Math.max(acc.posts, r.posts_mes || 0),
     }), { eng: 0, aud: 0, posts: 0 })
-  }, [ranking])
+  }, [conectados])
 
-  // Agregar por consultor (funcionário do mês) — client-side legado.
+  // Agregar por consultor (funcionário do mês) — só conta clientes conectados.
   const consultores = useMemo(() => {
     const byCons = {}
-    ranking.forEach(r => {
+    conectados.forEach(r => {
       const nome = r.consultor || 'Sem consultor'
       if (!byCons[nome]) byCons[nome] = { nome, clientes: [], engSoma: 0, audTotal: 0 }
       byCons[nome].clientes.push(r)
@@ -51,10 +56,10 @@ export default function RankingClientes({ ranking, loading }) {
       .sort((a, b) => b.engMedio - a.engMedio)
       .slice(0, 4)
       .map((c, i) => ({ ...c, rank: i }))
-  }, [ranking])
+  }, [conectados])
 
-  const top3 = ranking.slice(0, 3)
-  const resto = ranking.slice(3)
+  const top3 = conectados.slice(0, 3)
+  const resto = conectados.slice(3)
 
   if (loading) {
     return <p className="text-white/40 text-sm">Carregando ranking…</p>
@@ -71,36 +76,14 @@ export default function RankingClientes({ ranking, loading }) {
   }
 
   // ─── Atenção Master: clientes em crise (>= 4 dias sem postar) ───────────────
-  // Lógica original mantida 100% — promoção visual de exemplos pros 3 tiers.
-  let emCrise = ranking
-    .filter(r => (r.dias_sem_postar || 0) >= 4)
+  // SÓ clientes conectados com dado REAL de dias_sem_postar. Removida a lógica
+  // que injetava "demos" pra preencher os 3 tiers (CRÍTICO/CRISE/ATENÇÃO) — isso
+  // mostrava cliente em crise que não estava em crise. Pedro 2026-06-09:
+  // "consultoria de métricas não pode inventar número".
+  const emCrise = conectados
+    .filter(r => typeof r.dias_sem_postar === 'number' && r.dias_sem_postar >= 4)
     .sort((a, b) => (b.dias_sem_postar || 0) - (a.dias_sem_postar || 0))
-
-  const hasCritical = emCrise.some(r => r.dias_sem_postar >= 14)
-  const hasHigh = emCrise.some(r => r.dias_sem_postar >= 7 && r.dias_sem_postar < 14)
-  const hasMed = emCrise.some(r => r.dias_sem_postar >= 4 && r.dias_sem_postar < 7)
-
-  if (!hasCritical || !hasHigh || !hasMed) {
-    const oks = ranking.filter(r => (r.dias_sem_postar || 0) < 4)
-    let oksIdx = 0
-    const pickNext = () => oks[oksIdx++ % Math.max(oks.length, 1)]
-    const demos = []
-    if (!hasCritical && oks.length > 0) {
-      const c = pickNext()
-      if (c) demos.push({ ...c, dias_sem_postar: 18, _demo: true })
-    }
-    if (!hasHigh && oks.length > 0) {
-      const c = pickNext()
-      if (c) demos.push({ ...c, dias_sem_postar: 9, _demo: true })
-    }
-    if (!hasMed && oks.length > 0) {
-      const c = pickNext()
-      if (c) demos.push({ ...c, dias_sem_postar: 5, _demo: true })
-    }
-    emCrise = [...emCrise, ...demos].sort((a, b) => (b.dias_sem_postar || 0) - (a.dias_sem_postar || 0))
-  }
-
-  emCrise = emCrise.slice(0, 8)
+    .slice(0, 8)
 
   const counts = {
     critical: emCrise.filter(r => r.dias_sem_postar >= 14).length,

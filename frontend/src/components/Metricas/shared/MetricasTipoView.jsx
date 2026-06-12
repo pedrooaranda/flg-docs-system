@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { KpiGridSkeleton, PostsGridSkeleton, PostsTable, ViewToggle } from '../../MetricasParts'
 import KpiCard from './KpiCard'
 import PostCard from './PostCard'
 import SortDropdown from './SortDropdown'
 import { KPI_WEIGHT } from './constants'
 import { useTipoMetricas } from './useTipoMetricas'
+import { NaoConectadoBanner } from './banners'
 
 function SectionTitle({ children }) {
   return <h2 className="text-sm font-semibold text-white/60 uppercase tracking-widest mb-3">{children}</h2>
@@ -35,12 +37,13 @@ export default function MetricasTipoView({
   orderOptions,
   defaultOrdenar = 'engajamento',
 }) {
-  const { periodo, platform, platConfig, loading, overview, posts, ordenar, setOrdenar } = useTipoMetricas({
+  const { clienteId, periodo, platform, platConfig, loading, overview, posts, ordenar, setOrdenar } = useTipoMetricas({
     tipoBackend,
     tipoFiltroPostFE,
     defaultOrdenar,
   })
   const [postsView, setPostsView] = useState('cards')
+  const navigate = useNavigate()
 
   if (loading) {
     return (
@@ -51,6 +54,17 @@ export default function MetricasTipoView({
     )
   }
   if (!overview) return null
+
+  // Cliente não conectado → banner em tela cheia, sem KPIs/posts.
+  if (overview.conectado === false) {
+    return (
+      <NaoConectadoBanner
+        plataforma={platform}
+        clienteNome={overview.cliente_nome}
+        onConectar={platform === 'instagram' ? () => navigate(`/clientes/${clienteId}`) : null}
+      />
+    )
+  }
 
   const kpis = overview.kpis
   const winner = kpisDef.reduce((best, d) => {
